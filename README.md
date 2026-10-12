@@ -1,7 +1,7 @@
 <h1 align="center">EndlessWave</h1>
 
 <p align="center">
-  A tray player for the endless DJ radio <a href="https://github.com/vm86/yamusic-radio">yamusic-radio</a>:<br>
+  A tray player for the endless DJ radio:<br>
   tracks from Yandex Music or your own folder, beat-matched and blended into one continuous mix.
 </p>
 
@@ -13,12 +13,11 @@
 
 ## What is it
 
-**yamusic-radio** takes tracks from a Yandex Music station (or from a folder of music files), matches
+**EndlessWave** takes tracks from a Yandex Music station (or from a folder of music files), matches
 their tempo, swaps the bass and mids at the joins and streams the result as one endless mix with no
-gaps. On its own it is a service without a window. **EndlessWave** gives it an interface:
+gaps. It plays the mix and shows what plays, what comes next and how the blends go:
 
-- it starts the service for you and stops it with itself, so there is nothing to set up in a terminal;
-- it plays the mix (MP3 or lossless FLAC) and shows what plays, what comes next and how the blends go;
+- it plays the mix (MP3 or lossless FLAC) through the system's audio output;
 - it lives in the tray and answers to the media keys and the system's Now Playing (Control Center on
   macOS, MPRIS on Linux);
 - it runs on **macOS** (Apple Silicon) and **Linux** (x86_64), in light or dark mode as the system has it.
@@ -113,6 +112,10 @@ instance), the app says so and plays with the browser for that listening.
 
 On macOS, **Appearance** can hide the Dock icon and the app's menu: the player then lives in the menu bar
 only, and the window opens from the tray icon.
+
+**Updates**: the app looks for a new version of itself twice a day and shows a card with a **Download**
+button (it opens the page of the release). **Check now** (or *Check for Updates…* in the app menu on macOS)
+asks at once.
 
 ## Using it
 

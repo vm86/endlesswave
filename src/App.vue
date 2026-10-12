@@ -10,6 +10,7 @@ import Playlist from "./components/Playlist.vue";
 import SettingsPanel from "./components/SettingsPanel.vue";
 import { copyText } from "./clipboard";
 import { useRadio } from "./composables/useRadio";
+import { useUpdate } from "./composables/useUpdate";
 
 const TABS = [
   { id: "list", label: "Playlist" },
@@ -37,6 +38,7 @@ async function copy(text: string, what = "Code") {
 const help = ref(false);
 const prefs = ref(false);
 useDock();
+const { release, checking, status: updateStatus, check: checkUpdate, download, dismiss } = useUpdate();
 const { setEngine, starting, engine, activeEngine, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
 const left = computed(() => (queue.value?.next ?? []).reduce((sum, t) => sum + t.duration_seconds, 0));
 const flipFormat = () => (format.value = format.value === "mp3" ? "flac" : "mp3");
@@ -87,6 +89,7 @@ const actions: Record<string, () => void> = {
   },
   help: () => (help.value = !help.value),
   settings: () => (prefs.value = !prefs.value),
+  update: () => void checkUpdate(true).then(() => hud(updateStatus.value)),
   ...Object.fromEntries(TABS.map((t, i) => [`tab-${i + 1}`, () => (tab.value = t.id)])),
 };
 
@@ -196,6 +199,16 @@ onUnmounted(() => {
         <span v-else>Waiting for Yandex…</span>
       </div>
 
+      <Transition name="fade">
+        <div v-if="release" class="auth update">
+          <span>EndlessWave <b>{{ release.version }}</b> is available</span>
+          <span class="actions">
+            <button class="btn-accent" @click="download">Download</button>
+            <button class="btn-quiet" title="Not now" @click="dismiss">Later</button>
+          </span>
+        </div>
+      </Transition>
+
       <div class="seg" role="tablist">
         <button v-for="(t, i) in TABS" :key="t.id" :class="{ on: tab === t.id }" :title="`${t.label}  (⌘${i + 1})`"
           @click="tab = t.id">{{ t.label }}</button>
@@ -231,7 +244,7 @@ onUnmounted(() => {
         <div v-if="prefs" class="sheet-wrap top" @click.self="prefs = false">
           <div class="sheet prefs">
             <h3>Settings</h3>
-            <SettingsPanel :engine="engine" :active="activeEngine" @engine="setEngine" />
+            <SettingsPanel :engine="engine" :active="activeEngine" :checking="checking" :update-status="updateStatus" @engine="setEngine" @check-update="checkUpdate(true)" />
             <div class="done"><button class="btn-accent" @click="prefs = false">Done</button></div>
           </div>
         </div>

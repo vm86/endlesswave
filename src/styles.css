@@ -229,6 +229,7 @@ kbd {
 }
 .btn-quiet:hover { background: var(--control); }
 .btn-quiet:active { transform: scale(0.96); }
+.btn-quiet[disabled] { opacity: 0.45; pointer-events: none; }
 
 /* A folder dragged over the window: the whole window is the place to drop it. */
 .drop {

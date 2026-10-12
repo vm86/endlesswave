@@ -50,8 +50,10 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         .build();
     // The settings of a Mac app are in its menu, with the shortcut of the system: ⌘,
     let settings = item("settings", "Settings…", Some("CmdOrCtrl+,"))?;
+    let updates = item("update", "Check for Updates…", None)?;
     let app_menu = SubmenuBuilder::new(app, "EndlessWave")
         .about(Some(about))
+        .item(&updates)
         .separator()
         .item(&settings)
         .separator()

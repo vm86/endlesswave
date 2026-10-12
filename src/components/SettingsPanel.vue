@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { dockIcon, hasDock } from "../composables/useDock";
 
-defineProps<{ engine: "native" | "web"; active: "native" | "web" }>();
-const emit = defineEmits<{ engine: ["native" | "web"] }>();
+defineProps<{ engine: "native" | "web"; active: "native" | "web"; checking: boolean; updateStatus: string }>();
+const emit = defineEmits<{ engine: ["native" | "web"]; checkUpdate: [] }>();
 </script>
 
 <template>
@@ -37,4 +37,12 @@ const emit = defineEmits<{ engine: ["native" | "web"] }>();
       With the menu bar only, the Dock icon and the app's menu go away; the window opens from the tray icon.
     </p>
   </template>
+
+  <div class="prefs-group">
+    <div class="prefs-row">
+      <span>Updates</span>
+      <button class="btn-quiet" :disabled="checking" @click="emit('checkUpdate')">Check now</button>
+    </div>
+  </div>
+  <p class="prefs-note">{{ updateStatus || "EndlessWave looks for a new version by itself, twice a day." }}</p>
 </template>
