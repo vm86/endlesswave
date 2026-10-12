@@ -85,7 +85,8 @@ jobs:
     name: Linux (x86_64)
     # Not the newest: the daemon and ffmpeg are built here, and they run on
     # systems that have the glibc of this one, or a newer one.
-    runs-on: ubuntu-22.04
+    # 24.04: the PipeWire of 22.04 is older than the 0.3.53 the audio crate needs.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -105,7 +106,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential pkg-config nasm curl file patchelf libatomic1 \
             libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev librsvg2-dev \
-            libssl-dev libayatana-appindicator3-dev libasound2-dev
+            libssl-dev libayatana-appindicator3-dev libasound2-dev \
+            libpipewire-0.3-dev libspa-0.2-dev clang
 
       - name: Version from the tag
         if: startsWith(github.ref, 'refs/tags/v')

@@ -93,6 +93,61 @@ fn path_with_ffmpeg_places(resources: Option<&Path>) -> std::ffi::OsString {
     std::env::join_paths(paths).unwrap_or_default()
 }
 
+/// Linux: the system's bundle of the root certificates. The Python inside the package was built
+/// elsewhere, and its OpenSSL looks for them in the places of that machine: HTTPS then fails with
+/// "unable to get local issuer certificate". Where the bundle is depends on the distribution.
+#[cfg(target_os = "linux")]
+fn ca_bundle() -> Option<&'static str> {
+    [
+        "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", // Fedora, RHEL (the file itself)
+        "/etc/pki/tls/certs/ca-bundle.crt",     // Fedora, RHEL (a link to it, may be missing)
+        "/etc/ssl/certs/ca-certificates.crt",   // Debian, Ubuntu, Arch
+        "/etc/ssl/ca-bundle.pem",               // openSUSE
+        "/etc/pki/tls/cacert.pem",              // old RHEL
+    ]
+    .into_iter()
+    .find(|path| Path::new(path).is_file())
+}
+
+/// Linux: the kernel sends the service SIGTERM when the app dies, however it dies (a crash, `kill -9`,
+/// the session closing). SIGTERM, not SIGKILL: the service then puts the settings of the station back.
+///
+/// The signal comes when the *thread* that started the child ends, not the process. A command of
+/// Tauri runs on a thread that may be gone a minute later, so the child is started from a thread
+/// of its own that lives as long as the app does.
+#[cfg(target_os = "linux")]
+fn spawn(mut command: Command) -> std::io::Result<Child> {
+    use std::os::unix::process::CommandExt;
+
+    let parent = unsafe { libc::getpid() };
+    // Safety: only async-signal-safe calls (prctl, getppid, _exit) between fork and exec.
+    unsafe {
+        command.pre_exec(move || {
+            if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM as libc::c_ulong, 0, 0, 0) != 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            // The app may have died before the call above: the signal would never come.
+            if libc::getppid() != parent {
+                libc::_exit(1);
+            }
+            Ok(())
+        });
+    }
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::Builder::new().name("radio-parent".into()).spawn(move || {
+        let _ = sender.send(command.spawn());
+        loop {
+            std::thread::park();
+        }
+    })?;
+    receiver.recv().map_err(|error| std::io::Error::other(error.to_string()))?
+}
+
+#[cfg(not(target_os = "linux"))]
+fn spawn(mut command: Command) -> std::io::Result<Child> {
+    command.spawn()
+}
+
 impl Radio {
     pub fn start(&self, resources: Option<&Path>) -> Result<(), String> {
         let port = port();
@@ -108,6 +163,13 @@ impl Radio {
         let mut command = Command::new(&bin);
         // An app started from the Finder has a short PATH: the daemon needs ffmpeg.
         command.env("PATH", path_with_ffmpeg_places(resources));
+        // The user's own SSL_CERT_FILE wins.
+        #[cfg(target_os = "linux")]
+        if std::env::var_os("SSL_CERT_FILE").is_none() {
+            if let Some(bundle) = ca_bundle() {
+                command.env("SSL_CERT_FILE", bundle);
+            }
+        }
         command
             .args(["--foreground", "--host", HOST, "--port", &port.to_string()])
             .stdin(Stdio::null())
@@ -120,8 +182,7 @@ impl Radio {
         if std::env::var_os("YAMUSIC_RADIO_DEBUG").is_some() {
             command.arg("--debug");
         }
-        let child = command
-            .spawn()
+        let child = spawn(command)
             .map_err(|error| format!("cannot start {}: {error}", bin.display()))?;
         *guard = Some(child);
         Ok(())

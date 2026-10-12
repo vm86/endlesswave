@@ -31,3 +31,9 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+# The same crate rodio plays through: with this feature it talks to PipeWire itself, and falls back to
+# ALSA where there is no PipeWire.
+cpal = { version = "0.18", features = ["pipewire"] }

@@ -36,7 +36,7 @@ and no Python.
 | **Sources** | Yandex Music and/or a local folder (`mp3`, `flac`, `m4a`, `ogg`, `opus`, `wav`...). Both can play at once |
 | **MP3 or FLAC** | A switch for the stream: MP3 at 320 kbit/s, or lossless FLAC (16 bit) |
 | **Spectrum** | The real spectrum of the mix, in time with the sound |
-| **Native audio** | The app plays the stream itself, through the system's audio output (CoreAudio, ALSA). The audio of the window is kept as a fall back |
+| **Native audio** | The app plays the stream itself, through the system's audio output (CoreAudio on macOS, PipeWire on Linux, ALSA where there is none). The audio of the window is kept as a fall back |
 | **The system** | Tray, media keys, Now Playing with the cover, keyboard shortcuts, hide to the tray |
 | **Statistics** | How many blends there were and how well tempo and key matched |
 
@@ -64,7 +64,7 @@ sudo dnf install ./yamusic-radio-player-*.x86_64.rpm
 sudo apt install ./yamusic-radio-player_*_amd64.deb
 ```
 
-The sound is played by the app itself through ALSA (it works with PulseAudio and PipeWire), so nothing
+The sound is played by the app itself through PipeWire (ALSA is the fall back where there is no PipeWire), so nothing
 else is needed. The GStreamer plugins (`gstreamer1-plugins-good` or `gstreamer1.0-plugins-good`) are for the
 fall back, the audio of the window; the package pulls them in. For the tray icon, GNOME needs the
 AppIndicator extension.
@@ -194,7 +194,7 @@ binary of the service).
 - **No tray icon on Linux.** AppIndicator is needed (in GNOME, the *AppIndicator and
   KStatusNotifierItem Support* extension). The tray menu still works, a click on the icon does not open
   the window.
-- **No sound on Linux.** The native player needs a working audio output (ALSA, PulseAudio or PipeWire). If
+- **No sound on Linux.** The native player needs a working audio output (PipeWire, or ALSA). If
   it falls back to the browser, install `gstreamer1-plugins-good` and `gstreamer1-plugins-base`.
 
 ## Development
