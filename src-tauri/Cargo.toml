@@ -1,5 +1,5 @@
 [package]
-name = "yamusic-radio-player"
+name = "endlesswave"
 version = "0.1.0"
 description = "Tray player for the yamusic-radio DJ radio"
 authors = ["vm86"]
@@ -7,7 +7,7 @@ license = "MIT"
 edition = "2024"
 
 [lib]
-name = "yamusic_radio_player_lib"
+name = "endlesswave_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

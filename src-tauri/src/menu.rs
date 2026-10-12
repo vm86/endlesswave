@@ -42,15 +42,15 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     };
 
     let about = AboutMetadataBuilder::new()
-        .name(Some("Yamusic Radio Player"))
+        .name(Some("EndlessWave"))
         .version(Some(env!("CARGO_PKG_VERSION")))
         .license(Some("MIT"))
-        .website(Some("https://github.com/vm86/yamusic-radio-player"))
-        .comments(Some("A tray player for the yamusic-radio DJ radio"))
+        .website(Some("https://github.com/vm86/endlesswave"))
+        .comments(Some("An endless DJ radio: tracks beat-matched and blended into one mix"))
         .build();
     // The settings of a Mac app are in its menu, with the shortcut of the system: ⌘,
     let settings = item("settings", "Settings…", Some("CmdOrCtrl+,"))?;
-    let app_menu = SubmenuBuilder::new(app, "Yamusic Radio")
+    let app_menu = SubmenuBuilder::new(app, "EndlessWave")
         .about(Some(about))
         .separator()
         .item(&settings)

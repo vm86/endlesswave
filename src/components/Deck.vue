@@ -18,7 +18,7 @@ const props = defineProps<{
 const volume = defineModel<number>("volume", { required: true });
 defineEmits<{ toggle: []; stop: []; next: []; refresh: []; format: [] }>();
 
-const title = computed(() => props.now?.title ?? "Yamusic Radio");
+const title = computed(() => props.now?.title ?? "EndlessWave");
 const artist = computed(() => props.now?.artists.join(", ") || (props.now ? "" : "Waiting for the first track…"));
 const tags = computed(() => {
   const n = props.now;

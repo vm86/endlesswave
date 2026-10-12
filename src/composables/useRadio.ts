@@ -249,7 +249,7 @@ export function useRadio() {
           ? new MediaMetadata({
               title: now.title,
               artist: now.artists.join(", "),
-              album: "Yamusic Radio",
+              album: "EndlessWave",
               artwork: now.cover ? [{ src: coverUrl(now.cover, 400), sizes: "400x400" }] : [],
             })
           : null;

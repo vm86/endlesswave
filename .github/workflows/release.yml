@@ -73,7 +73,7 @@ jobs:
         run: |
           version="$(python3 -c "import json;print(json.load(open('package.json'))['version'])")"
           mkdir -p pkgs
-          cp src-tauri/target/release/bundle/dmg/*.dmg "pkgs/yamusic-radio-player_${version}_aarch64.dmg"
+          cp src-tauri/target/release/bundle/dmg/*.dmg "pkgs/endlesswave_${version}_aarch64.dmg"
           git -C build/backend/src rev-parse HEAD > pkgs/backend-commit.txt
       - uses: actions/upload-artifact@v4
         with:
@@ -142,8 +142,8 @@ jobs:
         run: |
           version="$(python3 -c "import json;print(json.load(open('package.json'))['version'])")"
           mkdir -p pkgs
-          cp src-tauri/target/release/bundle/deb/*.deb "pkgs/yamusic-radio-player_${version}_amd64.deb"
-          cp src-tauri/target/release/bundle/rpm/*.rpm "pkgs/yamusic-radio-player-${version}-1.x86_64.rpm"
+          cp src-tauri/target/release/bundle/deb/*.deb "pkgs/endlesswave_${version}_amd64.deb"
+          cp src-tauri/target/release/bundle/rpm/*.rpm "pkgs/endlesswave-${version}-1.x86_64.rpm"
           git -C build/backend/src rev-parse HEAD > pkgs/backend-commit.txt
       - uses: actions/upload-artifact@v4
         with:

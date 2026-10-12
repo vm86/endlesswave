@@ -73,7 +73,7 @@ fn update_tray(app: AppHandle, state: State<TrayState>, title: String, playing: 
         let _ = items.play.set_text(if playing { "Pause" } else { "Play" });
     }
     if let Some(tray) = app.tray_by_id("main") {
-        let _ = tray.set_tooltip(Some(if title.is_empty() { "yamusic-radio" } else { &title }));
+        let _ = tray.set_tooltip(Some(if title.is_empty() { "EndlessWave" } else { &title }));
     }
 }
 
@@ -174,7 +174,7 @@ pub fn run() {
             app.manage(TrayState { now, play });
 
             let mut tray = TrayIconBuilder::with_id("main")
-                .tooltip("yamusic-radio")
+                .tooltip("EndlessWave")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id().as_ref() {

@@ -10,7 +10,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PLATFORM="${PLATFORM:-linux/amd64}"
 ENGINE="${ENGINE:-podman}"
-IMAGE="yamusic-radio-player-builder"
+IMAGE="endlesswave-builder"
 VOLUME="yamusic-build-work-${PLATFORM#linux/}"
 
 "$ENGINE" build --platform "$PLATFORM" -t "$IMAGE" -f "$ROOT/scripts/linux/Containerfile" "$ROOT/scripts/linux"

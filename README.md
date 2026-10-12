@@ -1,4 +1,4 @@
-<h1 align="center">Yamusic Radio Player</h1>
+<h1 align="center">EndlessWave</h1>
 
 <p align="center">
   A tray player for the endless DJ radio <a href="https://github.com/vm86/yamusic-radio">yamusic-radio</a>:<br>
@@ -15,7 +15,7 @@
 
 **yamusic-radio** takes tracks from a Yandex Music station (or from a folder of music files), matches
 their tempo, swaps the bass and mids at the joins and streams the result as one endless mix with no
-gaps. On its own it is a service without a window. **Yamusic Radio Player** gives it an interface:
+gaps. On its own it is a service without a window. **EndlessWave** gives it an interface:
 
 - it starts the service for you and stops it with itself, so there is nothing to set up in a terminal;
 - it plays the mix (MP3 or lossless FLAC) and shows what plays, what comes next and how the blends go;
@@ -55,13 +55,13 @@ right-click the app → "Open").
 **Fedora** (RPM):
 
 ```bash
-sudo dnf install ./yamusic-radio-player-*.x86_64.rpm
+sudo dnf install ./endlesswave-*.x86_64.rpm
 ```
 
 **Debian / Ubuntu** (DEB):
 
 ```bash
-sudo apt install ./yamusic-radio-player_*_amd64.deb
+sudo apt install ./endlesswave_*_amd64.deb
 ```
 
 The sound is played by the app itself through PipeWire (ALSA is the fall back where there is no PipeWire), so nothing
@@ -159,7 +159,7 @@ On macOS the shortcuts are in the menu bar (**Controls** and **View**), so you c
 
 ```
 ┌──────────────────────────┐   HTTP API, SSE, /stream    ┌──────────────────────────┐
-│  Yamusic Radio Player    │ ◄─────────────────────────► │  yamusic-dj (service)    │
+│  EndlessWave             │ ◄─────────────────────────► │  yamusic-dj (service)    │
 │  Tauri + Vue 3           │      127.0.0.1:18000        │  Python, the mix in numpy│
 │  window, tray, sound     │                             │  ├─ ffmpeg: MP3 and FLAC │
 └──────────────────────────┘                             │  └─ Yandex Music / folder│
@@ -187,8 +187,8 @@ binary of the service).
 
 - **No sound, the queue is empty.** The service is waiting for tracks. The log is not written by default.
   Start the app with the log on, then read it: on macOS
-  `open -n --env YAMUSIC_RADIO_LOG=1 -a "Yamusic Radio Player"`, on Linux
-  `YAMUSIC_RADIO_LOG=1 yamusic-radio-player`, and `tail -f ~/.cache/yamusic_radio.log`.
+  `open -n --env YAMUSIC_RADIO_LOG=1 -a "EndlessWave"`, on Linux
+  `YAMUSIC_RADIO_LOG=1 endlesswave`, and `tail -f ~/.cache/yamusic_radio.log`.
   `Unknown HTTPError` in it means Yandex Music does not answer or limits the requests.
 - **An old service is left after an update.** Stop it and restart the app: `pkill -f yamusic-dj`.
 - **No tray icon on Linux.** AppIndicator is needed (in GNOME, the *AppIndicator and
@@ -209,7 +209,7 @@ npm run tauri dev      # the window, with hot reload
 In development the service is taken from `../yamusic-radio/.venv/bin/yamusic-dj`, then from `PATH`;
 `YAMUSIC_DJ_BIN` sets another one. Type check: `npx vue-tsc --noEmit`.
 
-The app icon is drawn in `assets/icon.svg` (render it to `assets/icon.png`, 1024 px, then
+The app icon is drawn in `assets/icon.svg` (`python3 assets/make-icon.py`, then `python3 assets/render-icon.py` for `assets/icon.png`, then
 `npx tauri icon assets/icon.png` makes all the sizes); the menu bar icon of macOS is
 `src-tauri/icons/tray.png` (`assets/tray.svg`).
 

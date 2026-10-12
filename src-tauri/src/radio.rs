@@ -111,7 +111,7 @@ fn pid_path() -> Option<PathBuf> {
     let dir = PathBuf::from(std::env::var_os("HOME")?).join(".cache");
     fs::create_dir_all(&dir).ok()?;
     // The port is in the name: apps on other ports (YAMUSIC_RADIO_PORT) keep their own.
-    Some(dir.join(format!("yamusic-radio-player-{}.pid", port())))
+    Some(dir.join(format!("endlesswave-{}.pid", port())))
 }
 
 fn write_pid(pid: u32) {

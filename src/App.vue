@@ -167,7 +167,7 @@ onUnmounted(() => {
   <v-app>
     <v-main class="player">
       <div class="topbar" data-tauri-drag-region>
-        <div class="title" data-tauri-drag-region>Yamusic Radio</div>
+        <div class="title" data-tauri-drag-region>EndlessWave</div>
         <div class="icon-btn" title="Keyboard shortcuts  (⌘/)" @click="help = true">
           <v-icon :icon="mdiKeyboardOutline" size="18" />
         </div>

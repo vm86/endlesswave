@@ -44,8 +44,8 @@ impl Media {
     /// Needs the main thread and a running event loop: call it from `setup`.
     pub fn start(&self, app: &AppHandle) -> Result<(), String> {
         let mut controls = MediaControls::new(PlatformConfig {
-            dbus_name: "yamusic_radio_player",
-            display_name: "Yamusic Radio",
+            dbus_name: "endlesswave",
+            display_name: "EndlessWave",
             hwnd: None,
         })
         .map_err(|error| format!("{error:?}"))?;
@@ -85,7 +85,7 @@ impl Media {
             let _ = controls.set_metadata(MediaMetadata {
                 title: Some(title),
                 artist: Some(artist),
-                album: Some("Yamusic Radio"),
+                album: Some("EndlessWave"),
                 cover_url: (!cover.is_empty()).then_some(cover),
                 duration: (duration > 0.0).then(|| Duration::from_secs_f64(duration)),
             });

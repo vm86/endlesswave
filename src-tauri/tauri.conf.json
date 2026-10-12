@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Yamusic Radio Player",
+  "productName": "EndlessWave",
   "version": "0.1.0",
-  "identifier": "ru.vm86.yamusic-radio-player",
+  "identifier": "ru.vm86.endlesswave",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Yamusic Radio",
+        "title": "EndlessWave",
         "width": 440,
         "height": 620,
         "minWidth": 400,
@@ -70,6 +70,6 @@
     "category": "Music",
     "shortDescription": "Tray player for the yamusic-radio DJ radio",
     "longDescription": "Plays the endless, beat-matched DJ mix of yamusic-radio (Yandex Music or a local folder) and controls it: queue, mood, genres, sources. The radio service and ffmpeg are inside.",
-    "homepage": "https://github.com/vm86/yamusic-radio-player"
+    "homepage": "https://github.com/vm86/endlesswave"
   }
 }
