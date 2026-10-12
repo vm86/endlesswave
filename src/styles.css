@@ -259,6 +259,7 @@ kbd {
   transition: background 150ms var(--ease), box-shadow 150ms var(--ease);
 }
 .segmented button.on { background: var(--seg-on); box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.14); }
+.segmented button.wanted { box-shadow: inset 0 0 0 1px var(--accent); color: var(--accent); }
 .sheet .done { display: flex; justify-content: flex-end; margin-top: 4px; }
 .sheet-enter-active, .sheet-leave-active { transition: opacity 200ms var(--ease); }
 .sheet-enter-active .sheet, .sheet-leave-active .sheet { transition: transform 240ms var(--ease); }

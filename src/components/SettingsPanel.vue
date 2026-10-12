@@ -11,15 +11,16 @@ const emit = defineEmits<{ engine: ["native" | "web"] }>();
     <div class="prefs-row">
       <span>Player</span>
       <div class="segmented">
-        <button :class="{ on: engine === 'native' }" @click="emit('engine', 'native')">Native</button>
-        <button :class="{ on: engine === 'web' }" @click="emit('engine', 'web')">Browser</button>
+        <!-- What plays is lit; the one that was chosen but failed is outlined: a click tries it again. -->
+        <button :class="{ on: active === 'native', wanted: engine === 'native' && active !== 'native' }" @click="emit('engine', 'native')">Native</button>
+        <button :class="{ on: active === 'web', wanted: engine === 'web' && active !== 'web' }" @click="emit('engine', 'web')">Browser</button>
       </div>
     </div>
   </div>
   <p class="prefs-note">
     Native plays through the system's audio output. Browser uses the audio of the window; the app switches
     to it by itself when the native player cannot start.
-    <template v-if="engine !== active"><br /><b>Playing now: {{ active === "native" ? "native" : "browser" }}</b> (fell back).</template>
+    <template v-if="engine !== active"><br /><b>Native audio did not start: playing with the browser.</b> Press Native to try again.</template>
   </p>
 
   <template v-if="hasDock">

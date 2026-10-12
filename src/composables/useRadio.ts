@@ -65,6 +65,11 @@ export function useRadio() {
   watch(player.engine, () => {
     if (playing.value) void start();
   });
+  /** The choice of the player. Choosing the one that is chosen but fell back tries it again. */
+  function setEngine(value: "native" | "web") {
+    if (value === player.engine.value && player.active.value !== value && (playing.value || loading.value)) void start();
+    else player.engine.value = value;
+  }
 
   // The button "rebuild the queue": the answer is quick, so the spinner is held
   // a moment to be seen, and the result is told.
@@ -227,7 +232,10 @@ export function useRadio() {
     () => {
       const now = queue.value?.now;
       if (player.active.value === "native") {
-        if (session) session.metadata = null;
+        if (session) {
+          session.metadata = null;
+          session.playbackState = "none";
+        }
         if (now) {
           void invoke("media_metadata", {
             title: now.title,
@@ -316,5 +324,5 @@ export function useRadio() {
     unlisten.forEach((f) => f());
   });
 
-  return { starting, engine: player.engine, activeEngine: player.active, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
+  return { setEngine, starting, engine: player.engine, activeEngine: player.active, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
 }

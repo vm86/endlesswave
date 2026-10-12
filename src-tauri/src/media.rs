@@ -18,7 +18,26 @@ use tauri::{AppHandle, Emitter};
 #[derive(Default)]
 pub struct Media {
     controls: Mutex<Option<MediaControls>>,
+    app: Mutex<Option<AppHandle>>,
     off: AtomicBool,
+}
+
+/// Hands the events of the system to the page.
+fn attach(controls: &mut MediaControls, app: AppHandle) -> Result<(), String> {
+    controls
+        .attach(move |event| {
+            let name = match event {
+                MediaControlEvent::Toggle => "media-toggle",
+                MediaControlEvent::Play => "media-play",
+                MediaControlEvent::Pause => "media-pause",
+                MediaControlEvent::Stop => "media-stop",
+                MediaControlEvent::Next => "media-next",
+                // A live radio: there is no previous track and nothing to seek in.
+                _ => return,
+            };
+            let _ = app.emit(name, ());
+        })
+        .map_err(|error| format!("{error:?}"))
 }
 
 impl Media {
@@ -31,32 +50,30 @@ impl Media {
         })
         .map_err(|error| format!("{error:?}"))?;
 
-        let app = app.clone();
-        controls
-            .attach(move |event| {
-                let name = match event {
-                    MediaControlEvent::Toggle => "media-toggle",
-                    MediaControlEvent::Play => "media-play",
-                    MediaControlEvent::Pause => "media-pause",
-                    MediaControlEvent::Stop => "media-stop",
-                    MediaControlEvent::Next => "media-next",
-                    // A live radio: there is no previous track and nothing to seek in.
-                    _ => return,
-                };
-                let _ = app.emit(name, ());
-            })
-            .map_err(|error| format!("{error:?}"))?;
+        attach(&mut controls, app.clone())?;
+        *self.app.lock().unwrap() = Some(app.clone());
         *self.controls.lock().unwrap() = Some(controls);
         Ok(())
     }
 
-    /// Off: nothing is shown to the system by this layer (the Now Playing entry is taken away).
+    /// Off: this layer takes itself away from the system, so only the player that plays is there.
+    /// "Stopped" is not enough for that: macOS keeps the Now Playing entry (with the track) until it
+    /// is emptied, and the media keys keep going to the handlers; on Linux the player stays on D-Bus
+    /// (`playerctl` lists it) until the service ends. On: it comes back.
     pub fn set_enabled(&self, enabled: bool) {
-        self.off.store(!enabled, Ordering::SeqCst);
-        if !enabled {
-            if let Some(controls) = self.controls.lock().unwrap().as_mut() {
-                let _ = controls.set_playback(MediaPlayback::Stopped);
+        if self.off.swap(!enabled, Ordering::SeqCst) == !enabled {
+            return; // nothing changes
+        }
+        let mut guard = self.controls.lock().unwrap();
+        let Some(controls) = guard.as_mut() else { return };
+        if enabled {
+            if let Some(app) = self.app.lock().unwrap().clone() {
+                let _ = attach(controls, app);
             }
+        } else {
+            let _ = controls.set_metadata(MediaMetadata::default());
+            let _ = controls.set_playback(MediaPlayback::Stopped);
+            let _ = controls.detach();
         }
     }
 

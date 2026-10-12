@@ -37,7 +37,7 @@ async function copy(text: string, what = "Code") {
 const help = ref(false);
 const prefs = ref(false);
 useDock();
-const { starting, engine, activeEngine, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
+const { setEngine, starting, engine, activeEngine, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
 const left = computed(() => (queue.value?.next ?? []).reduce((sum, t) => sum + t.duration_seconds, 0));
 const flipFormat = () => (format.value = format.value === "mp3" ? "flac" : "mp3");
 
@@ -231,7 +231,7 @@ onUnmounted(() => {
         <div v-if="prefs" class="sheet-wrap top" @click.self="prefs = false">
           <div class="sheet prefs">
             <h3>Settings</h3>
-            <SettingsPanel :engine="engine" :active="activeEngine" @engine="engine = $event" />
+            <SettingsPanel :engine="engine" :active="activeEngine" @engine="setEngine" />
             <div class="done"><button class="btn-accent" @click="prefs = false">Done</button></div>
           </div>
         </div>
