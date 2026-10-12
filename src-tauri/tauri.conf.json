@@ -41,7 +41,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "license": "MIT",
-    "licenseFile": "../LICENSE"
+    "license": "MIT"
   }
 }

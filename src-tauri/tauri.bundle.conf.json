@@ -17,6 +17,9 @@
           "gstreamer1-plugins-good"
         ]
       }
+    },
+    "macOS": {
+      "signingIdentity": "-"
     }
   }
 }
