@@ -29,9 +29,16 @@ const STABLE: Duration = Duration::from_secs(60);
 /// So many crashes in a row and the service is given up.
 const MAX_CRASHES: u32 = 5;
 
+/// A setting of the environment: ENDLESSWAVE_<name>. The names of the app before it was renamed
+/// (YAMUSIC_RADIO_<name>, and YAMUSIC_DJ_BIN) still work.
+fn env(name: &str) -> Option<std::ffi::OsString> {
+    let old = if name == "DJ_BIN" { "YAMUSIC_DJ_BIN".to_string() } else { format!("YAMUSIC_RADIO_{name}") };
+    std::env::var_os(format!("ENDLESSWAVE_{name}")).or_else(|| std::env::var_os(old))
+}
+
 pub fn port() -> u16 {
-    std::env::var("YAMUSIC_RADIO_PORT")
-        .ok()
+    env("PORT")
+        .and_then(|value| value.into_string().ok())
         .and_then(|value| value.parse().ok())
         .unwrap_or(DEFAULT_PORT)
 }
@@ -45,10 +52,10 @@ fn is_up(port: u16) -> bool {
     TcpStream::connect_timeout(&addr, Duration::from_millis(300)).is_ok()
 }
 
-/// `YAMUSIC_DJ_BIN`, then the daemon bundled with the app, then the sibling
+/// `ENDLESSWAVE_DJ_BIN`, then the daemon bundled with the app, then the sibling
 /// checkout's venv (development), then PATH.
 fn binary(resources: Option<&Path>) -> PathBuf {
-    if let Some(path) = std::env::var_os("YAMUSIC_DJ_BIN") {
+    if let Some(path) = env("DJ_BIN") {
         return path.into();
     }
     if let Some(bundled) = resources.map(|dir| dir.join("backend").join("yamusic-dj")) {
@@ -72,10 +79,10 @@ fn log_path() -> Option<PathBuf> {
 }
 
 /// In the foreground the daemon logs to stderr. It is not kept: a file that is written all the
-/// time grows and is hardly ever read. With YAMUSIC_RADIO_LOG=1 (or YAMUSIC_RADIO_DEBUG) it goes to
+/// time grows and is hardly ever read. With ENDLESSWAVE_LOG=1 (or ENDLESSWAVE_DEBUG) it goes to
 /// `~/.cache/yamusic_radio.log`; a development build shows it in the terminal.
 fn log_target() -> Stdio {
-    let wanted = std::env::var_os("YAMUSIC_RADIO_LOG").is_some() || std::env::var_os("YAMUSIC_RADIO_DEBUG").is_some();
+    let wanted = env("LOG").is_some() || env("DEBUG").is_some();
     if wanted {
         if let Some(file) = log_path().and_then(|path| OpenOptions::new().create(true).append(true).open(path).ok()) {
             return Stdio::from(file);
@@ -110,7 +117,7 @@ fn path_with_ffmpeg_places(resources: Option<&Path>) -> std::ffi::OsString {
 fn pid_path() -> Option<PathBuf> {
     let dir = PathBuf::from(std::env::var_os("HOME")?).join(".cache");
     fs::create_dir_all(&dir).ok()?;
-    // The port is in the name: apps on other ports (YAMUSIC_RADIO_PORT) keep their own.
+    // The port is in the name: apps on other ports (ENDLESSWAVE_PORT) keep their own.
     Some(dir.join(format!("endlesswave-{}.pid", port())))
 }
 
@@ -304,11 +311,11 @@ impl Radio {
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(log);
-        // Anything else the daemon takes, e.g. YAMUSIC_RADIO_ARGS="--no-keep-tracks".
-        if let Ok(extra) = std::env::var("YAMUSIC_RADIO_ARGS") {
+        // Anything else the daemon takes, e.g. ENDLESSWAVE_ARGS="--no-keep-tracks".
+        if let Some(extra) = env("ARGS").and_then(|value| value.into_string().ok()) {
             command.args(extra.split_whitespace());
         }
-        if std::env::var_os("YAMUSIC_RADIO_DEBUG").is_some() {
+        if env("DEBUG").is_some() {
             command.arg("--debug");
         }
         let child = spawn(command)

@@ -177,18 +177,19 @@ Files of the service:
 | The Yandex Music token | `~/.config/yamusic-radio.json` |
 | The cache of the analysis, the settings | `~/.cache/yamusic-radio.db` |
 | The loaded tracks that wait for their turn | `~/.cache/yamusic-radio-tracks/` |
-| The log (only with `YAMUSIC_RADIO_LOG=1`) | `~/.cache/yamusic_radio.log` |
+| The log (only with `ENDLESSWAVE_LOG=1`) | `~/.cache/yamusic_radio.log` |
 
-Environment: `YAMUSIC_RADIO_PORT` (the port, 18000 by default), `YAMUSIC_RADIO_ARGS` (any more flags of
-the service, e.g. `--no-keep-tracks`), `YAMUSIC_RADIO_LOG=1` (write the log of the service to a file; it is not written otherwise), `YAMUSIC_RADIO_DEBUG=1` (a detailed log, to the file too), `YAMUSIC_DJ_BIN` (your own
-binary of the service).
+Environment: `ENDLESSWAVE_PORT` (the port, 18000 by default), `ENDLESSWAVE_ARGS` (any more flags of
+the service, e.g. `--no-keep-tracks`), `ENDLESSWAVE_LOG=1` (write the log of the service to a file; it is not written otherwise), `ENDLESSWAVE_DEBUG=1` (a detailed log, to the file too), `ENDLESSWAVE_DJ_BIN` (your own
+binary of the service). The names the app had before (`YAMUSIC_RADIO_PORT`, `YAMUSIC_RADIO_ARGS`, `YAMUSIC_RADIO_LOG`,
+`YAMUSIC_RADIO_DEBUG`, `YAMUSIC_DJ_BIN`) still work.
 
 ## Troubleshooting
 
 - **No sound, the queue is empty.** The service is waiting for tracks. The log is not written by default.
   Start the app with the log on, then read it: on macOS
-  `open -n --env YAMUSIC_RADIO_LOG=1 -a "EndlessWave"`, on Linux
-  `YAMUSIC_RADIO_LOG=1 endlesswave`, and `tail -f ~/.cache/yamusic_radio.log`.
+  `open -n --env ENDLESSWAVE_LOG=1 -a "EndlessWave"`, on Linux
+  `ENDLESSWAVE_LOG=1 endlesswave`, and `tail -f ~/.cache/yamusic_radio.log`.
   `Unknown HTTPError` in it means Yandex Music does not answer or limits the requests.
 - **An old service is left after an update.** Stop it and restart the app: `pkill -f yamusic-dj`.
 - **No tray icon on Linux.** AppIndicator is needed (in GNOME, the *AppIndicator and
@@ -207,7 +208,7 @@ npm run tauri dev      # the window, with hot reload
 ```
 
 In development the service is taken from `../yamusic-radio/.venv/bin/yamusic-dj`, then from `PATH`;
-`YAMUSIC_DJ_BIN` sets another one. Type check: `npx vue-tsc --noEmit`.
+`ENDLESSWAVE_DJ_BIN` sets another one. Type check: `npx vue-tsc --noEmit`.
 
 The app icon is drawn in `assets/icon.svg` (`python3 assets/make-icon.py`, then `python3 assets/render-icon.py` for `assets/icon.png`, then
 `npx tauri icon assets/icon.png` makes all the sizes); the menu bar icon of macOS is
