@@ -28,7 +28,32 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob: https:",
+        "font-src": "'self' data:",
+        "media-src": "'self' blob: http://127.0.0.1:*",
+        "connect-src": "'self' ipc: http://ipc.localhost http://127.0.0.1:*",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "form-action": "'self'",
+        "frame-src": "'none'"
+      },
+      "devCsp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob: https:",
+        "font-src": "'self' data:",
+        "media-src": "'self' blob: http://127.0.0.1:*",
+        "connect-src": "'self' ipc: http://ipc.localhost http://127.0.0.1:* ws://localhost:1420 http://localhost:1420",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "form-action": "'self'",
+        "frame-src": "'none'"
+      }
     }
   },
   "bundle": {
@@ -41,6 +66,10 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "license": "MIT"
+    "license": "MIT",
+    "category": "Music",
+    "shortDescription": "Tray player for the yamusic-radio DJ radio",
+    "longDescription": "Plays the endless, beat-matched DJ mix of yamusic-radio (Yandex Music or a local folder) and controls it: queue, mood, genres, sources. The radio service and ffmpeg are inside.",
+    "homepage": "https://github.com/vm86/yamusic-radio-player"
   }
 }

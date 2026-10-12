@@ -1,14 +1,14 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
+  "description": "What the main window may do: listen to the tray and the daemon's events, drag the window, talk to the radio on 127.0.0.1, open the sign-in page, pick a folder",
   "windows": [
     "main"
   ],
   "permissions": [
-    "core:default",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
     "core:window:allow-start-dragging",
-    "opener:default",
     {
       "identifier": "http:default",
       "allow": [
@@ -17,6 +17,14 @@
         }
       ]
     },
-    "dialog:default"
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://*"
+        }
+      ]
+    },
+    "dialog:allow-open"
   ]
 }
