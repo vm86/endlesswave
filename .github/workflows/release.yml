@@ -70,13 +70,13 @@ jobs:
       - name: Collect
         run: |
           version="$(python3 -c "import json;print(json.load(open('package.json'))['version'])")"
-          mkdir -p dist
-          cp src-tauri/target/release/bundle/dmg/*.dmg "dist/yamusic-radio-player_${version}_aarch64.dmg"
-          git -C build/backend/src rev-parse HEAD > dist/backend-commit.txt
+          mkdir -p pkgs
+          cp src-tauri/target/release/bundle/dmg/*.dmg "pkgs/yamusic-radio-player_${version}_aarch64.dmg"
+          git -C build/backend/src rev-parse HEAD > pkgs/backend-commit.txt
       - uses: actions/upload-artifact@v4
         with:
           name: macos-arm64
-          path: dist/*
+          path: pkgs/*
           if-no-files-found: error
 
   linux:
@@ -137,14 +137,14 @@ jobs:
       - name: Collect
         run: |
           version="$(python3 -c "import json;print(json.load(open('package.json'))['version'])")"
-          mkdir -p dist
-          cp src-tauri/target/release/bundle/deb/*.deb "dist/yamusic-radio-player_${version}_amd64.deb"
-          cp src-tauri/target/release/bundle/rpm/*.rpm "dist/yamusic-radio-player-${version}-1.x86_64.rpm"
-          git -C build/backend/src rev-parse HEAD > dist/backend-commit.txt
+          mkdir -p pkgs
+          cp src-tauri/target/release/bundle/deb/*.deb "pkgs/yamusic-radio-player_${version}_amd64.deb"
+          cp src-tauri/target/release/bundle/rpm/*.rpm "pkgs/yamusic-radio-player-${version}-1.x86_64.rpm"
+          git -C build/backend/src rev-parse HEAD > pkgs/backend-commit.txt
       - uses: actions/upload-artifact@v4
         with:
           name: linux-x86_64
-          path: dist/*
+          path: pkgs/*
           if-no-files-found: error
 
   release:
@@ -158,20 +158,22 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: dist
+          path: pkgs
           merge-multiple: true
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cd dist
+          cd pkgs
+          ls -la
           backend="$(cat backend-commit.txt)"
           rm backend-commit.txt
-          sha256sum * > SHA256SUMS
+          # Only the packages: no folder, nothing else that may have got here.
+          sha256sum -- *.dmg *.rpm *.deb > SHA256SUMS
           flags=()
           # v1.2.3-rc1 and the like are pre-releases.
           case "$GITHUB_REF_NAME" in *-*) flags+=(--prerelease) ;; esac
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" --generate-notes \
             --notes "Radio daemon: [vm86/yamusic-radio@${backend:0:7}](https://github.com/vm86/yamusic-radio/commit/${backend}). ffmpeg 9.0.2 and LAME 4.0 (LGPL) are inside." \
-            "${flags[@]}" *
+            "${flags[@]}" -- *.dmg *.rpm *.deb SHA256SUMS
