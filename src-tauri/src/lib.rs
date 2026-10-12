@@ -102,6 +102,32 @@ fn set_dock_visible(app: AppHandle, visible: bool) {
     let _ = (app, visible);
 }
 
+/// SIGTERM, SIGINT and SIGHUP (`kill`, Ctrl-C in a terminal, the session closing) end the app the same way
+/// "Quit" does, so the radio service is stopped and not left behind. (SIGKILL cannot be caught: the
+/// next start finds the service left by it, see `radio::reap_orphan`.)
+#[cfg(unix)]
+fn watch_signals(app: AppHandle) {
+    use signal_hook::{consts::signal::{SIGHUP, SIGINT, SIGTERM}, iterator::Signals};
+
+    let Ok(mut signals) = Signals::new([SIGTERM, SIGINT, SIGHUP]) else { return };
+    std::thread::spawn(move || {
+        if signals.forever().next().is_none() {
+            return;
+        }
+        // If the loop of the app does not get to the exit, do not hang.
+        let handle = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(15));
+            handle.state::<Radio>().stop();
+            std::process::exit(0);
+        });
+        app.exit(0);
+    });
+}
+
+#[cfg(not(unix))]
+fn watch_signals(_app: AppHandle) {}
+
 fn show_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
@@ -186,6 +212,7 @@ pub fn run() {
             }
             tray.build(app)?;
             menu::install(app.handle())?;
+            watch_signals(app.handle().clone());
             // Not fatal: without the system's controls the player still plays.
             if let Err(error) = app.state::<Media>().start(app.handle()) {
                 eprintln!("media controls are not available: {error}");

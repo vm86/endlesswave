@@ -104,6 +104,64 @@ fn path_with_ffmpeg_places(resources: Option<&Path>) -> std::ffi::OsString {
     std::env::join_paths(paths).unwrap_or_default()
 }
 
+/// The pid of the service we started is kept in a file. The app can be killed without a chance to
+/// stop it (`kill -9`, a crash; macOS has nothing like Linux's PR_SET_PDEATHSIG), and the next start
+/// finds the service that is left by this file.
+fn pid_path() -> Option<PathBuf> {
+    let dir = PathBuf::from(std::env::var_os("HOME")?).join(".cache");
+    fs::create_dir_all(&dir).ok()?;
+    // The port is in the name: apps on other ports (YAMUSIC_RADIO_PORT) keep their own.
+    Some(dir.join(format!("yamusic-radio-player-{}.pid", port())))
+}
+
+fn write_pid(pid: u32) {
+    if let Some(path) = pid_path() {
+        let _ = fs::write(path, pid.to_string());
+    }
+}
+
+fn forget_pid() {
+    if let Some(path) = pid_path() {
+        let _ = fs::remove_file(path);
+    }
+}
+
+/// Stops the service the file points to if it is still alive: SIGTERM, so it puts the settings of the
+/// station back, and SIGKILL if it does not leave in time. The pid may have been given to another
+/// process meanwhile: only a process that is a `yamusic-dj` is touched.
+#[cfg(unix)]
+fn reap_orphan() {
+    let Some(path) = pid_path() else { return };
+    let Some(pid) = fs::read_to_string(&path).ok().and_then(|text| text.trim().parse::<i32>().ok()) else {
+        return;
+    };
+    let _ = fs::remove_file(&path);
+    let alive = |pid: i32| unsafe { libc::kill(pid, 0) == 0 };
+    if pid <= 1 || !alive(pid) {
+        return;
+    }
+    let ours = Command::new("ps")
+        .args(["-p", &pid.to_string(), "-o", "command="])
+        .output()
+        .map(|output| String::from_utf8_lossy(&output.stdout).contains("yamusic-dj"))
+        .unwrap_or(false);
+    if !ours {
+        return;
+    }
+    eprintln!("stopping the radio service {pid} left by an earlier run");
+    unsafe { libc::kill(pid, libc::SIGTERM) };
+    for _ in 0..80 {
+        if !alive(pid) {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    unsafe { libc::kill(pid, libc::SIGKILL) };
+}
+
+#[cfg(not(unix))]
+fn reap_orphan() {}
+
 /// Linux: the system's bundle of the root certificates. The Python inside the package was built
 /// elsewhere, and its OpenSSL looks for them in the places of that machine: HTTPS then fails with
 /// "unable to get local issuer certificate". Where the bundle is depends on the distribution.
@@ -220,11 +278,13 @@ impl Radio {
 
     fn launch(&self, resources: Option<&Path>) -> Result<(), String> {
         let port = port();
-        if is_up(port) {
-            return Ok(());
-        }
         let mut guard = self.child.lock().unwrap();
         if guard.is_some() {
+            return Ok(());
+        }
+        // A service of an earlier run that outlived its app (the app was killed, or crashed).
+        reap_orphan();
+        if is_up(port) {
             return Ok(());
         }
         let bin = binary(resources);
@@ -253,6 +313,7 @@ impl Radio {
         }
         let child = spawn(command)
             .map_err(|error| format!("cannot start {}: {error}", bin.display()))?;
+        write_pid(child.id());
         *guard = Some(child);
         Ok(())
     }
@@ -260,6 +321,7 @@ impl Radio {
     pub fn stop(&self) {
         self.stopping.store(true, Ordering::SeqCst);
         if let Some(mut child) = self.child.lock().unwrap().take() {
+            forget_pid();
             // SIGTERM first: the daemon puts the station's settings back and
             // keeps the loaded tracks, which takes a moment.
             #[cfg(unix)]
