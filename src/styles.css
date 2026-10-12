@@ -136,7 +136,7 @@ body, .v-application { font-family: var(--font) !important; font-size: 13px; col
 
 .status { flex: none; margin-top: 8px; padding: 6px 16px 10px; font-size: 11px; color: var(--text2); display: flex; justify-content: space-between; }
 
-.auth { margin: 0 14px 10px; padding: 10px 12px; border-radius: 10px; background: var(--control); font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.auth { flex-wrap: wrap; margin: 0 14px 10px; padding: 10px 12px; border-radius: 10px; background: var(--control); font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .btn-accent { border: 0; padding: 3px 12px; border-radius: 6px; background: var(--accent); color: #fff; font: inherit; font-size: 12px; cursor: default; }
 .btn-accent:active { transform: scale(0.96); }
 
@@ -215,3 +215,17 @@ kbd {
 .row.drop-before::after { top: -1px; }
 .row.drop-end::after { bottom: -1px; }
 .list.dragging, .list.dragging * { cursor: grabbing !important; }
+
+/* The code of the sign-in: selectable, and a click copies it. */
+.code {
+  display: inline-block; padding: 1px 8px; border-radius: 6px; background: var(--control-hover); color: var(--text);
+  font: 600 13px/20px var(--mono); letter-spacing: 0.08em; user-select: text; -webkit-user-select: text; cursor: copy;
+}
+.code-line { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.auth .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn-quiet {
+  border: 0; padding: 3px 10px; border-radius: 6px; background: var(--control-hover); color: var(--text);
+  font: inherit; font-size: 12px; cursor: default; transition: background 120ms var(--ease);
+}
+.btn-quiet:hover { background: var(--control); }
+.btn-quiet:active { transform: scale(0.96); }

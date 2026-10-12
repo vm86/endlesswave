@@ -6,7 +6,7 @@ import { reactive } from "vue";
 import type { AuthInfo, Backend } from "../api";
 
 defineProps<{ auth: AuthInfo | null }>();
-const emit = defineEmits<{ toggle: [id: string, enabled: boolean]; signIn: [id: string, values: Record<string, string>] }>();
+const emit = defineEmits<{ toggle: [id: string, enabled: boolean]; signIn: [id: string, values: Record<string, string>]; copy: [text: string, what?: string] }>();
 const values = reactive<Record<string, Record<string, string>>>({});
 
 const status = (b: Backend) =>
@@ -40,7 +40,10 @@ async function chooseFolder(b: Backend) {
 
       <div v-else-if="b.enabled && !b.authorized" class="login">
         <template v-if="b.url && b.code">
-          code <b>{{ b.code }}</b> <a href="#" @click.prevent="openUrl(b.url)">open the page</a>
+          code <code class="code" title="Click to copy" @click="emit('copy', b.code)">{{ b.code }}</code>
+          <a href="#" @click.prevent="emit('copy', b.code)">copy</a> ·
+          <a href="#" @click.prevent="emit('copy', b.url, 'Link')">copy link</a> ·
+          <a href="#" @click.prevent="openUrl(b.url)">open the page</a>
         </template>
         <form v-else-if="b.fields.length" @submit.prevent="emit('signIn', b.id, values[b.id] ?? {})">
           <input v-for="f in b.fields" :key="f.name" v-model="(values[b.id] ??= {})[f.name]" :placeholder="f.label"

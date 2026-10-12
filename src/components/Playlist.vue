@@ -25,6 +25,7 @@ const emit = defineEmits<{
   play: [id: string];
   move: [id: string, position: number];
   remove: [id: string];
+  copy: [text: string, what?: string];
 }>();
 
 interface Row {
@@ -131,7 +132,7 @@ onUnmounted(stopDrag);
     <MixPanel v-else-if="tab === 'mix'" :moods="moods" :genres="genres" :language="language" @language="emit('language', $event)" @moods="emit('moods', $event)"
       @genres="emit('genres', $event)" @blocked="emit('blocked', $event)" />
     <SourcesPanel v-else-if="tab === 'sources'" :auth="auth" @toggle="(id, on) => emit('toggleBackend', id, on)"
-      @sign-in="(id, v) => emit('signIn', id, v)" />
+      @sign-in="(id, v) => emit('signIn', id, v)" @copy="(t, w) => emit('copy', t, w)" />
     <StatsPanel v-else :stats="stats" />
   </div>
 </template>

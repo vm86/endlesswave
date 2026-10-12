@@ -4,6 +4,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import Deck from "./components/Deck.vue";
 import Playlist from "./components/Playlist.vue";
+import { copyText } from "./clipboard";
 import { useRadio } from "./composables/useRadio";
 
 const TABS = [
@@ -25,6 +26,9 @@ const SHORTCUTS: Array<[string[], string]> = [
 ];
 
 const tab = ref("list");
+async function copy(text: string, what = "Code") {
+  notice.value = (await copyText(text)) ? `${what} copied` : "Could not copy";
+}
 const help = ref(false);
 const { moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
 const left = computed(() => (queue.value?.next ?? []).reduce((sum, t) => sum + t.duration_seconds, 0));
@@ -87,8 +91,15 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
 
       <div v-if="auth && !auth.authorized" class="auth">
         <template v-if="auth.url && auth.code">
-          <span>Sign in to Yandex Music: code <b>{{ auth.code }}</b></span>
-          <button class="btn-accent" @click="openUrl(auth.url)">Open</button>
+          <div class="code-line">
+            <span>Sign in to Yandex Music: enter the code</span>
+            <code class="code" title="Click to copy" @click="copy(auth.code)">{{ auth.code }}</code>
+          </div>
+          <span class="actions">
+            <button class="btn-quiet" @click="copy(auth.code)">Copy code</button>
+            <button class="btn-quiet" @click="copy(auth.url, 'Link')">Copy link</button>
+            <button class="btn-accent" @click="openUrl(auth.url)">Open</button>
+          </span>
         </template>
         <span v-else>Waiting for Yandex…</span>
       </div>
@@ -99,7 +110,7 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
       </div>
 
       <Playlist :queue="queue" :moods="queue?.moods" :language="queue?.language" :genres="genres" :auth="auth" :stats="stats" :tab="tab"
-        @play="playTrack" @move="moveTrack" @remove="removeTrack" @moods="setMoods" @language="setLanguage" @genres="setGenres" @blocked="setBlocked" @toggle-backend="setBackend" @sign-in="signIn" />
+        @play="playTrack" @move="moveTrack" @remove="removeTrack" @moods="setMoods" @language="setLanguage" @genres="setGenres" @blocked="setBlocked" @toggle-backend="setBackend" @sign-in="signIn" @copy="copy" />
 
       <div class="status">
         <span>{{ eqNote || (loading ? "Connecting…" : playing ? "Playing" : "Stopped") }}</span>
