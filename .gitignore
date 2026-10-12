@@ -1,9 +1,27 @@
-node_modules
-dist
-src-tauri/target
-src-tauri/gen
-backend
-build
-ffmpeg
-dist-linux
+# Dependencies and the frontend build
+node_modules/
+/dist/
+
+# Made by the package scripts (scripts/build-backend.sh, build-ffmpeg.sh,
+# build-linux.sh): the daemon, ffmpeg, their sources and the packages
+/backend/
+/ffmpeg/
+/build/
+/dist-linux/
+
+# Rust: src-tauri/.gitignore has /target and /gen/schemas
+/src-tauri/target/
+/src-tauri/gen/
+
+# Packages, if one lands outside dist-linux
+*.dmg
+*.rpm
+*.deb
+*.AppImage
+
+# Local files
 .DS_Store
+*.log
+.env
+.env.*
+__pycache__/
