@@ -247,42 +247,53 @@ export function useRadio() {
   watch([title, playing], () => {
     void invoke("update_tray", { title: title.value, playing: playing.value });
   });
-  // The system's Now Playing / media controls (see src-tauri/src/media.rs):
-  // what plays, and where it stands. The system counts the time on from here.
+  // The system's Now Playing (Control Center on macOS, MPRIS on Linux) and the media
+  // keys. The webview publishes the <audio> there by itself, so this is the ONE
+  // place that says what plays: a second, native player would show up twice.
+  const session = "mediaSession" in navigator ? navigator.mediaSession : null;
   watch(
     () => queue.value?.now?.track_id,
     () => {
       const now = queue.value?.now;
-      if (!now) return;
-      void invoke("media_metadata", {
-        title: now.title,
-        artist: now.artists.join(", "),
-        cover: coverUrl(now.cover, 400),
-        duration: now.duration_seconds,
-      });
+      if (!session) return;
+      session.metadata = now
+        ? new MediaMetadata({
+            title: now.title,
+            artist: now.artists.join(", "),
+            album: "Yamusic Radio",
+            artwork: now.cover ? [{ src: coverUrl(now.cover, 400), sizes: "400x400" }] : [],
+          })
+        : null;
     },
     { immediate: true },
   );
   watch(
     [playing, () => queue.value?.paused, () => queue.value?.now?.track_id],
     () => {
-      const state = !queue.value?.now ? "stopped" : playing.value && !queue.value.paused ? "playing" : "paused";
-      void invoke("media_playback", { state, progress: elapsed.value });
+      if (!session) return;
+      const now = queue.value?.now;
+      session.playbackState = !now ? "none" : playing.value && !queue.value?.paused ? "playing" : "paused";
+      try {
+        if (now) session.setPositionState({ duration: now.duration_seconds, position: Math.min(elapsed.value, now.duration_seconds), playbackRate: 1 });
+      } catch {
+        /* a position the system does not take */
+      }
     },
     { immediate: true },
   );
+  if (session) {
+    // A live radio: no previous track, nothing to seek in.
+    session.setActionHandler("play", () => playing.value || void toggle());
+    session.setActionHandler("pause", () => playing.value && void toggle());
+    session.setActionHandler("stop", () => stop());
+    session.setActionHandler("nexttrack", () => void next());
+  }
 
   const timers: number[] = [];
   const unlisten: Array<() => void> = [];
   onMounted(async () => {
     unlisten.push(await listen("tray-play-pause", () => void toggle()));
     unlisten.push(await listen("tray-next", () => void next()));
-    // Media keys, Control Center, MPRIS (`playerctl`).
-    unlisten.push(await listen("media-toggle", () => void toggle()));
-    unlisten.push(await listen("media-play", () => playing.value || void toggle()));
-    unlisten.push(await listen("media-pause", () => playing.value && void toggle()));
-    unlisten.push(await listen("media-stop", () => stop()));
-    unlisten.push(await listen("media-next", () => void next()));
     try {
       setBase(await invoke<string>("radio_url"));
       await invoke("radio_start");

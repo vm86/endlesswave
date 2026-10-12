@@ -1,7 +1,5 @@
-mod media;
 mod radio;
 
-use media::Media;
 use radio::Radio;
 use tauri::{
     menu::{MenuBuilder, MenuItem, MenuItemBuilder},
@@ -22,16 +20,6 @@ fn radio_url() -> String {
 #[tauri::command]
 fn radio_start(app: AppHandle, radio: State<Radio>) -> Result<(), String> {
     radio.start(app.path().resource_dir().ok().as_deref())
-}
-
-#[tauri::command]
-fn media_metadata(media: State<Media>, title: String, artist: String, cover: String, duration: f64) {
-    media.metadata(&title, &artist, &cover, duration);
-}
-
-#[tauri::command]
-fn media_playback(media: State<Media>, state: String, progress: f64) {
-    media.playback(&state, progress);
 }
 
 /// The webview owns the audio, so it tells the tray what plays.
@@ -59,8 +47,7 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(Radio::default())
-        .manage(Media::default())
-        .invoke_handler(tauri::generate_handler![radio_url, radio_start, update_tray, media_metadata, media_playback])
+        .invoke_handler(tauri::generate_handler![radio_url, radio_start, update_tray])
         .setup(|app| {
             let now = MenuItemBuilder::with_id("now", "Nothing playing").enabled(false).build(app)?;
             let play = MenuItemBuilder::with_id("play", "Play").build(app)?;
@@ -103,11 +90,6 @@ pub fn run() {
                 tray = tray.icon(icon.clone());
             }
             tray.build(app)?;
-
-            // Not fatal: without the system controls the player still plays.
-            if let Err(error) = app.state::<Media>().start(app.handle()) {
-                eprintln!("media controls are not available: {error}");
-            }
             Ok(())
         })
         // The close button hides the player to the tray; "Quit" really quits.
