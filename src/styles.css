@@ -244,3 +244,23 @@ kbd {
   color: var(--text2); font-size: 13px;
   background: var(--bg); backdrop-filter: saturate(180%) blur(12px); -webkit-backdrop-filter: saturate(180%) blur(12px);
 }
+
+/* The settings sheet: it drops from the top like a Mac sheet; the rows are grouped like the Settings of the system. */
+.sheet-wrap.top { align-items: start; }
+.sheet.prefs { width: 340px; max-height: calc(100vh - 48px); overflow-y: auto; margin-top: 36px; padding: 16px 18px 14px; }
+.sheet.prefs h3 { text-align: center; margin-bottom: 14px; }
+.prefs-group { border-radius: 8px; background: var(--control); }
+.prefs-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 10px; font-size: 13px; }
+.prefs-row + .prefs-row { box-shadow: inset 0 0.5px 0 var(--panel-border); }
+.prefs-note { margin: 6px 10px 14px; font-size: 11px; line-height: 1.4; color: var(--text2); }
+.segmented { display: flex; padding: 2px; border-radius: 7px; background: var(--control); }
+.segmented button {
+  border: 0; background: transparent; color: var(--text); font: inherit; font-size: 12px; padding: 2px 12px; border-radius: 5px; cursor: default;
+  transition: background 150ms var(--ease), box-shadow 150ms var(--ease);
+}
+.segmented button.on { background: var(--seg-on); box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.14); }
+.sheet .done { display: flex; justify-content: flex-end; margin-top: 4px; }
+.sheet-enter-active, .sheet-leave-active { transition: opacity 200ms var(--ease); }
+.sheet-enter-active .sheet, .sheet-leave-active .sheet { transition: transform 240ms var(--ease); }
+.sheet-enter-from, .sheet-leave-to { opacity: 0; }
+.sheet-enter-from .sheet, .sheet-leave-to .sheet { transform: translateY(-16px); }

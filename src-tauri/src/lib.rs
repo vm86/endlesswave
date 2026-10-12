@@ -87,6 +87,21 @@ fn update_menu(state: State<MenuState>, can_skip: bool, lossless: bool) {
     }
 }
 
+/// macOS: the icon in the Dock and the menu of the app, or the tray alone. The window is brought
+/// back after the switch, which would otherwise leave it behind the other apps.
+#[tauri::command]
+fn set_dock_visible(app: AppHandle, visible: bool) {
+    #[cfg(target_os = "macos")]
+    {
+        use tauri::ActivationPolicy;
+        let _ = app.set_activation_policy(if visible { ActivationPolicy::Regular } else { ActivationPolicy::Accessory });
+        let _ = app.set_dock_visibility(visible);
+        show_window(&app);
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (app, visible);
+}
+
 fn show_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
@@ -116,7 +131,8 @@ pub fn run() {
             player_status,
             media_metadata,
             media_playback,
-            media_enabled
+            media_enabled,
+            set_dock_visible
         ])
         .setup(|app| {
             let now = MenuItemBuilder::with_id("now", "Nothing playing").enabled(false).build(app)?;

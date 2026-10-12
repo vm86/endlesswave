@@ -1,17 +1,39 @@
 <script setup lang="ts">
+import { dockIcon, hasDock } from "../composables/useDock";
+
 defineProps<{ engine: "native" | "web"; active: "native" | "web" }>();
 const emit = defineEmits<{ engine: ["native" | "web"] }>();
 </script>
 
 <template>
-  <div class="mix">
-    <h4>Player</h4>
-    <span class="chip" :class="{ sel: engine === 'native' }" @click="emit('engine', 'native')">native</span>
-    <span class="chip" :class="{ sel: engine === 'web' }" @click="emit('engine', 'web')">browser</span>
-    <div class="dim">
-      Native plays the stream with the system's audio output. Browser plays it with the audio of the
-      window: it is the fall back, and the app uses it by itself when the native player cannot start.
+  <!-- Like the Settings window of a Mac app: a group of rows, the name on the left and the control on the right, the explanation under the group. -->
+  <div class="prefs-group">
+    <div class="prefs-row">
+      <span>Player</span>
+      <div class="segmented">
+        <button :class="{ on: engine === 'native' }" @click="emit('engine', 'native')">Native</button>
+        <button :class="{ on: engine === 'web' }" @click="emit('engine', 'web')">Browser</button>
+      </div>
     </div>
-    <div v-if="engine !== active" class="dim">Playing now: {{ active === "native" ? "native" : "browser" }} (fell back).</div>
   </div>
+  <p class="prefs-note">
+    Native plays through the system's audio output. Browser uses the audio of the window; the app switches
+    to it by itself when the native player cannot start.
+    <template v-if="engine !== active"><br /><b>Playing now: {{ active === "native" ? "native" : "browser" }}</b> (fell back).</template>
+  </p>
+
+  <template v-if="hasDock">
+    <div class="prefs-group">
+      <div class="prefs-row">
+        <span>Show in</span>
+        <div class="segmented">
+          <button :class="{ on: dockIcon }" @click="dockIcon = true">Dock</button>
+          <button :class="{ on: !dockIcon }" @click="dockIcon = false">Menu bar</button>
+        </div>
+      </div>
+    </div>
+    <p class="prefs-note">
+      With the menu bar only, the Dock icon and the app's menu go away; the window opens from the tray icon.
+    </p>
+  </template>
 </template>

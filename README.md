@@ -107,9 +107,12 @@ with the **⟳** button (⌘R). The settings are remembered and come back after 
 
 ### Settings
 
-The **Settings** tab (<kbd>⌘</kbd> <kbd>,</kbd>) has the **Player**: **native** is the app's own player (the system's
+The **Settings** sheet (the gear in the top bar, <kbd>⌘</kbd> <kbd>,</kbd>) has the **Player**: **native** is the app's own player (the system's
 audio output), **browser** the audio of the window. If the native one cannot start (no audio device, for
 instance), the app says so and plays with the browser for that listening.
+
+On macOS, **Appearance** can hide the Dock icon and the app's menu: the player then lives in the menu bar
+only, and the window opens from the tray icon.
 
 ## Using it
 
@@ -148,7 +151,7 @@ On macOS the shortcuts are in the menu bar (**Controls** and **View**), so you c
 | <kbd>⌘</kbd> <kbd>R</kbd> | Rebuild the queue |
 | <kbd>⌘</kbd> <kbd>L</kbd> | MP3 ⇄ FLAC |
 | <kbd>⌘</kbd> <kbd>↑</kbd> / <kbd>↓</kbd> | Volume |
-| <kbd>⌘</kbd> <kbd>1</kbd>–<kbd>5</kbd> | Tabs: Playlist, Mix, Sources, Stats, Settings |
+| <kbd>⌘</kbd> <kbd>1</kbd>–<kbd>4</kbd> | Tabs: Playlist, Mix, Sources, Stats |
 | <kbd>⌘</kbd> <kbd>,</kbd> | Settings |
 | <kbd>⌘</kbd> <kbd>/</kbd> | The list of shortcuts |
 

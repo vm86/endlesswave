@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { mdiFolderMusicOutline, mdiKeyboardOutline } from "@mdi/js";
+import { useDock } from "./composables/useDock";
+import { mdiCogOutline, mdiFolderMusicOutline, mdiKeyboardOutline } from "@mdi/js";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import Deck from "./components/Deck.vue";
 import Playlist from "./components/Playlist.vue";
+import SettingsPanel from "./components/SettingsPanel.vue";
 import { copyText } from "./clipboard";
 import { useRadio } from "./composables/useRadio";
 
@@ -14,7 +16,6 @@ const TABS = [
   { id: "mix", label: "Mix" },
   { id: "sources", label: "Sources" },
   { id: "stats", label: "Stats" },
-  { id: "settings", label: "Settings" },
 ];
 const SHORTCUTS: Array<[string[], string]> = [
   [["Space"], "Play / Pause"],
@@ -24,7 +25,7 @@ const SHORTCUTS: Array<[string[], string]> = [
   [["⌘", "L"], "Switch MP3 / FLAC"],
   [["⌘", "↑"], "Volume up"],
   [["⌘", "↓"], "Volume down"],
-  [["⌘", "1–5"], "Playlist, Mix, Sources, Stats, Settings"],
+  [["⌘", "1–4"], "Playlist, Mix, Sources, Stats"],
   [["⌘", ","], "Settings"],
   [["⌘", "/"], "This sheet"],
 ];
@@ -34,6 +35,8 @@ async function copy(text: string, what = "Code") {
   notice.value = (await copyText(text)) ? `${what} copied` : "Could not copy";
 }
 const help = ref(false);
+const prefs = ref(false);
+useDock();
 const { starting, engine, activeEngine, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
 const left = computed(() => (queue.value?.next ?? []).reduce((sum, t) => sum + t.duration_seconds, 0));
 const flipFormat = () => (format.value = format.value === "mp3" ? "flac" : "mp3");
@@ -83,7 +86,7 @@ const actions: Record<string, () => void> = {
     hud(volume.value === 0 ? "Muted" : `Volume ${volume.value}%`);
   },
   help: () => (help.value = !help.value),
-  settings: () => (tab.value = "settings"),
+  settings: () => (prefs.value = !prefs.value),
   ...Object.fromEntries(TABS.map((t, i) => [`tab-${i + 1}`, () => (tab.value = t.id)])),
 };
 
@@ -109,7 +112,8 @@ function onKey(event: KeyboardEvent) {
     event.preventDefault();
     action();
   };
-  if (event.key === "Escape" && help.value) return run(() => (help.value = false));
+  if (event.key === "Escape" && (help.value || prefs.value)) return run(() => (help.value = prefs.value = false));
+  if (event.key === "Enter" && prefs.value) return run(() => (prefs.value = false));
   if (event.key === " " && !cmd) return run(actions.play!);
   if (!cmd || mac) return;
   const index = Number(event.key);
@@ -167,6 +171,9 @@ onUnmounted(() => {
         <div class="icon-btn" title="Keyboard shortcuts  (⌘/)" @click="help = true">
           <v-icon :icon="mdiKeyboardOutline" size="18" />
         </div>
+        <div class="icon-btn" title="Settings  (⌘,)" @click="prefs = true">
+          <v-icon :icon="mdiCogOutline" size="18" />
+        </div>
       </div>
 
       <Deck v-model:volume="volume" :now="queue?.now ?? null" :elapsed="elapsed" :playing="playing" :loading="loading" :refreshing="refreshing"
@@ -194,7 +201,7 @@ onUnmounted(() => {
           @click="tab = t.id">{{ t.label }}</button>
       </div>
 
-      <Playlist :queue="queue" :moods="queue?.moods" :language="queue?.language" :engine="engine" :active-engine="activeEngine" @engine="engine = $event" :genres="genres" :auth="auth" :stats="stats" :tab="tab"
+      <Playlist :queue="queue" :moods="queue?.moods" :language="queue?.language" :genres="genres" :auth="auth" :stats="stats" :tab="tab"
         @play="playTrack" @move="moveTrack" @remove="removeTrack" @moods="setMoods" @language="setLanguage" @genres="setGenres" @blocked="setBlocked" @toggle-backend="setBackend" @sign-in="signIn" @copy="copy" />
 
       <div class="status">
@@ -218,6 +225,16 @@ onUnmounted(() => {
 
       <Transition name="fade">
         <div v-if="error || notice" class="toast" @click="error = ''; notice = ''">{{ error || notice }}</div>
+      </Transition>
+
+      <Transition name="sheet">
+        <div v-if="prefs" class="sheet-wrap top" @click.self="prefs = false">
+          <div class="sheet prefs">
+            <h3>Settings</h3>
+            <SettingsPanel :engine="engine" :active="activeEngine" @engine="engine = $event" />
+            <div class="done"><button class="btn-accent" @click="prefs = false">Done</button></div>
+          </div>
+        </div>
       </Transition>
 
       <Transition name="fade">

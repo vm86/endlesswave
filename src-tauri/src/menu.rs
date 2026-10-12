@@ -99,10 +99,9 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         item("tab-2", "Mix", Some("CmdOrCtrl+2"))?,
         item("tab-3", "Sources", Some("CmdOrCtrl+3"))?,
         item("tab-4", "Stats", Some("CmdOrCtrl+4"))?,
-        item("tab-5", "Settings", Some("CmdOrCtrl+5"))?,
     ];
     let view = SubmenuBuilder::new(app, "View")
-        .items(&[&tabs[0], &tabs[1], &tabs[2], &tabs[3], &tabs[4]])
+        .items(&[&tabs[0], &tabs[1], &tabs[2], &tabs[3]])
         .build()?;
 
     // Closing the window only hides it to the tray (⌘W).
