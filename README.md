@@ -162,17 +162,19 @@ Files of the service:
 | The Yandex Music token | `~/.config/yamusic-radio.json` |
 | The cache of the analysis, the settings | `~/.cache/yamusic-radio.db` |
 | The loaded tracks that wait for their turn | `~/.cache/yamusic-radio-tracks/` |
-| The log | `~/.cache/yamusic_radio.log` |
+| The log (only with `YAMUSIC_RADIO_LOG=1`) | `~/.cache/yamusic_radio.log` |
 
 Environment: `YAMUSIC_RADIO_PORT` (the port, 18000 by default), `YAMUSIC_RADIO_ARGS` (any more flags of
-the service, e.g. `--no-keep-tracks`), `YAMUSIC_RADIO_DEBUG=1` (a detailed log), `YAMUSIC_DJ_BIN` (your own
+the service, e.g. `--no-keep-tracks`), `YAMUSIC_RADIO_LOG=1` (write the log of the service to a file; it is not written otherwise), `YAMUSIC_RADIO_DEBUG=1` (a detailed log, to the file too), `YAMUSIC_DJ_BIN` (your own
 binary of the service).
 
 ## Troubleshooting
 
-- **No sound, the queue is empty.** The service is waiting for tracks. Look at the log:
-  `tail -f ~/.cache/yamusic_radio.log`. `Unknown HTTPError` means Yandex Music does not answer or limits
-  the requests.
+- **No sound, the queue is empty.** The service is waiting for tracks. The log is not written by default.
+  Start the app with the log on, then read it: on macOS
+  `open -n --env YAMUSIC_RADIO_LOG=1 -a "Yamusic Radio Player"`, on Linux
+  `YAMUSIC_RADIO_LOG=1 yamusic-radio-player`, and `tail -f ~/.cache/yamusic_radio.log`.
+  `Unknown HTTPError` in it means Yandex Music does not answer or limits the requests.
 - **An old service is left after an update.** Stop it and restart the app: `pkill -f yamusic-dj`.
 - **No tray icon on Linux.** AppIndicator is needed (in GNOME, the *AppIndicator and
   KStatusNotifierItem Support* extension). The tray menu still works, a click on the icon does not open

@@ -52,12 +52,25 @@ fn binary(resources: Option<&Path>) -> PathBuf {
     "yamusic-dj".into()
 }
 
-/// Where the daemon's log goes: the file it uses itself when it runs alone.
+/// The file of the log: the one the daemon uses itself when it runs alone.
 fn log_path() -> Option<PathBuf> {
     let home = std::env::var_os("HOME")?;
     let dir = PathBuf::from(home).join(".cache");
     fs::create_dir_all(&dir).ok()?;
     Some(dir.join("yamusic_radio.log"))
+}
+
+/// In the foreground the daemon logs to stderr. It is not kept: a file that is written all the
+/// time grows and is hardly ever read. With YAMUSIC_RADIO_LOG=1 (or YAMUSIC_RADIO_DEBUG) it goes to
+/// `~/.cache/yamusic_radio.log`; a development build shows it in the terminal.
+fn log_target() -> Stdio {
+    let wanted = std::env::var_os("YAMUSIC_RADIO_LOG").is_some() || std::env::var_os("YAMUSIC_RADIO_DEBUG").is_some();
+    if wanted {
+        if let Some(file) = log_path().and_then(|path| OpenOptions::new().create(true).append(true).open(path).ok()) {
+            return Stdio::from(file);
+        }
+    }
+    if cfg!(debug_assertions) { Stdio::inherit() } else { Stdio::null() }
 }
 
 /// The ffmpeg bundled with the app first, then PATH, then where ffmpeg usually
@@ -91,11 +104,7 @@ impl Radio {
             return Ok(());
         }
         let bin = binary(resources);
-        // In the foreground the daemon logs to stderr: keep it in the file.
-        let log = log_path()
-            .and_then(|path| OpenOptions::new().create(true).append(true).open(path).ok())
-            .map(Stdio::from)
-            .unwrap_or_else(Stdio::null);
+        let log = log_target();
         let mut command = Command::new(&bin);
         // An app started from the Finder has a short PATH: the daemon needs ffmpeg.
         command.env("PATH", path_with_ffmpeg_places(resources));
