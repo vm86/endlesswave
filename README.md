@@ -215,11 +215,14 @@ with PyInstaller) and a static LGPL ffmpeg.
 - This is a radio: there is no previous track and no seeking.
 - On Linux the window frame of the system is drawn together with the app's own top bar.
 
-## Licenses of the third-party parts
+## License
+
+The player is released under the [MIT License](LICENSE).
+
+### Third-party parts
 
 - **ffmpeg 9.0.2** (LGPL-2.1+) and **LAME 4.0** (LGPL): built without any GPL parts; the license text is
   next to the binary in the package.
 - **Essentia** (AGPL-3.0): part of the `yamusic-dj` service, finds the keys of the tracks (see its
   [README](https://github.com/vm86/yamusic-radio#readme)). Keep this in mind when you distribute the
   packages.
-- The license of the project itself is not set yet.

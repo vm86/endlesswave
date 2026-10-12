@@ -3,6 +3,7 @@ name = "yamusic-radio-player"
 version = "0.1.0"
 description = "Tray player for the yamusic-radio DJ radio"
 authors = ["vm86"]
+license = "MIT"
 edition = "2024"
 
 [lib]
