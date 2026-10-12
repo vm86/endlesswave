@@ -25,7 +25,7 @@ fn radio_url() -> String {
 
 #[tauri::command]
 fn radio_start(app: AppHandle, radio: State<Radio>) -> Result<(), String> {
-    radio.start(app.path().resource_dir().ok().as_deref())
+    radio.start(&app)
 }
 
 #[tauri::command]

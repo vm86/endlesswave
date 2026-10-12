@@ -7,8 +7,11 @@ use std::net::{SocketAddr, TcpStream};
 use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+use tauri::{AppHandle, Emitter, Manager};
 
 pub const HOST: &str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 18000;
@@ -16,7 +19,15 @@ pub const DEFAULT_PORT: u16 = 18000;
 #[derive(Default)]
 pub struct Radio {
     child: Mutex<Option<Child>>,
+    /// Set when the app is leaving: a service that ends then is not a crash.
+    stopping: AtomicBool,
+    watching: AtomicBool,
 }
+
+/// A service that lived longer than this was working: its end starts the count of crashes anew.
+const STABLE: Duration = Duration::from_secs(60);
+/// So many crashes in a row and the service is given up.
+const MAX_CRASHES: u32 = 5;
 
 pub fn port() -> u16 {
     std::env::var("YAMUSIC_RADIO_PORT")
@@ -148,8 +159,66 @@ fn spawn(mut command: Command) -> std::io::Result<Child> {
     command.spawn()
 }
 
+/// Looks at the service we started: if it ends while the app lives, starts it again, with a pause that
+/// grows (1, 2, 4... up to 30 s), and gives up after a few crashes in a row. The page is told with
+/// the event "radio" ("restarting", "failed"), so it can say so instead of an error.
+fn watch(app: &AppHandle) {
+    let radio = app.state::<Radio>();
+    let mut launched = Instant::now();
+    let mut crashes = 0u32;
+    loop {
+        std::thread::sleep(Duration::from_secs(1));
+        if radio.stopping.load(Ordering::SeqCst) {
+            return;
+        }
+        let died = match radio.child.lock().unwrap().as_mut() {
+            Some(child) => match child.try_wait() {
+                Ok(Some(status)) => Some(status.to_string()),
+                _ => None,
+            },
+            None => None, // someone else's service, or not started
+        };
+        let Some(status) = died else { continue };
+        radio.child.lock().unwrap().take();
+        if launched.elapsed() >= STABLE {
+            crashes = 0;
+        }
+        crashes += 1;
+        eprintln!("the radio service ended ({status}), crash {crashes} of {MAX_CRASHES}");
+        if crashes >= MAX_CRASHES {
+            let _ = app.emit("radio", "failed");
+            return;
+        }
+        let _ = app.emit("radio", "restarting");
+        std::thread::sleep(Duration::from_secs(1 << (crashes - 1).min(5)).min(Duration::from_secs(30)));
+        if radio.stopping.load(Ordering::SeqCst) {
+            return;
+        }
+        let resources = app.path().resource_dir().ok();
+        match radio.launch(resources.as_deref()) {
+            Ok(()) => launched = Instant::now(),
+            Err(error) => {
+                eprintln!("cannot start the radio service again: {error}");
+                let _ = app.emit("radio", "failed");
+                return;
+            }
+        }
+    }
+}
+
 impl Radio {
-    pub fn start(&self, resources: Option<&Path>) -> Result<(), String> {
+    /// Starts the service (if none answers yet) and keeps watching it: if it dies, it is started again.
+    pub fn start(&self, app: &AppHandle) -> Result<(), String> {
+        let resources = app.path().resource_dir().ok();
+        let result = self.launch(resources.as_deref());
+        if !self.watching.swap(true, Ordering::SeqCst) {
+            let app = app.clone();
+            std::thread::spawn(move || watch(&app));
+        }
+        result
+    }
+
+    fn launch(&self, resources: Option<&Path>) -> Result<(), String> {
         let port = port();
         if is_up(port) {
             return Ok(());
@@ -189,6 +258,7 @@ impl Radio {
     }
 
     pub fn stop(&self) {
+        self.stopping.store(true, Ordering::SeqCst);
         if let Some(mut child) = self.child.lock().unwrap().take() {
             // SIGTERM first: the daemon puts the station's settings back and
             // keeps the loaded tracks, which takes a moment.

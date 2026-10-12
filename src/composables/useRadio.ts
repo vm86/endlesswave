@@ -21,7 +21,7 @@ export function useRadio() {
   // The service is starting: its first answer takes a few seconds, and that is not an error.
   const starting = ref(true);
   const STARTUP_MS = 60_000;
-  const startedAt = performance.now();
+  let startedAt = performance.now();
   const volume = ref(Number(localStorage.getItem("volume") ?? 80));
   const fetchedAt = ref(performance.now());
   const tick = ref(performance.now());
@@ -286,6 +286,18 @@ export function useRadio() {
     unlisten.push(await listen("media-pause", () => playing.value && void toggle()));
     unlisten.push(await listen("media-stop", () => void stop()));
     unlisten.push(await listen("media-next", () => void next()));
+    // The app starts the service again when it dies: that is a wait, not an error.
+    unlisten.push(
+      await listen<string>("radio", (event) => {
+        if (event.payload === "restarting") {
+          starting.value = true;
+          startedAt = performance.now();
+        } else {
+          starting.value = false;
+          error.value = "The radio service stopped and could not be started again. Restart the app.";
+        }
+      }),
+    );
     try {
       setBase(await invoke<string>("radio_url"));
       await invoke("radio_start");
