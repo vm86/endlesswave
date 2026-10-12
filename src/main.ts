@@ -22,6 +22,12 @@ const vuetify = createVuetify({
   defaults: { VBtn: { rounded: "pill" } },
 });
 
+// A window that is not the key one shows its selection in gray, as every Mac app does.
+const markActive = () => document.documentElement.classList.toggle("inactive", !document.hasFocus());
+window.addEventListener("focus", markActive);
+window.addEventListener("blur", markActive);
+markActive();
+
 document.documentElement.classList.toggle("mac", /Mac/.test(navigator.userAgent));
 
 createApp(App).use(vuetify).mount("#app");

@@ -38,6 +38,14 @@
     --red: #ff453a;
   }
 }
+/* macOS: the accent color the user chose in System Settings (WebKit knows it by this name). */
+@supports (color: -apple-system-control-accent) {
+  :root { --accent: -apple-system-control-accent; }
+}
+/* The selection and the progress, as they are in a window that is not the key one: gray, not accent. */
+:root { --sel: var(--accent); --sel-text: #fff; --sel-text2: rgba(255, 255, 255, 0.8); }
+html.inactive { --sel: #d1d1d6; --sel-text: var(--text); --sel-text2: var(--text2); }
+@media (prefers-color-scheme: dark) { html.inactive { --sel: #48484a; } }
 html { overflow: hidden; user-select: none; -webkit-user-select: none; background: var(--bg); }
 body, .v-application { font-family: var(--font) !important; font-size: 13px; color: var(--text); letter-spacing: -0.01em; }
 
@@ -86,7 +94,8 @@ body, .v-application { font-family: var(--font) !important; font-size: 13px; col
 .progress span { width: 34px; }
 .progress span:last-child { text-align: right; }
 .seek { flex: 1; height: 4px; background: var(--control-hover); border-radius: 2px; overflow: hidden; }
-.seek div { height: 100%; background: var(--accent); border-radius: 2px; transition: width 400ms linear; }
+.seek div { height: 100%; background: var(--accent); border-radius: 2px; transition: width 400ms linear, background 150ms var(--ease); }
+html.inactive .seek div { background: var(--text2); }
 
 /* Buttons: flat, 28 px, like the toolbar buttons of a Mac app. */
 .transport { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
@@ -129,9 +138,9 @@ body, .v-application { font-family: var(--font) !important; font-size: 13px; col
 .row .t small { font-size: 11px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .d { flex: none; font-size: 11px; color: var(--text2); font-variant-numeric: tabular-nums; }
 .row.played { opacity: 0.5; }
-.row.current { background: var(--accent); color: #fff; }
+.row.current { background: var(--sel); color: var(--sel-text); transition: background 150ms var(--ease), color 150ms var(--ease); }
 .row.current + .row::before, .row.current::before { display: none; }
-.row.current .t small, .row.current .d { color: rgba(255, 255, 255, 0.8); }
+.row.current .t small, .row.current .d { color: var(--sel-text2); }
 .empty { height: 100%; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--text2); text-align: center; padding: 0 24px; }
 
 .status { flex: none; margin-top: 8px; padding: 6px 16px 10px; font-size: 11px; color: var(--text2); display: flex; justify-content: space-between; }
@@ -266,3 +275,22 @@ kbd {
 .sheet-enter-active .sheet, .sheet-leave-active .sheet { transition: transform 240ms var(--ease); }
 .sheet-enter-from, .sheet-leave-to { opacity: 0; }
 .sheet-enter-from .sheet, .sheet-leave-to .sheet { transform: translateY(-16px); }
+
+/* The menu of a right click on a track: small, translucent, like a Mac context menu. */
+.ctx {
+  position: fixed; z-index: 30; min-width: 170px; padding: 4px; border-radius: 8px; background: var(--pop); box-shadow: var(--shadow-pop);
+  backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); font-size: 13px;
+}
+.ctx button {
+  display: block; width: 100%; text-align: left; padding: 3px 10px; border: 0; border-radius: 5px; background: transparent; color: var(--text);
+  font: inherit; cursor: default;
+}
+.ctx button:hover:not([disabled]) { background: var(--accent); color: #fff; }
+.ctx button[disabled] { opacity: 0.4; }
+.ctx hr { border: 0; height: 0.5px; margin: 4px 6px; background: var(--sep); }
+
+/* macOS: the window is see-through and the system blurs what is behind it (sidebar material); the page lets
+   it show through. The panels (the deck, the list) stay solid, so the text keeps its contrast. */
+html.mac, html.mac body, html.mac .v-application, html.mac .v-application__wrap { background: transparent !important; }
+html.mac .player { background: color-mix(in srgb, var(--bg) 55%, transparent); }
+html.mac .topbar { background: transparent; }

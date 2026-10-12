@@ -99,6 +99,26 @@ function onKey(event: KeyboardEvent) {
 }
 onUnmounted(stopDrag);
 
+// The menu of a right click on a track.
+const menu = ref<{ x: number; y: number; row: Row } | null>(null);
+function openMenu(event: MouseEvent, row: Row) {
+  menu.value = { x: Math.min(event.clientX, window.innerWidth - 190), y: Math.min(event.clientY, window.innerHeight - 110), row };
+}
+const closeMenu = () => (menu.value = null);
+function choose(action: "play" | "remove" | "copy") {
+  const row = menu.value?.row;
+  closeMenu();
+  if (!row) return;
+  if (action === "play") emit("play", row.track.track_id);
+  else if (action === "remove") emit("remove", row.track.track_id);
+  else emit("copy", `${row.track.artists.join(", ")} — ${row.track.title}`, "Title");
+}
+window.addEventListener("pointerdown", (event) => {
+  if (menu.value && !(event.target as HTMLElement | null)?.closest(".ctx")) closeMenu();
+});
+window.addEventListener("blur", closeMenu);
+window.addEventListener("keydown", (event) => event.key === "Escape" && closeMenu());
+
 </script>
 
 <template>
@@ -109,7 +129,7 @@ onUnmounted(stopDrag);
         'drop-before': dragging && row.kind === 'next' && slot === row.at,
         'drop-end': dragging && row.kind === 'next' && slot === (queue?.next.length ?? 0) && row.at === (queue?.next.length ?? 0) - 1,
         draggable: row.kind === 'next' && !locked(row),
-      }]" @pointerdown="onDown($event, row)" @dblclick="row.kind === 'next' && queue?.can_skip && emit('play', row.track.track_id)">
+      }]" @pointerdown="onDown($event, row)" @contextmenu.prevent="openMenu($event, row)" @dblclick="row.kind === 'next' && queue?.can_skip && emit('play', row.track.track_id)">
         <span class="thumb">
           <img v-if="row.track.cover" :src="coverUrl(row.track.cover, 100)" alt="" loading="lazy" draggable="false" referrerpolicy="no-referrer" />
           <v-icon v-else :icon="mdiMusicNote" size="16" />
@@ -134,5 +154,13 @@ onUnmounted(stopDrag);
     <SourcesPanel v-else-if="tab === 'sources'" :auth="auth" @toggle="(id, on) => emit('toggleBackend', id, on)"
       @sign-in="(id, v) => emit('signIn', id, v)" @copy="(t, w) => emit('copy', t, w)" />
     <StatsPanel v-else :stats="stats" />
+    <div v-if="menu" class="ctx" :style="{ left: menu.x + 'px', top: menu.y + 'px' }" @contextmenu.prevent>
+      <template v-if="menu.row.kind === 'next'">
+        <button :disabled="!queue?.can_skip" @click="choose('play')">Play now</button>
+        <button :disabled="locked(menu.row)" @click="choose('remove')">Remove from the queue</button>
+        <hr />
+      </template>
+      <button @click="choose('copy')">Copy title</button>
+    </div>
   </div>
 </template>
