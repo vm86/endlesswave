@@ -14,6 +14,7 @@ const TABS = [
   { id: "mix", label: "Mix" },
   { id: "sources", label: "Sources" },
   { id: "stats", label: "Stats" },
+  { id: "settings", label: "Settings" },
 ];
 const SHORTCUTS: Array<[string[], string]> = [
   [["Space"], "Play / Pause"],
@@ -23,7 +24,8 @@ const SHORTCUTS: Array<[string[], string]> = [
   [["⌘", "L"], "Switch MP3 / FLAC"],
   [["⌘", "↑"], "Volume up"],
   [["⌘", "↓"], "Volume down"],
-  [["⌘", "1–4"], "Playlist, Mix, Sources, Stats"],
+  [["⌘", "1–5"], "Playlist, Mix, Sources, Stats, Settings"],
+  [["⌘", ","], "Settings"],
   [["⌘", "/"], "This sheet"],
 ];
 
@@ -32,7 +34,7 @@ async function copy(text: string, what = "Code") {
   notice.value = (await copyText(text)) ? `${what} copied` : "Could not copy";
 }
 const help = ref(false);
-const { moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
+const { engine, activeEngine, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
 const left = computed(() => (queue.value?.next ?? []).reduce((sum, t) => sum + t.duration_seconds, 0));
 const flipFormat = () => (format.value = format.value === "mp3" ? "flac" : "mp3");
 
@@ -61,6 +63,7 @@ const actions: Record<string, () => void> = {
   "volume-up": () => (volume.value = Math.min(100, volume.value + 10)),
   "volume-down": () => (volume.value = Math.max(0, volume.value - 10)),
   help: () => (help.value = !help.value),
+  settings: () => (tab.value = "settings"),
   ...Object.fromEntries(TABS.map((t, i) => [`tab-${i + 1}`, () => (tab.value = t.id)])),
 };
 
@@ -84,6 +87,7 @@ function onKey(event: KeyboardEvent) {
     ArrowUp: "volume-up",
     ArrowDown: "volume-down",
     "/": "help",
+    ",": "settings",
   };
   const name = byKey[event.key];
   if (name) run(actions[name]!);
@@ -144,11 +148,11 @@ onUnmounted(() => {
           @click="tab = t.id">{{ t.label }}</button>
       </div>
 
-      <Playlist :queue="queue" :moods="queue?.moods" :language="queue?.language" :genres="genres" :auth="auth" :stats="stats" :tab="tab"
+      <Playlist :queue="queue" :moods="queue?.moods" :language="queue?.language" :engine="engine" :active-engine="activeEngine" @engine="engine = $event" :genres="genres" :auth="auth" :stats="stats" :tab="tab"
         @play="playTrack" @move="moveTrack" @remove="removeTrack" @moods="setMoods" @language="setLanguage" @genres="setGenres" @blocked="setBlocked" @toggle-backend="setBackend" @sign-in="signIn" @copy="copy" />
 
       <div class="status">
-        <span>{{ eqNote || (loading ? "Connecting…" : playing ? "Playing" : "Stopped") }}</span>
+        <span>{{ eqNote || (loading ? "Connecting…" : playing ? `Playing · ${activeEngine === "native" ? "native" : "browser"}` : "Stopped") }}</span>
         <span>{{ queue?.next.length ?? 0 }} queued · ~{{ Math.round(left / 60) }} min</span>
       </div>
 

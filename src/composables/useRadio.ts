@@ -1,8 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { usePlayer } from "./usePlayer";
 import { useSpectrum } from "./useSpectrum";
-import { api, coverUrl, setBase, streamUrl, type AuthInfo, type StreamFormat, type GenresInfo, type Queue, type Stats } from "../api";
+import { api, coverUrl, setBase, streamUrls, type AuthInfo, type StreamFormat, type GenresInfo, type Queue, type Stats } from "../api";
 
 const POLL_MS = 2000;
 const REFRESH_MIN_MS = 700;
@@ -10,101 +11,60 @@ const REFRESH_MIN_MS = 700;
 const STREAM_LAG_MS = 3500;
 const SKIP_GIVE_UP_MS = 30000;
 
-/** The radio daemon (polled), the <audio> of its stream and the tray. */
+/** The radio daemon (polled), the player of its stream (see usePlayer) and the tray. */
 export function useRadio() {
   const queue = ref<Queue | null>(null);
   const auth = ref<AuthInfo | null>(null);
   const genres = ref<GenresInfo | null>(null);
   const stats = ref<Stats | null>(null);
   const error = ref("");
-  const playing = ref(false);
-  // Between the click on Play and the first sound (and while the stream stalls).
-  const loading = ref(false);
   const volume = ref(Number(localStorage.getItem("volume") ?? 80));
   const fetchedAt = ref(performance.now());
   const tick = ref(performance.now());
 
-  const audio = new Audio();
-  audio.preload = "none";
   const format = ref<StreamFormat>(localStorage.getItem("format") === "flac" ? "flac" : "mp3");
   // Names this connection to the stream (see the spectrum).
   const token = ref("");
 
-  // Where the player's clock stands when the stream begins: a stream joined in
-  // the middle may not start it at 0.
-  let base = 0;
-  audio.addEventListener("loadedmetadata", () => (base = audio.currentTime));
-  const sync = () => (playing.value = !audio.paused);
-  audio.addEventListener("playing", () => {
-    loading.value = false;
-    sync();
-  });
-  audio.addEventListener("waiting", () => (loading.value = !audio.paused));
-  audio.addEventListener("pause", sync);
-  audio.addEventListener("error", () => {
-    loading.value = false;
-    if (!audio.getAttribute("src")) return sync();
-    const e = audio.error;
-    const flac = audio.canPlayType("audio/flac") || "no";
-    error.value = `Stream is not available (${format.value}: code ${e?.code} ${e?.message ?? ""}; can play flac: ${flac})`;
-    console.warn("[stream]", format.value, e?.code, e?.message, "canPlayType flac:", flac);
-    sync();
-  });
-  watch(volume, (v) => {
-    audio.volume = v / 100;
-    localStorage.setItem("volume", String(v));
-  }, { immediate: true });
+  // Who plays (the native player, or the <audio> of the webview as the fall back).
+  const notice = ref("");
+  const player = usePlayer(volume, (text) => (notice.value = text));
+  const { playing, loading } = player;
+  watch(player.error, (text) => text && (error.value = text));
+  watch(volume, (v) => localStorage.setItem("volume", String(v)));
 
-  const { bands: levels, note: eqNote } = useSpectrum({ playing, token, currentTime: () => audio.currentTime - base });
-
-  function drop() {
-    loading.value = false;
-    audio.pause();
-    audio.removeAttribute("src");
-    audio.load(); // the stream is live: resume at its edge, not where it stopped
-  }
+  const { bands: levels, note: eqNote } = useSpectrum({ playing, token, currentTime: () => player.currentTime() });
 
   async function start() {
     loading.value = true;
     // Somebody paused the mix for everyone: listening alone would not wake it.
     if (queue.value?.paused && queue.value.pause_reason === "user") await guarded(api.resume);
     token.value = crypto.randomUUID();
-    base = 0;
-    audio.src = streamUrl(format.value, token.value);
-    try {
-      await audio.play();
-      error.value = "";
-    } catch (e) {
-      loading.value = false;
-      error.value = (e as Error).message;
-    }
-    sync();
+    await player.start(streamUrls(format.value, token.value));
   }
 
   async function toggle() {
-    if (loading.value && audio.paused) return; // already connecting
-    if (!audio.paused) {
-      drop();
-      sync();
-    } else await start();
+    if (loading.value && !playing.value) return; // already connecting
+    if (playing.value) await player.stop();
+    else await start();
   }
 
-  function stop() {
-    if (audio.paused) return;
-    drop();
-    sync();
+  async function stop() {
+    if (playing.value || loading.value) await player.stop();
   }
 
-  // Another stream while listening: connect to it at once.
+  // Another stream, or another player, while listening: connect at once.
   watch(format, (value) => {
     localStorage.setItem("format", value);
-    if (!audio.paused) void start();
+    if (playing.value) void start();
+  });
+  watch(player.engine, () => {
+    if (playing.value) void start();
   });
 
   // The button "rebuild the queue": the answer is quick, so the spinner is held
   // a moment to be seen, and the result is told.
   const refreshing = ref(false);
-  const notice = ref("");
   const refreshQueue = async () => {
     if (refreshing.value) return;
     refreshing.value = true;
@@ -247,36 +207,53 @@ export function useRadio() {
   watch([title, playing], () => {
     void invoke("update_tray", { title: title.value, playing: playing.value });
   });
-  // The system's Now Playing (Control Center on macOS, MPRIS on Linux) and the media
-  // keys. The webview publishes the <audio> there by itself, so this is the ONE
-  // place that says what plays: a second, native player would show up twice.
+  // The system's Now Playing (Control Center on macOS, MPRIS on Linux) and the media keys. ONE
+  // of two says what plays, or a second player would show up in the system: the native layer
+  // (src-tauri/src/media.rs) while the native player plays, and the webview (navigator.mediaSession,
+  // which publishes the <audio> by itself) when the <audio> plays.
   const session = "mediaSession" in navigator ? navigator.mediaSession : null;
+  const trackId = () => queue.value?.now?.track_id;
   watch(
-    () => queue.value?.now?.track_id,
+    [trackId, player.active],
     () => {
       const now = queue.value?.now;
-      if (!session) return;
-      session.metadata = now
-        ? new MediaMetadata({
+      if (player.active.value === "native") {
+        if (session) session.metadata = null;
+        if (now) {
+          void invoke("media_metadata", {
             title: now.title,
             artist: now.artists.join(", "),
-            album: "Yamusic Radio",
-            artwork: now.cover ? [{ src: coverUrl(now.cover, 400), sizes: "400x400" }] : [],
-          })
-        : null;
+            cover: coverUrl(now.cover, 400),
+            duration: now.duration_seconds,
+          });
+        }
+      } else if (session) {
+        session.metadata = now
+          ? new MediaMetadata({
+              title: now.title,
+              artist: now.artists.join(", "),
+              album: "Yamusic Radio",
+              artwork: now.cover ? [{ src: coverUrl(now.cover, 400), sizes: "400x400" }] : [],
+            })
+          : null;
+      }
     },
     { immediate: true },
   );
   watch(
-    [playing, () => queue.value?.paused, () => queue.value?.now?.track_id],
+    [playing, () => queue.value?.paused, trackId, player.active],
     () => {
-      if (!session) return;
       const now = queue.value?.now;
-      session.playbackState = !now ? "none" : playing.value && !queue.value?.paused ? "playing" : "paused";
-      try {
-        if (now) session.setPositionState({ duration: now.duration_seconds, position: Math.min(elapsed.value, now.duration_seconds), playbackRate: 1 });
-      } catch {
-        /* a position the system does not take */
+      const state = !now ? "none" : playing.value && !queue.value?.paused ? "playing" : "paused";
+      if (player.active.value === "native") {
+        void invoke("media_playback", { state: state === "none" ? "stopped" : state, progress: elapsed.value });
+      } else if (session) {
+        session.playbackState = state;
+        try {
+          if (now) session.setPositionState({ duration: now.duration_seconds, position: Math.min(elapsed.value, now.duration_seconds), playbackRate: 1 });
+        } catch {
+          /* a position the system does not take */
+        }
       }
     },
     { immediate: true },
@@ -285,7 +262,7 @@ export function useRadio() {
     // A live radio: no previous track, nothing to seek in.
     session.setActionHandler("play", () => playing.value || void toggle());
     session.setActionHandler("pause", () => playing.value && void toggle());
-    session.setActionHandler("stop", () => stop());
+    session.setActionHandler("stop", () => void stop());
     session.setActionHandler("nexttrack", () => void next());
   }
 
@@ -294,6 +271,12 @@ export function useRadio() {
   onMounted(async () => {
     unlisten.push(await listen("tray-play-pause", () => void toggle()));
     unlisten.push(await listen("tray-next", () => void next()));
+    // The system's controls of the native layer: the media keys, Control Center, MPRIS (`playerctl`).
+    unlisten.push(await listen("media-toggle", () => void toggle()));
+    unlisten.push(await listen("media-play", () => playing.value || void toggle()));
+    unlisten.push(await listen("media-pause", () => playing.value && void toggle()));
+    unlisten.push(await listen("media-stop", () => void stop()));
+    unlisten.push(await listen("media-next", () => void next()));
     try {
       setBase(await invoke<string>("radio_url"));
       await invoke("radio_start");
@@ -309,8 +292,7 @@ export function useRadio() {
   onUnmounted(() => {
     timers.forEach(clearInterval);
     unlisten.forEach((f) => f());
-    audio.pause();
   });
 
-  return { moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
+  return { engine: player.engine, activeEngine: player.active, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
 }

@@ -3,6 +3,7 @@ import { mdiClose, mdiMusicNote, mdiPlay, mdiRadioTower } from "@mdi/js";
 import { computed, onUnmounted, ref } from "vue";
 import { clock, coverUrl, type AuthInfo, type GenresInfo, type LanguageInfo, type MoodsInfo, type NowTrack, type Queue, type Stats, type TrackInfo } from "../api";
 import MixPanel from "./MixPanel.vue";
+import SettingsPanel from "./SettingsPanel.vue";
 import SourcesPanel from "./SourcesPanel.vue";
 import StatsPanel from "./StatsPanel.vue";
 
@@ -10,6 +11,8 @@ const props = defineProps<{
   queue: Queue | null;
   moods: MoodsInfo | undefined;
   language: LanguageInfo | undefined;
+  engine: "native" | "web";
+  activeEngine: "native" | "web";
   genres: GenresInfo | null;
   auth: AuthInfo | null;
   stats: Stats | null;
@@ -20,6 +23,7 @@ const emit = defineEmits<{
   genres: [string[]];
   blocked: [string[]];
   language: [string | null];
+  engine: ["native" | "web"];
   toggleBackend: [id: string, enabled: boolean];
   signIn: [id: string, values: Record<string, string>];
   play: [id: string];
@@ -133,6 +137,7 @@ onUnmounted(stopDrag);
       @genres="emit('genres', $event)" @blocked="emit('blocked', $event)" />
     <SourcesPanel v-else-if="tab === 'sources'" :auth="auth" @toggle="(id, on) => emit('toggleBackend', id, on)"
       @sign-in="(id, v) => emit('signIn', id, v)" @copy="(t, w) => emit('copy', t, w)" />
-    <StatsPanel v-else :stats="stats" />
+    <StatsPanel v-else-if="tab === 'stats'" :stats="stats" />
+    <SettingsPanel v-else :engine="engine" :active="activeEngine" @engine="emit('engine', $event)" />
   </div>
 </template>

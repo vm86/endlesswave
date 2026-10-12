@@ -1,6 +1,10 @@
+mod audio;
+mod media;
 mod menu;
 mod radio;
 
+use audio::{Audio, Status};
+use media::Media;
 use menu::MenuState;
 use radio::Radio;
 use tauri::{
@@ -24,7 +28,43 @@ fn radio_start(app: AppHandle, radio: State<Radio>) -> Result<(), String> {
     radio.start(app.path().resource_dir().ok().as_deref())
 }
 
-/// The webview owns the audio, so it tells the tray what plays.
+#[tauri::command]
+fn player_start(app: AppHandle, audio: State<Audio>, url: String, volume: f32) {
+    audio.start(&app, url, volume);
+}
+
+#[tauri::command]
+fn player_stop(app: AppHandle, audio: State<Audio>) {
+    audio.stop(&app);
+}
+
+#[tauri::command]
+fn player_volume(audio: State<Audio>, volume: f32) {
+    audio.set_volume(volume);
+}
+
+#[tauri::command]
+fn player_status(audio: State<Audio>) -> Status {
+    audio.status()
+}
+
+#[tauri::command]
+fn media_metadata(media: State<Media>, title: String, artist: String, cover: String, duration: f64) {
+    media.metadata(&title, &artist, &cover, duration);
+}
+
+#[tauri::command]
+fn media_playback(media: State<Media>, state: String, progress: f64) {
+    media.playback(&state, progress);
+}
+
+/// On with the native player, off with the `<audio>` of the webview (it shows itself to the system).
+#[tauri::command]
+fn media_enabled(media: State<Media>, enabled: bool) {
+    media.set_enabled(enabled);
+}
+
+/// The page tells the tray what plays.
 #[tauri::command]
 fn update_tray(app: AppHandle, state: State<TrayState>, title: String, playing: bool) {
     let _ = state.now.set_text(if title.is_empty() { "Nothing playing" } else { &title });
@@ -63,7 +103,21 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(Radio::default())
         .manage(MenuState::default())
-        .invoke_handler(tauri::generate_handler![radio_url, radio_start, update_tray, update_menu])
+        .manage(Audio::default())
+        .manage(Media::default())
+        .invoke_handler(tauri::generate_handler![
+            radio_url,
+            radio_start,
+            update_tray,
+            update_menu,
+            player_start,
+            player_stop,
+            player_volume,
+            player_status,
+            media_metadata,
+            media_playback,
+            media_enabled
+        ])
         .setup(|app| {
             let now = MenuItemBuilder::with_id("now", "Nothing playing").enabled(false).build(app)?;
             let play = MenuItemBuilder::with_id("play", "Play").build(app)?;
@@ -116,6 +170,10 @@ pub fn run() {
             }
             tray.build(app)?;
             menu::install(app.handle())?;
+            // Not fatal: without the system's controls the player still plays.
+            if let Err(error) = app.state::<Media>().start(app.handle()) {
+                eprintln!("media controls are not available: {error}");
+            }
             Ok(())
         })
         // The menu bar (macOS): the item is an action of the page.

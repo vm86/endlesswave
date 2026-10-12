@@ -98,11 +98,18 @@ export const baseUrl = () => base;
 
 /** The radio's streams: MP3 at 320 kbit/s, and lossless FLAC. */
 export type StreamFormat = "mp3" | "flac";
-// Lossless goes as FLAC in Ogg: WebKit (the webview of macOS, WebKitGTK) does not play a live stream of bare FLAC.
-export const STREAM_PATHS: Record<StreamFormat, string> = { mp3: "/stream", flac: "/stream.ogg" };
-/** `token` names this listener: the radio says where in the mix its stream starts (for the spectrum). */
-export const streamUrl = (format: StreamFormat, token: string) =>
-  `${base}${STREAM_PATHS[format]}?l=${encodeURIComponent(token)}&${Date.now()}`;
+/**
+ * The address of the stream of a format, for each of the players. The native one reads bare FLAC;
+ * WebKit (the webview of macOS, WebKitGTK) does not play a live stream of bare FLAC, only FLAC in Ogg.
+ * `token` names this listener: the radio says where in the mix its stream starts (for the spectrum).
+ */
+export function streamUrls(format: StreamFormat, token: string): { native: string; web: string } {
+  const query = `?l=${encodeURIComponent(token)}&${Date.now()}`;
+  return {
+    native: `${base}${format === "flac" ? "/stream.flac" : "/stream"}${query}`,
+    web: `${base}${format === "flac" ? "/stream.ogg" : "/stream"}${query}`,
+  };
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(base + path, init);

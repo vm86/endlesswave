@@ -48,8 +48,12 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         .website(Some("https://github.com/vm86/yamusic-radio-player"))
         .comments(Some("A tray player for the yamusic-radio DJ radio"))
         .build();
+    // The settings of a Mac app are in its menu, with the shortcut of the system: ⌘,
+    let settings = item("settings", "Settings…", Some("CmdOrCtrl+,"))?;
     let app_menu = SubmenuBuilder::new(app, "Yamusic Radio")
         .about(Some(about))
+        .separator()
+        .item(&settings)
         .separator()
         .services()
         .separator()
@@ -95,9 +99,10 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         item("tab-2", "Mix", Some("CmdOrCtrl+2"))?,
         item("tab-3", "Sources", Some("CmdOrCtrl+3"))?,
         item("tab-4", "Stats", Some("CmdOrCtrl+4"))?,
+        item("tab-5", "Settings", Some("CmdOrCtrl+5"))?,
     ];
     let view = SubmenuBuilder::new(app, "View")
-        .items(&[&tabs[0], &tabs[1], &tabs[2], &tabs[3]])
+        .items(&[&tabs[0], &tabs[1], &tabs[2], &tabs[3], &tabs[4]])
         .build()?;
 
     // Closing the window only hides it to the tray (⌘W).

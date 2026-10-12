@@ -36,6 +36,7 @@ and no Python.
 | **Sources** | Yandex Music and/or a local folder (`mp3`, `flac`, `m4a`, `ogg`, `opus`, `wav`...). Both can play at once |
 | **MP3 or FLAC** | A switch for the stream: MP3 at 320 kbit/s, or lossless FLAC (16 bit) |
 | **Spectrum** | The real spectrum of the mix, in time with the sound |
+| **Native audio** | The app plays the stream itself, through the system's audio output (CoreAudio, ALSA). The audio of the window is kept as a fall back |
 | **The system** | Tray, media keys, Now Playing with the cover, keyboard shortcuts, hide to the tray |
 | **Statistics** | How many blends there were and how well tempo and key matched |
 
@@ -63,9 +64,10 @@ sudo dnf install ./yamusic-radio-player-*.x86_64.rpm
 sudo apt install ./yamusic-radio-player_*_amd64.deb
 ```
 
-The window needs the GStreamer plugins to play sound (`gstreamer1-plugins-good` or
-`gstreamer1.0-plugins-good`); the package pulls them in. For the tray icon, GNOME needs the AppIndicator
-extension.
+The sound is played by the app itself through ALSA (it works with PulseAudio and PipeWire), so nothing
+else is needed. The GStreamer plugins (`gstreamer1-plugins-good` or `gstreamer1.0-plugins-good`) are for the
+fall back, the audio of the window; the package pulls them in. For the tray icon, GNOME needs the
+AppIndicator extension.
 
 ## First start and setup
 
@@ -96,10 +98,17 @@ The **Mix** tab:
 - **Mood**: pick one or several. None picked means any;
 - **Language**: the language of the music (Yandex Music);
 - **Genres**: the **pick** mode chooses the genres to play, **block** the ones never to play. The list of
-  genres grows as tracks are played.
+  genres grows as tracks are played;
+
 
 A choice takes effect at once: the queue is built again for the new settings. You can rebuild it by hand
 with the **⟳** button (⌘R). The settings are remembered and come back after a restart.
+
+### Settings
+
+The **Settings** tab (<kbd>⌘</kbd> <kbd>,</kbd>) has the **Player**: **native** is the app's own player (the system's
+audio output), **browser** the audio of the window. If the native one cannot start (no audio device, for
+instance), the app says so and plays with the browser for that listening.
 
 ## Using it
 
@@ -138,7 +147,8 @@ On macOS the shortcuts are in the menu bar (**Controls** and **View**), so you c
 | <kbd>⌘</kbd> <kbd>R</kbd> | Rebuild the queue |
 | <kbd>⌘</kbd> <kbd>L</kbd> | MP3 ⇄ FLAC |
 | <kbd>⌘</kbd> <kbd>↑</kbd> / <kbd>↓</kbd> | Volume |
-| <kbd>⌘</kbd> <kbd>1</kbd>–<kbd>4</kbd> | Tabs: Playlist, Mix, Sources, Stats |
+| <kbd>⌘</kbd> <kbd>1</kbd>–<kbd>5</kbd> | Tabs: Playlist, Mix, Sources, Stats, Settings |
+| <kbd>⌘</kbd> <kbd>,</kbd> | Settings |
 | <kbd>⌘</kbd> <kbd>/</kbd> | The list of shortcuts |
 
 ## How it works
@@ -152,8 +162,9 @@ On macOS the shortcuts are in the menu bar (**Controls** and **View**), so you c
                                                          └──────────────────────────┘
 ```
 
-The window plays the stream with a plain `<audio>`; everything else (the queue, the moods, the spectrum)
-comes from the API of the service. If a service already runs on port `18000`, the app connects to it.
+The app reads the stream itself, decodes it (MP3, FLAC) and plays it through the system's audio output;
+the window only controls it. If that does not work, the window plays the stream with a plain `<audio>`.
+Everything else (the queue, the moods, the spectrum) comes from the API of the service. If a service already runs on port `18000`, the app connects to it.
 
 Files of the service:
 
@@ -179,7 +190,8 @@ binary of the service).
 - **No tray icon on Linux.** AppIndicator is needed (in GNOME, the *AppIndicator and
   KStatusNotifierItem Support* extension). The tray menu still works, a click on the icon does not open
   the window.
-- **No sound in the window on Linux.** Install `gstreamer1-plugins-good` and `gstreamer1-plugins-base`.
+- **No sound on Linux.** The native player needs a working audio output (ALSA, PulseAudio or PipeWire). If
+  it falls back to the browser, install `gstreamer1-plugins-good` and `gstreamer1-plugins-base`.
 
 ## Development
 
