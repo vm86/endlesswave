@@ -191,6 +191,10 @@ npm run tauri dev      # the window, with hot reload
 In development the service is taken from `../yamusic-radio/.venv/bin/yamusic-dj`, then from `PATH`;
 `YAMUSIC_DJ_BIN` sets another one. Type check: `npx vue-tsc --noEmit`.
 
+The app icon is drawn in `assets/icon.svg` (render it to `assets/icon.png`, 1024 px, then
+`npx tauri icon assets/icon.png` makes all the sizes); the menu bar icon of macOS is
+`src-tauri/icons/tray.png` (`assets/tray.svg`).
+
 Layout: `src/` is the interface (Vue 3, Vuetify), `src-tauri/` the shell (starts the service, the tray, the
 window), `scripts/` builds the service, ffmpeg and the packages.
 

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- a template image: black on transparent, the system colors it -->
+  <g fill="none" stroke="#000" stroke-width="5" stroke-linecap="round">
+    <path d="M13.4,24.1 A22,22 0 0 0 13.4,39.9"/>
+    <path d="M7.1,19 A30,30 0 0 0 7.1,45"/>
+    <path d="M50.6,24.1 A22,22 0 0 1 50.6,39.9"/>
+    <path d="M56.9,19 A30,30 0 0 1 56.9,45"/>
+  </g>
+  <path d="M26,20 L26,44 L45,32 Z" fill="#000" stroke="#000" stroke-width="5" stroke-linejoin="round"/>
+</svg>

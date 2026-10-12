@@ -86,6 +86,15 @@ pub fn run() {
                         show_window(tray.app_handle());
                     }
                 });
+            // macOS: a black-and-white template the menu bar colors by itself. Elsewhere the
+            // panel may be dark or light: the colored icon of the app.
+            #[cfg(target_os = "macos")]
+            {
+                tray = tray
+                    .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png"))?)
+                    .icon_as_template(true);
+            }
+            #[cfg(not(target_os = "macos"))]
             if let Some(icon) = app.default_window_icon() {
                 tray = tray.icon(icon.clone());
             }
