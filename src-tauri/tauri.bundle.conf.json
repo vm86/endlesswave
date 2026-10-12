@@ -1,0 +1,22 @@
+{
+  "bundle": {
+    "resources": {
+      "../backend/": "backend/",
+      "../ffmpeg/": "ffmpeg/"
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "gstreamer1.0-plugins-base",
+          "gstreamer1.0-plugins-good"
+        ]
+      },
+      "rpm": {
+        "depends": [
+          "gstreamer1-plugins-base",
+          "gstreamer1-plugins-good"
+        ]
+      }
+    }
+  }
+}

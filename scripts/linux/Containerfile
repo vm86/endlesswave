@@ -1,0 +1,16 @@
+# The builder of the Linux packages (RPM and DEB) of the app: Fedora with what
+# Tauri (webkit2gtk, GTK, the tray), the daemon (Python, PyInstaller, Essentia)
+# and the static ffmpeg (a C toolchain, nasm) need.
+FROM registry.fedoraproject.org/fedora:43
+
+RUN dnf -y install --setopt=install_weak_deps=False \
+      gcc gcc-c++ make nasm git curl file patchelf xz tar which \
+      pkgconf-pkg-config zlib-devel perl-Digest-SHA \
+      rust cargo nodejs npm \
+      python3 python3-pip python3-devel libatomic \
+      webkit2gtk4.1-devel gtk3-devel libsoup3-devel librsvg2-devel openssl-devel \
+      libappindicator-gtk3-devel \
+      rpm-build \
+    && dnf clean all
+
+WORKDIR /work

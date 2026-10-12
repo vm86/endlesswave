@@ -1,0 +1,9 @@
+node_modules
+dist
+src-tauri/target
+src-tauri/gen
+backend
+build
+ffmpeg
+dist-linux
+.DS_Store
