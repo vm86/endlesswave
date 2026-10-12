@@ -9,7 +9,7 @@ import { onUnmounted, ref, watch, type Ref } from "vue";
  */
 export type Engine = "native" | "web";
 
-const START_TIMEOUT_MS = 15000;
+const START_TIMEOUT_MS = 45000;
 const POSITION_POLL_MS = 200;
 
 interface NativeStatus {
@@ -124,7 +124,7 @@ export function usePlayer(volume: Ref<number>, notice: (text: string) => void) {
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         pending = null;
-        reject("no sound in 15 s");
+        reject(`no sound in ${START_TIMEOUT_MS / 1000} s`);
       }, START_TIMEOUT_MS);
       pending = {
         resolve: () => {

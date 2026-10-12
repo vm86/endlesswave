@@ -15,7 +15,7 @@ use std::num::NonZero;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, RecvTimeoutError, Sender, SyncSender, TryRecvError};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use rodio::{ChannelCount, DeviceSinkBuilder, Player, SampleRate, Source};
 use serde::Serialize;
@@ -31,6 +31,8 @@ use tauri::{AppHandle, Emitter};
 type Chunk = Vec<f32>;
 /// How many pieces wait for the output: ~2 s. The stream is live, so the reader is held back
 /// (the network does the waiting) only a little.
+/// How long the reader tries to reach the radio (it may be starting).
+const CONNECT_PATIENCE: Duration = Duration::from_secs(30);
 const QUEUE_CHUNKS: usize = 80;
 /// How many pieces are kept before the sound starts: ~0.3 s against a gap at the very start.
 const PREBUFFER_CHUNKS: usize = 12;
@@ -292,12 +294,30 @@ fn read_stream(
 
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_connect(Some(Duration::from_secs(5)))
-        .timeout_recv_response(Some(Duration::from_secs(15)))
+        // The radio answers only when it has a track to play: right after its start that takes a while.
+        .timeout_recv_response(Some(Duration::from_secs(40)))
         .build()
         .into();
-    let response = match agent.get(url).call() {
-        Ok(response) => response,
-        Err(error) => return fail(format!("cannot connect to the radio: {error}")),
+    // The service of a freshly started app is not listening yet (it takes a few seconds): try again
+    // for a while instead of giving up (and the page falling back to the browser) at the first refusal.
+    let deadline = Instant::now() + CONNECT_PATIENCE;
+    let response = loop {
+        match agent.get(url).call() {
+            Ok(response) => break response,
+            // A wrong address or a refusal will not mend itself.
+            Err(ureq::Error::StatusCode(code)) if code < 500 => {
+                return fail(format!("the radio answered {code}"));
+            }
+            Err(error) => {
+                if stop.load(Ordering::SeqCst) {
+                    return Ok(());
+                }
+                if Instant::now() >= deadline {
+                    return fail(format!("cannot connect to the radio: {error}"));
+                }
+                std::thread::sleep(Duration::from_millis(500));
+            }
+        }
     };
     let content_type = response
         .headers()
