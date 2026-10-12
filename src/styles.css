@@ -237,3 +237,10 @@ kbd {
   background: color-mix(in srgb, var(--accent) 8%, var(--bg));
   backdrop-filter: saturate(180%) blur(12px); -webkit-backdrop-filter: saturate(180%) blur(12px);
 }
+
+/* The service is starting: a quiet spinner over the content, the top bar stays free to drag. */
+.starting {
+  position: fixed; inset: 52px 0 0 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  color: var(--text2); font-size: 13px;
+  background: var(--bg); backdrop-filter: saturate(180%) blur(12px); -webkit-backdrop-filter: saturate(180%) blur(12px);
+}

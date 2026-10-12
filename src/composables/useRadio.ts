@@ -18,6 +18,10 @@ export function useRadio() {
   const genres = ref<GenresInfo | null>(null);
   const stats = ref<Stats | null>(null);
   const error = ref("");
+  // The service is starting: its first answer takes a few seconds, and that is not an error.
+  const starting = ref(true);
+  const STARTUP_MS = 60_000;
+  const startedAt = performance.now();
   const volume = ref(Number(localStorage.getItem("volume") ?? 80));
   const fetchedAt = ref(performance.now());
   const tick = ref(performance.now());
@@ -154,9 +158,12 @@ export function useRadio() {
       genres.value = g;
       stats.value = st;
       take(q);
+      starting.value = false;
       if (error.value.startsWith("Radio is not running")) error.value = "";
     } catch (e) {
       console.warn("radio request failed", e);
+      if (starting.value && performance.now() - startedAt < STARTUP_MS) return;
+      starting.value = false;
       error.value = `Radio is not running: ${e instanceof Error ? e.message : e}`;
     }
   }
@@ -283,6 +290,7 @@ export function useRadio() {
       setBase(await invoke<string>("radio_url"));
       await invoke("radio_start");
     } catch (e) {
+      starting.value = false;
       error.value = String(e);
     }
     void refresh();
@@ -296,5 +304,5 @@ export function useRadio() {
     unlisten.forEach((f) => f());
   });
 
-  return { engine: player.engine, activeEngine: player.active, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
+  return { starting, engine: player.engine, activeEngine: player.active, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
 }

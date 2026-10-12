@@ -34,7 +34,7 @@ async function copy(text: string, what = "Code") {
   notice.value = (await copyText(text)) ? `${what} copied` : "Could not copy";
 }
 const help = ref(false);
-const { engine, activeEngine, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
+const { starting, engine, activeEngine, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
 const left = computed(() => (queue.value?.next ?? []).reduce((sum, t) => sum + t.duration_seconds, 0));
 const flipFormat = () => (format.value = format.value === "mp3" ? "flac" : "mp3");
 
@@ -201,6 +201,13 @@ onUnmounted(() => {
         <span>{{ eqNote || (loading ? "Connecting…" : playing ? `Playing · ${activeEngine === "native" ? "native" : "browser"}` : "Stopped") }}</span>
         <span>{{ queue?.next.length ?? 0 }} queued · ~{{ Math.round(left / 60) }} min</span>
       </div>
+
+      <Transition name="fade">
+        <div v-if="starting" class="starting">
+          <v-progress-circular indeterminate size="28" width="3" />
+          <span>Starting the radio…</span>
+        </div>
+      </Transition>
 
       <Transition name="fade">
         <div v-if="dropping" class="drop">
