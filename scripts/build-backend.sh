@@ -34,21 +34,45 @@ PIP="$WORK/venv/bin/pip"
 # The checkout has no tags: the version is pretended.
 export SETUPTOOLS_SCM_PRETEND_VERSION="${YAMUSIC_RADIO_VERSION:-0.1.0}"
 "$PIP" install -q --upgrade pyinstaller
-collect=()
-# Essentia finds the keys better; without a wheel for this machine the daemon
-# falls back to a simpler detection.
-if "$PIP" install -q --upgrade "$WORK/src[key]"; then
-  collect=(--collect-all essentia)
+# Essentia finds the keys better; without a wheel for this machine, or with YAMUSIC_RADIO_KEY=0,
+# the daemon falls back to a simpler detection.
+use_key=0
+if [ "${YAMUSIC_RADIO_KEY:-1}" != 0 ] && "$PIP" install -q --upgrade "$WORK/src[key]"; then
+  use_key=1
 else
   "$PIP" install -q --upgrade "$WORK/src"
+  "$PIP" uninstall -y -q essentia >/dev/null 2>&1 || true
 fi
 
 printf 'from yamusic_radio.main import main\n\nmain()\n' > "$WORK/launcher.py"
-"$WORK/venv/bin/pyinstaller" --noconfirm --clean --onedir --name yamusic-dj \
-  --distpath "$WORK/dist" --workpath "$WORK/work" --specpath "$WORK" \
-  --collect-submodules yandex_music --collect-data yamusic_radio \
-  "${collect[@]}" "$WORK/launcher.py" > "$WORK/pyinstaller.log" 2>&1 \
-  || { tail -20 "$WORK/pyinstaller.log"; exit 1; }
+
+freeze() { # with|without Essentia
+  local extra=()
+  [ "$1" = with ] && extra=(--collect-all essentia)
+  rm -rf "$WORK/dist" "$WORK/work"
+  "$WORK/venv/bin/pyinstaller" --noconfirm --clean --onedir --name yamusic-dj \
+    --distpath "$WORK/dist" --workpath "$WORK/work" --specpath "$WORK" \
+    --collect-submodules yandex_music --collect-data yamusic_radio \
+    ${extra[@]+"${extra[@]}"} "$WORK/launcher.py" > "$WORK/pyinstaller.log" 2>&1 \
+    || { tail -20 "$WORK/pyinstaller.log"; exit 1; }
+}
+
+# Does the frozen daemon start? A library that aborts when it is loaded (the old macOS wheels of
+# Essentia do, looking for SDL2) cannot be caught in Python: the daemon dies at its import, so it is
+# tried here, and built without Essentia when it does not start.
+smoke() { "$WORK/dist/yamusic-dj/yamusic-dj" --help >/dev/null 2>&1; }
+
+if [ "$use_key" = 1 ]; then
+  freeze with
+  if ! smoke; then
+    echo "the daemon with Essentia does not start here: building it without Essentia"
+    "$PIP" uninstall -y -q essentia >/dev/null 2>&1 || true
+    use_key=0
+  fi
+fi
+[ "$use_key" = 1 ] || freeze without
+smoke || { echo "the frozen daemon does not start"; exit 1; }
+echo "daemon: keys by $([ "$use_key" = 1 ] && echo Essentia || echo "the simple detection")"
 
 rm -rf "$OUT"
 mkdir -p "$OUT"

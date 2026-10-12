@@ -24,7 +24,9 @@ env:
 jobs:
   macos:
     name: macOS (arm64)
-    runs-on: macos-14
+    # macOS 15 and Python 3.14: the wheel of Essentia for them has a good SDL2 and FFmpeg 8. The one
+    # for Python 3.12 is old and aborts when it loads (it looks for SDL2), the daemon would not start.
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
@@ -34,7 +36,7 @@ jobs:
           cache: npm
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.14"
       - name: Rust
         run: rustup toolchain install stable --profile minimal && rustup default stable
 
@@ -93,7 +95,7 @@ jobs:
           cache: npm
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.14"
       - name: Rust
         run: rustup toolchain install stable --profile minimal && rustup default stable
 
