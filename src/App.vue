@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiKeyboardOutline } from "@mdi/js";
+import { mdiFolderMusicOutline, mdiKeyboardOutline } from "@mdi/js";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -54,18 +54,53 @@ watch(error, (value) => {
 // of its items. Space has no menu item (it would eat the spaces of a text field): the page keeps it.
 const mac = document.documentElement.classList.contains("mac");
 
+// A key press that changes something without a visible control moving says so for a moment (the
+// toast), so that no key goes unanswered. The buttons show their own state.
+const hud = (text: string) => (notice.value = text);
+
 const actions: Record<string, () => void> = {
-  play: () => void toggle(),
-  stop: () => stop(),
-  next: () => void next(),
+  play: () =>
+    void toggle().then(() => hud(loading.value ? "Connecting…" : playing.value ? "Playing" : "Paused")),
+  stop: () => {
+    void stop();
+    hud("Stopped");
+  },
+  next: () => {
+    void next();
+    hud("Next track");
+  },
   refresh: () => void refreshQueue(),
-  lossless: flipFormat,
-  "volume-up": () => (volume.value = Math.min(100, volume.value + 10)),
-  "volume-down": () => (volume.value = Math.max(0, volume.value - 10)),
+  lossless: () => {
+    flipFormat();
+    hud(format.value === "flac" ? "Lossless stream (FLAC)" : "MP3 stream (320 kbit/s)");
+  },
+  "volume-up": () => {
+    volume.value = Math.min(100, volume.value + 10);
+    hud(`Volume ${volume.value}%`);
+  },
+  "volume-down": () => {
+    volume.value = Math.max(0, volume.value - 10);
+    hud(volume.value === 0 ? "Muted" : `Volume ${volume.value}%`);
+  },
   help: () => (help.value = !help.value),
   settings: () => (tab.value = "settings"),
   ...Object.fromEntries(TABS.map((t, i) => [`tab-${i + 1}`, () => (tab.value = t.id)])),
 };
+
+// A folder dropped on the window is the folder of the local source.
+const dropping = ref(false);
+const folderName = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+async function dropFolder(paths: string[]) {
+  const path = paths[0];
+  const local = auth.value?.backends.find((b) => b.id === "local");
+  if (!path || !local) return;
+  const field = local.setting_fields?.[0]?.name ?? "directory";
+  if (!local.enabled && !(await setBackend("local", true))) return;
+  if (await signIn("local", { [field]: path })) {
+    hud(`Playing from ${folderName(path)}`);
+    tab.value = "sources";
+  }
+}
 
 function onKey(event: KeyboardEvent) {
   if ((event.target as HTMLElement | null)?.tagName === "INPUT") return;
@@ -103,13 +138,24 @@ watch(
 );
 
 let unlistenMenu: (() => void) | undefined;
+const unlistenDrop: Array<() => void> = [];
 onMounted(async () => {
   window.addEventListener("keydown", onKey);
   unlistenMenu = await listen<string>("menu", (event) => actions[event.payload]?.());
+  // Files dragged in from Finder (the events of the window; the queue's own drag is not one of them).
+  unlistenDrop.push(await listen("tauri://drag-enter", () => (dropping.value = !!auth.value?.backends.some((b) => b.id === "local"))));
+  unlistenDrop.push(await listen("tauri://drag-leave", () => (dropping.value = false)));
+  unlistenDrop.push(
+    await listen<{ paths: string[] }>("tauri://drag-drop", (event) => {
+      dropping.value = false;
+      void dropFolder(event.payload.paths);
+    }),
+  );
 });
 onUnmounted(() => {
   window.removeEventListener("keydown", onKey);
   unlistenMenu?.();
+  unlistenDrop.forEach((f) => f());
 });
 </script>
 
@@ -155,6 +201,13 @@ onUnmounted(() => {
         <span>{{ eqNote || (loading ? "Connecting…" : playing ? `Playing · ${activeEngine === "native" ? "native" : "browser"}` : "Stopped") }}</span>
         <span>{{ queue?.next.length ?? 0 }} queued · ~{{ Math.round(left / 60) }} min</span>
       </div>
+
+      <Transition name="fade">
+        <div v-if="dropping" class="drop">
+          <v-icon :icon="mdiFolderMusicOutline" size="44" />
+          <span>Drop a folder to play its music</span>
+        </div>
+      </Transition>
 
       <Transition name="fade">
         <div v-if="error || notice" class="toast" @click="error = ''; notice = ''">{{ error || notice }}</div>

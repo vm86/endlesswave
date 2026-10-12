@@ -182,14 +182,16 @@ export function useRadio() {
       await api.setLanguage(language);
       take(await api.refreshQueue());
     });
-  const setBackend = (id: string, enabled: boolean) =>
-    guarded(async () => {
+  const setBackend = async (id: string, enabled: boolean): Promise<boolean> =>
+    (await guarded(async () => {
       auth.value = await (enabled ? api.enableBackend(id) : api.disableBackend(id));
-    });
-  const signIn = (id: string, values: Record<string, string>) =>
-    guarded(async () => {
+      return true;
+    })) === true;
+  const signIn = async (id: string, values: Record<string, string>): Promise<boolean> =>
+    (await guarded(async () => {
       auth.value = await api.signIn(id, values);
-    });
+      return true;
+    })) === true;
 
   const elapsed = computed(() => {
     const now = queue.value?.now;

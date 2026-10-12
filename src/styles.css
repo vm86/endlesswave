@@ -229,3 +229,11 @@ kbd {
 }
 .btn-quiet:hover { background: var(--control); }
 .btn-quiet:active { transform: scale(0.96); }
+
+/* A folder dragged over the window: the whole window is the place to drop it. */
+.drop {
+  position: fixed; inset: 8px; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  border: 2px dashed var(--accent); border-radius: 12px; color: var(--accent); font-size: 14px; font-weight: 600; pointer-events: none;
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+  backdrop-filter: saturate(180%) blur(12px); -webkit-backdrop-filter: saturate(180%) blur(12px);
+}

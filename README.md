@@ -84,7 +84,8 @@ The token is kept in `~/.config/yamusic-radio.json` (mode `0600`), so you sign i
 
 ### Music from a folder
 
-Open **Sources** → turn **Local folder** on → **Choose…** → pick the folder. Subfolders are read too, and
+Open **Sources** → turn **Local folder** on → **Choose…** → pick the folder (or just drag the folder from
+Finder onto the window). Subfolders are read too, and
 the tags (title, artist, genre) come from the files. Yandex Music can stay on or be turned off: the tracks
 of both sources go into one pool.
 
