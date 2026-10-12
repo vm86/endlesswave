@@ -3,6 +3,15 @@
 A tray player for [yamusic-radio](https://github.com/vm86/yamusic-radio), the endless
 beat-matched DJ radio (Yandex Music or a local folder). Tauri v2, Vue 3, macOS and Linux.
 
+<p align="center">
+  <img src="docs/screenshots/player-light.png" width="360" alt="The player, light mode">
+  <img src="docs/screenshots/player-dark.png" width="360" alt="The player, dark mode">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/mix-dark.png" width="360" alt="Moods, language and genres">
+</p>
+
 ```bash
 npm install
 npm run tauri dev      # the daemon is started from ../yamusic-radio/.venv, or YAMUSIC_DJ_BIN
