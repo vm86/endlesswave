@@ -1,5 +1,7 @@
+mod menu;
 mod radio;
 
+use menu::MenuState;
 use radio::Radio;
 use tauri::{
     menu::{MenuBuilder, MenuItem, MenuItemBuilder},
@@ -27,8 +29,21 @@ fn radio_start(app: AppHandle, radio: State<Radio>) -> Result<(), String> {
 fn update_tray(app: AppHandle, state: State<TrayState>, title: String, playing: bool) {
     let _ = state.now.set_text(if title.is_empty() { "Nothing playing" } else { &title });
     let _ = state.play.set_text(if playing { "Pause" } else { "Play" });
+    if let Some(items) = app.state::<MenuState>().0.lock().unwrap().as_ref() {
+        let _ = items.play.set_text(if playing { "Pause" } else { "Play" });
+    }
     if let Some(tray) = app.tray_by_id("main") {
         let _ = tray.set_tooltip(Some(if title.is_empty() { "yamusic-radio" } else { &title }));
+    }
+}
+
+/// What the items of the menu bar show: Next is off when the radio cannot skip now, and the
+/// FLAC item is checked when the lossless stream plays.
+#[tauri::command]
+fn update_menu(state: State<MenuState>, can_skip: bool, lossless: bool) {
+    if let Some(items) = state.0.lock().unwrap().as_ref() {
+        let _ = items.next.set_enabled(can_skip);
+        let _ = items.lossless.set_checked(lossless);
     }
 }
 
@@ -47,7 +62,8 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(Radio::default())
-        .invoke_handler(tauri::generate_handler![radio_url, radio_start, update_tray])
+        .manage(MenuState::default())
+        .invoke_handler(tauri::generate_handler![radio_url, radio_start, update_tray, update_menu])
         .setup(|app| {
             let now = MenuItemBuilder::with_id("now", "Nothing playing").enabled(false).build(app)?;
             let play = MenuItemBuilder::with_id("play", "Play").build(app)?;
@@ -99,7 +115,14 @@ pub fn run() {
                 tray = tray.icon(icon.clone());
             }
             tray.build(app)?;
+            menu::install(app.handle())?;
             Ok(())
+        })
+        // The menu bar (macOS): the item is an action of the page.
+        .on_menu_event(|app, event| {
+            if let Some(action) = event.id().as_ref().strip_prefix(menu::PREFIX) {
+                let _ = app.emit("menu", action);
+            }
         })
         // The close button hides the player to the tray; "Quit" really quits.
         .on_window_event(|window, event| {

@@ -128,7 +128,7 @@ with the **⟳** button (⌘R). The settings are remembered and come back after 
 
 ### Keyboard shortcuts
 
-On Linux, Ctrl takes the place of ⌘. The whole list is shown by <kbd>⌘</kbd> <kbd>/</kbd>.
+On macOS the shortcuts are in the menu bar (**Controls** and **View**), so you can find them there. On Linux, Ctrl takes the place of ⌘. The whole list is shown by <kbd>⌘</kbd> <kbd>/</kbd>.
 
 | Key | Action |
 |---|---|

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { mdiKeyboardOutline } from "@mdi/js";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import Deck from "./components/Deck.vue";
@@ -46,6 +48,22 @@ watch(error, (value) => {
   if (value) toastTimer = setTimeout(() => (error.value = ""), 8000);
 });
 
+// On macOS the shortcuts belong to the menu bar (src-tauri/src/menu.rs), and so do the actions
+// of its items. Space has no menu item (it would eat the spaces of a text field): the page keeps it.
+const mac = document.documentElement.classList.contains("mac");
+
+const actions: Record<string, () => void> = {
+  play: () => void toggle(),
+  stop: () => stop(),
+  next: () => void next(),
+  refresh: () => void refreshQueue(),
+  lossless: flipFormat,
+  "volume-up": () => (volume.value = Math.min(100, volume.value + 10)),
+  "volume-down": () => (volume.value = Math.max(0, volume.value - 10)),
+  help: () => (help.value = !help.value),
+  ...Object.fromEntries(TABS.map((t, i) => [`tab-${i + 1}`, () => (tab.value = t.id)])),
+};
+
 function onKey(event: KeyboardEvent) {
   if ((event.target as HTMLElement | null)?.tagName === "INPUT") return;
   const cmd = event.metaKey || event.ctrlKey;
@@ -54,24 +72,41 @@ function onKey(event: KeyboardEvent) {
     action();
   };
   if (event.key === "Escape" && help.value) return run(() => (help.value = false));
-  if (event.key === " " && !cmd) return run(() => void toggle());
-  if (!cmd) return;
+  if (event.key === " " && !cmd) return run(actions.play!);
+  if (!cmd || mac) return;
   const index = Number(event.key);
-  if (index >= 1 && index <= TABS.length) return run(() => (tab.value = TABS[index - 1]!.id));
-  const byKey: Record<string, () => void> = {
-    ".": () => stop(),
-    ArrowRight: () => void next(),
-    r: () => void refreshQueue(),
-    l: flipFormat,
-    ArrowUp: () => (volume.value = Math.min(100, volume.value + 10)),
-    ArrowDown: () => (volume.value = Math.max(0, volume.value - 10)),
-    "/": () => (help.value = !help.value),
+  if (index >= 1 && index <= TABS.length) return run(actions[`tab-${index}`]!);
+  const byKey: Record<string, string> = {
+    ".": "stop",
+    ArrowRight: "next",
+    r: "refresh",
+    l: "lossless",
+    ArrowUp: "volume-up",
+    ArrowDown: "volume-down",
+    "/": "help",
   };
-  const action = byKey[event.key];
-  if (action) run(action);
+  const name = byKey[event.key];
+  if (name) run(actions[name]!);
 }
-onMounted(() => window.addEventListener("keydown", onKey));
-onUnmounted(() => window.removeEventListener("keydown", onKey));
+
+// What the menu bar shows: Next is off when the radio cannot skip, FLAC is checked while it plays.
+watch(
+  [() => queue.value?.can_skip, skipping, format],
+  () => {
+    void invoke("update_menu", { canSkip: (queue.value?.can_skip ?? false) && !skipping.value, lossless: format.value === "flac" });
+  },
+  { immediate: true },
+);
+
+let unlistenMenu: (() => void) | undefined;
+onMounted(async () => {
+  window.addEventListener("keydown", onKey);
+  unlistenMenu = await listen<string>("menu", (event) => actions[event.payload]?.());
+});
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKey);
+  unlistenMenu?.();
+});
 </script>
 
 <template>
