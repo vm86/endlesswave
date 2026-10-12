@@ -103,6 +103,14 @@ fn set_state(app: &AppHandle, shared: &Shared, state: u8, message: &str) {
     let _ = app.emit("player", StateEvent { state: state_name(state), message: message.to_string() });
 }
 
+/// The default output. rodio asks the device for a buffer of 2048 frames; some outputs (AirPods
+/// accept 15..960) refuse it and the sink does not open at all. The device is left to pick its own size.
+fn open_sink() -> Result<rodio::MixerDeviceSink, rodio::DeviceSinkError> {
+    DeviceSinkBuilder::from_default_device()
+        .and_then(|builder| builder.with_buffer_size(rodio::cpal::BufferSize::Default).open_stream())
+        .or_else(|_| DeviceSinkBuilder::open_default_sink())
+}
+
 impl Audio {
     pub fn start(&self, app: &AppHandle, url: String, volume: f32) {
         self.stop(app);
@@ -146,7 +154,7 @@ impl Audio {
                 return;
             };
 
-            let sink = match DeviceSinkBuilder::open_default_sink() {
+            let sink = match open_sink() {
                 Ok(sink) => sink,
                 Err(error) => {
                     stop.store(true, Ordering::SeqCst);
