@@ -5,6 +5,7 @@
 #
 #   scripts/build-backend.sh            # the main branch of vm86/yamusic-radio
 #   YAMUSIC_RADIO_REF=v0.2.0 scripts/build-backend.sh
+#   YAMUSIC_RADIO_REPO=file://$HOME/devel/yamusic-radio scripts/build-backend.sh   # a local checkout
 #
 # Needs python3 (3.12+), git and the network (GitHub, PyPI). ffmpeg with
 # libmp3lame is NOT bundled: the app finds it in PATH, /opt/homebrew/bin or /usr/local/bin.
@@ -22,6 +23,8 @@ if [ ! -d "$WORK/src/.git" ]; then
   git init -q "$WORK/src"
   git -C "$WORK/src" remote add origin "$REPO"
 fi
+# YAMUSIC_RADIO_REPO may change between runs (a local checkout, a fork).
+git -C "$WORK/src" remote set-url origin "$REPO"
 git -C "$WORK/src" fetch -q --depth 1 origin "$REF"
 git -C "$WORK/src" checkout -q --force FETCH_HEAD
 echo "backend: $(git -C "$WORK/src" log --oneline -1)"
