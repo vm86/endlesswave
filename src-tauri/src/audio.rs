@@ -302,8 +302,9 @@ fn read_stream(
 
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_connect(Some(Duration::from_secs(5)))
-        // The radio answers only when it has a track to play: right after its start that takes a while.
-        .timeout_recv_response(Some(Duration::from_secs(40)))
+        // The radio answers only when it has a track to play, and on the very first start (nothing
+        // analyzed or loaded yet) that takes a minute or more: waiting is better than a fall back.
+        .timeout_recv_response(Some(Duration::from_secs(240)))
         .build()
         .into();
     // The service of a freshly started app is not listening yet (it takes a few seconds): try again

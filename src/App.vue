@@ -35,11 +35,19 @@ const tab = ref("list");
 async function copy(text: string, what = "Code") {
   notice.value = (await copyText(text)) ? `${what} copied` : "Could not copy";
 }
+// Connecting takes long when the radio has just started: say what is awaited.
+const slowStart = ref(false);
+let slowTimer: ReturnType<typeof setTimeout> | undefined;
 const help = ref(false);
 const prefs = ref(false);
 useDock();
 const { release, checking, status: updateStatus, check: checkUpdate, download, dismiss } = useUpdate();
 const { setEngine, starting, engine, activeEngine, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
+watch(loading, (value) => {
+  clearTimeout(slowTimer);
+  slowStart.value = false;
+  if (value) slowTimer = setTimeout(() => (slowStart.value = true), 6000);
+});
 const left = computed(() => (queue.value?.next ?? []).reduce((sum, t) => sum + t.duration_seconds, 0));
 const flipFormat = () => (format.value = format.value === "mp3" ? "flac" : "mp3");
 
@@ -218,7 +226,7 @@ onUnmounted(() => {
         @play="playTrack" @move="moveTrack" @remove="removeTrack" @moods="setMoods" @language="setLanguage" @genres="setGenres" @blocked="setBlocked" @toggle-backend="setBackend" @sign-in="signIn" @copy="copy" />
 
       <div class="status">
-        <span>{{ eqNote || (loading ? "Connecting…" : playing ? `Playing · ${activeEngine === "native" ? "native" : "browser"}` : "Stopped") }}</span>
+        <span>{{ eqNote || (loading ? (slowStart ? "Waiting for the radio to get its first tracks…" : "Connecting…") : playing ? `Playing · ${activeEngine === "native" ? "native" : "browser"}` : "Stopped") }}</span>
         <span>{{ queue?.next.length ?? 0 }} queued · ~{{ Math.round(left / 60) }} min</span>
       </div>
 

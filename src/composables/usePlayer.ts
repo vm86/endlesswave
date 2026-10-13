@@ -9,7 +9,9 @@ import { onUnmounted, ref, watch, type Ref } from "vue";
  */
 export type Engine = "native" | "web";
 
-const START_TIMEOUT_MS = 45000;
+// The first start of the radio (no track analyzed yet) can take a minute or more; the native player
+// is given time for it, and falls back only on a real failure or after this long.
+const START_TIMEOUT_MS = 300000;
 const POSITION_POLL_MS = 200;
 
 interface NativeStatus {
