@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import { dockIcon, hasDock } from "../composables/useDock";
 
-defineProps<{ engine: "native" | "web"; active: "native" | "web"; checking: boolean; updateStatus: string }>();
-const emit = defineEmits<{ engine: ["native" | "web"]; checkUpdate: [] }>();
+defineProps<{ engine: "native" | "web"; active: "native" | "web"; checking: boolean; updateStatus: string; resetting: boolean }>();
+const emit = defineEmits<{ engine: ["native" | "web"]; checkUpdate: []; reset: [] }>();
+const confirming = ref(false);
 </script>
 
 <template>
@@ -45,4 +47,20 @@ const emit = defineEmits<{ engine: ["native" | "web"]; checkUpdate: [] }>();
     </div>
   </div>
   <p class="prefs-note">{{ updateStatus || "EndlessWave looks for a new version by itself, twice a day." }}</p>
+
+  <div class="prefs-group">
+    <div class="prefs-row">
+      <span>Reset</span>
+      <button v-if="!confirming" class="btn-quiet danger" :disabled="resetting" @click="confirming = true">Reset…</button>
+      <span v-else class="confirm">
+        <button class="btn-quiet" @click="confirming = false">Cancel</button>
+        <button class="btn-danger" :disabled="resetting" @click="emit('reset')">Reset</button>
+      </span>
+    </div>
+  </div>
+  <p class="prefs-note">
+    <template v-if="confirming">The queue, the settings and the history of listening (with the statistics) will be cleared, and the radio
+      will start again. Your sign-in and the analysis of the tracks stay.</template>
+    <template v-else>Starts the radio afresh: clears the queue, the settings and the history. The sign-in and the analysis stay.</template>
+  </p>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useDock } from "./composables/useDock";
+import { hasDock, useDock } from "./composables/useDock";
 import { mdiCogOutline, mdiFolderMusicOutline, mdiKeyboardOutline } from "@mdi/js";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -38,11 +38,33 @@ async function copy(text: string, what = "Code") {
 // Connecting takes long when the radio has just started: say what is awaited.
 const slowStart = ref(false);
 let slowTimer: ReturnType<typeof setTimeout> | undefined;
+// The reset: the queue, the settings and the history of the radio go; the sign-in and the analysis stay.
+const resetting = ref(false);
+async function resetAll() {
+  resetting.value = true;
+  prefs.value = false;
+  try {
+    await stop();
+    expectRestart();
+    await invoke("reset_radio");
+    try {
+      localStorage.clear(); // the settings of the app itself: the player, the format, the volume...
+    } catch {
+      /* no storage: nothing to clear */
+    }
+    if (hasDock) await invoke("set_dock_visible", { visible: true }).catch(() => undefined);
+    location.reload();
+  } catch (e) {
+    error.value = String(e);
+    starting.value = false;
+    resetting.value = false;
+  }
+}
 const help = ref(false);
 const prefs = ref(false);
 useDock();
 const { release, checking, status: updateStatus, check: checkUpdate, download, dismiss } = useUpdate();
-const { setEngine, starting, engine, activeEngine, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
+const { expectRestart, setEngine, starting, engine, activeEngine, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
 watch(loading, (value) => {
   clearTimeout(slowTimer);
   slowStart.value = false;
@@ -252,7 +274,7 @@ onUnmounted(() => {
         <div v-if="prefs" class="sheet-wrap top" @click.self="prefs = false">
           <div class="sheet prefs">
             <h3>Settings</h3>
-            <SettingsPanel :engine="engine" :active="activeEngine" :checking="checking" :update-status="updateStatus" @engine="setEngine" @check-update="checkUpdate(true)" />
+            <SettingsPanel :engine="engine" :active="activeEngine" :checking="checking" :update-status="updateStatus" :resetting="resetting" @reset="resetAll" @engine="setEngine" @check-update="checkUpdate(true)" />
             <div class="done"><button class="btn-accent" @click="prefs = false">Done</button></div>
           </div>
         </div>

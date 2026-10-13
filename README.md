@@ -113,6 +113,9 @@ instance), the app says so and plays with the browser for that listening.
 On macOS, **Appearance** can hide the Dock icon and the app's menu: the player then lives in the menu bar
 only, and the window opens from the tray icon.
 
+**Reset** starts the radio afresh: it clears the queue, the settings of the mix, the sources and the app, and the
+history of listening (with the statistics). The sign-in and the cache of the analysis of the tracks stay.
+
 **Updates**: the app looks for a new version of itself twice a day and shows a card with a **Download**
 button (it opens the page of the release). **Check now** (or *Check for Updates…* in the app menu on macOS)
 asks at once.

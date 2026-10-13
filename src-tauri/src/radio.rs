@@ -22,6 +22,8 @@ pub struct Radio {
     /// Set when the app is leaving: a service that ends then is not a crash.
     stopping: AtomicBool,
     watching: AtomicBool,
+    /// The service is stopped on purpose (the reset): the watcher does not start it again.
+    paused: AtomicBool,
 }
 
 /// A service that lived longer than this was working: its end starts the count of crashes anew.
@@ -169,6 +171,33 @@ fn reap_orphan() {
 #[cfg(not(unix))]
 fn reap_orphan() {}
 
+fn cache_dir() -> Option<PathBuf> {
+    Some(PathBuf::from(std::env::var_os("HOME")?).join(".cache"))
+}
+
+/// The settings (the queue of the last run, the moods, the genres, the sources...), the history of the
+/// listening (when a track was played, the blends of the statistics) and the tracks that were loaded to
+/// wait for their turn. The analysis of the tracks stays, so does the token.
+fn clean_state() -> Result<(), String> {
+    let cache = cache_dir().ok_or("no home directory")?;
+    let db = cache.join("yamusic-radio.db");
+    if db.exists() {
+        let mut conn = rusqlite::Connection::open(&db).map_err(|error| format!("cannot open the database: {error}"))?;
+        conn.busy_timeout(Duration::from_secs(5)).map_err(|error| error.to_string())?;
+        let tx = conn.transaction().map_err(|error| error.to_string())?;
+        tx.execute_batch("DELETE FROM settings; DELETE FROM transitions; UPDATE tracks SET played_at = NULL;")
+            .map_err(|error| format!("cannot clear the database: {error}"))?;
+        tx.commit().map_err(|error| error.to_string())?;
+    }
+    if let Ok(entries) = fs::read_dir(cache.join("yamusic-radio-tracks")) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let _ = if path.is_dir() { fs::remove_dir_all(&path) } else { fs::remove_file(&path) };
+        }
+    }
+    Ok(())
+}
+
 /// Linux: the system's bundle of the root certificates. The Python inside the package was built
 /// elsewhere, and its OpenSSL looks for them in the places of that machine: HTTPS then fails with
 /// "unable to get local issuer certificate". Where the bundle is depends on the distribution.
@@ -235,6 +264,9 @@ fn watch(app: &AppHandle) {
         std::thread::sleep(Duration::from_secs(1));
         if radio.stopping.load(Ordering::SeqCst) {
             return;
+        }
+        if radio.paused.load(Ordering::SeqCst) {
+            continue;
         }
         let died = match radio.child.lock().unwrap().as_mut() {
             Some(child) => match child.try_wait() {
@@ -327,6 +359,28 @@ impl Radio {
 
     pub fn stop(&self) {
         self.stopping.store(true, Ordering::SeqCst);
+        self.stop_child(40);
+    }
+
+    /// The reset: the queue, the settings and the history of the radio are cleared, and the radio starts again
+    /// with none of them. What stays: the sign-in (the file of the config is not touched) and the cache of the
+    /// analysis of the tracks (the table `tracks`, but for the time when a track was played).
+    ///
+    /// The service has to stop first: it writes its state when it ends. One the app did not start
+    /// (it was there before) is not ours to stop.
+    pub fn reset(&self, resources: Option<&Path>) -> Result<(), String> {
+        if self.child.lock().unwrap().is_none() && is_up(port()) {
+            return Err("The radio service was not started by this app: stop it, then reset".into());
+        }
+        self.paused.store(true, Ordering::SeqCst);
+        self.stop_child(150); // it ends by itself in a moment once nobody listens
+        let cleaned = clean_state();
+        self.paused.store(false, Ordering::SeqCst);
+        let started = self.launch(resources);
+        cleaned.and(started)
+    }
+
+    fn stop_child(&self, tenths_of_second: u32) {
         if let Some(mut child) = self.child.lock().unwrap().take() {
             forget_pid();
             // SIGTERM first: the daemon puts the station's settings back and
@@ -334,7 +388,7 @@ impl Radio {
             #[cfg(unix)]
             {
                 let _ = Command::new("kill").arg(child.id().to_string()).status();
-                for _ in 0..40 {
+                for _ in 0..tenths_of_second {
                     if matches!(child.try_wait(), Ok(Some(_))) {
                         return;
                     }
@@ -344,5 +398,44 @@ impl Radio {
             let _ = child.kill();
             let _ = child.wait();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reset_clears_the_state_and_keeps_the_analysis() {
+        let home = std::env::temp_dir().join(format!("endlesswave-test-{}", std::process::id()));
+        let cache = home.join(".cache");
+        fs::create_dir_all(cache.join("yamusic-radio-tracks")).unwrap();
+        fs::write(cache.join("yamusic-radio-tracks").join("a.aac"), b"x").unwrap();
+        // Safety: the only test that touches the environment.
+        unsafe { std::env::set_var("HOME", &home) };
+
+        let conn = rusqlite::Connection::open(cache.join("yamusic-radio.db")).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE tracks (track_id TEXT, analysis TEXT, played_at REAL);
+             CREATE TABLE transitions (at REAL);
+             CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+             INSERT INTO tracks VALUES ('a', '{\"bpm\": 120}', 5.0);
+             INSERT INTO transitions VALUES (1.0);
+             INSERT INTO settings VALUES ('playlist', '[]');",
+        )
+        .unwrap();
+        drop(conn);
+
+        clean_state().unwrap();
+
+        let conn = rusqlite::Connection::open(cache.join("yamusic-radio.db")).unwrap();
+        let count = |sql: &str| conn.query_row(sql, [], |row| row.get::<_, i64>(0)).unwrap();
+        assert_eq!(count("SELECT COUNT(*) FROM settings"), 0);
+        assert_eq!(count("SELECT COUNT(*) FROM transitions"), 0);
+        assert_eq!(count("SELECT COUNT(*) FROM tracks"), 1, "the analysis stays");
+        assert_eq!(count("SELECT COUNT(*) FROM tracks WHERE played_at IS NULL"), 1, "the history goes");
+        assert_eq!(count("SELECT COUNT(*) FROM tracks WHERE analysis LIKE '%120%'"), 1);
+        assert_eq!(fs::read_dir(cache.join("yamusic-radio-tracks")).unwrap().count(), 0);
+        let _ = fs::remove_dir_all(&home);
     }
 }

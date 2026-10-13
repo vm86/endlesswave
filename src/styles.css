@@ -295,3 +295,9 @@ kbd {
 html.mac, html.mac body, html.mac .v-application, html.mac .v-application__wrap { background: transparent !important; }
 html.mac .player { background: color-mix(in srgb, var(--bg) 55%, transparent); }
 html.mac .topbar { background: transparent; }
+
+.btn-quiet.danger { color: var(--red); }
+.btn-danger { border: 0; padding: 3px 12px; border-radius: 6px; background: var(--red); color: #fff; font: inherit; font-size: 12px; cursor: default; }
+.btn-danger:active { transform: scale(0.96); }
+.btn-danger[disabled] { opacity: 0.45; pointer-events: none; }
+.prefs-row .confirm { display: flex; gap: 6px; }

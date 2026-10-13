@@ -28,6 +28,18 @@ fn radio_start(app: AppHandle, radio: State<Radio>) -> Result<(), String> {
     radio.start(&app)
 }
 
+/// Resets the radio (see `Radio::reset`). It takes a while (the service has to end), so not on the main thread.
+#[tauri::command]
+async fn reset_radio(app: AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<Audio>().stop(&app);
+        let resources = app.path().resource_dir().ok();
+        app.state::<Radio>().reset(resources.as_deref())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 #[tauri::command]
 fn player_start(app: AppHandle, audio: State<Audio>, url: String, volume: f32) {
     audio.start(&app, url, volume);
@@ -149,6 +161,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             radio_url,
             radio_start,
+            reset_radio,
             update_tray,
             update_menu,
             player_start,

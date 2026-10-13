@@ -155,6 +155,12 @@ export function useRadio() {
   // would put the old choice back for a moment: the chips would jump back and forth.
   const holding = ref(0);
 
+  /** The service is about to be restarted (the reset): a wait, not an error. */
+  function expectRestart() {
+    starting.value = true;
+    startedAt = performance.now();
+  }
+
   function take(q: Queue) {
     const mine = queue.value;
     if (holding.value > 0 && mine) {
@@ -361,5 +367,5 @@ export function useRadio() {
     unlisten.forEach((f) => f());
   });
 
-  return { setEngine, starting, engine: player.engine, activeEngine: player.active, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
+  return { expectRestart, setEngine, starting, engine: player.engine, activeEngine: player.active, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
 }
