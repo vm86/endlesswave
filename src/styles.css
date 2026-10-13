@@ -207,11 +207,12 @@ kbd {
 
 /* Queue editing: the pin, hover actions, the line where a dragged track goes. */
 .row .pin { flex: none; color: var(--text2); }
-.row .acts { display: none; flex: none; gap: 2px; margin-left: 4px; }
+.row .acts { display: none; flex: none; gap: 4px; margin-left: 4px; }
 .row .acts button {
-  width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px; color: var(--text2);
+  width: 20px; height: 20px; padding: 0; display: grid; place-items: center; border-radius: 50%; color: var(--text2);
   background: transparent; border: 0; cursor: default; transition: background 120ms var(--ease), color 120ms var(--ease);
 }
+.row .acts .v-icon { width: 1em; height: 1em; margin: 0; }
 .row .acts button:hover { background: var(--control-hover); color: var(--text); }
 .row .acts button[disabled] { opacity: 0.3; pointer-events: none; }
 .row.next:hover .acts { display: flex; }

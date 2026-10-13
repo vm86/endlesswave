@@ -334,7 +334,7 @@ impl Radio {
             #[cfg(unix)]
             {
                 let _ = Command::new("kill").arg(child.id().to_string()).status();
-                for _ in 0..80 {
+                for _ in 0..40 {
                     if matches!(child.try_wait(), Ok(Some(_))) {
                         return;
                     }

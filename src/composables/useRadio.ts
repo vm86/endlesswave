@@ -151,16 +151,35 @@ export function useRadio() {
     },
   );
 
+  // While a choice of the mix (mood, language, genres) is on its way to the radio, what the poll brings
+  // would put the old choice back for a moment: the chips would jump back and forth.
+  const holding = ref(0);
+
   function take(q: Queue) {
+    const mine = queue.value;
+    if (holding.value > 0 && mine) {
+      q = {
+        ...q,
+        moods: { ...q.moods, selected: mine.moods.selected },
+        language: q.language && mine.language ? { ...q.language, selected: mine.language.selected } : q.language,
+      };
+    }
     queue.value = q;
     fetchedAt.value = performance.now();
+  }
+
+  /** The genres as the radio lists them, in the order the chips already have: a chip does not move when it is picked. */
+  function steady(prev: GenresInfo | null, next: GenresInfo): GenresInfo {
+    if (!prev) return next;
+    const known = prev.available.filter((g) => next.available.includes(g));
+    return { ...next, available: [...known, ...next.available.filter((g) => !known.includes(g))] };
   }
 
   async function refresh() {
     try {
       const [a, q, g, st] = await Promise.all([api.auth(), api.queue(), api.genres(), api.stats()]);
       auth.value = a;
-      genres.value = g;
+      if (holding.value === 0) genres.value = steady(genres.value, g);
       stats.value = st;
       take(q);
       starting.value = false;
@@ -173,27 +192,43 @@ export function useRadio() {
     }
   }
 
+  /**
+   * A choice of the mix shows at once, and the radio is told. Then the queue is built again for it
+   * (that takes a moment, and the chips must not wait for it).
+   */
+  async function tune(apply: () => void, call: () => Promise<void>) {
+    holding.value++;
+    apply();
+    try {
+      await call();
+      take(await api.refreshQueue());
+    } catch (e) {
+      error.value = String(e instanceof Error ? e.message : e);
+      void refresh(); // what the radio really has
+    } finally {
+      setTimeout(() => holding.value--, 700);
+    }
+  }
   const setMoods = (moods: string[]) =>
-    guarded(async () => {
-      await api.setMoods(moods);
-      take(await api.refreshQueue());
-    });
+    tune(
+      () => queue.value && (queue.value = { ...queue.value, moods: { ...queue.value.moods, selected: moods } }),
+      async () => void (await api.setMoods(moods)),
+    );
   const setGenres = (list: string[]) =>
-    guarded(async () => {
-      await api.setGenres(list);
-      take(await api.refreshQueue());
-    });
-
+    tune(
+      () => genres.value && (genres.value = { ...genres.value, selected: list }),
+      async () => void (genres.value = steady(genres.value, await api.setGenres(list))),
+    );
   const setBlocked = (list: string[]) =>
-    guarded(async () => {
-      await api.setBlocked(list);
-      take(await api.refreshQueue());
-    });
+    tune(
+      () => genres.value && (genres.value = { ...genres.value, blocked: list }),
+      async () => void (genres.value = steady(genres.value, await api.setBlocked(list))),
+    );
   const setLanguage = (language: string | null) =>
-    guarded(async () => {
-      await api.setLanguage(language);
-      take(await api.refreshQueue());
-    });
+    tune(
+      () => queue.value?.language && (queue.value = { ...queue.value, language: { ...queue.value.language, selected: language } }),
+      async () => void (await api.setLanguage(language)),
+    );
   const setBackend = async (id: string, enabled: boolean): Promise<boolean> =>
     (await guarded(async () => {
       auth.value = await (enabled ? api.enableBackend(id) : api.disableBackend(id));
@@ -286,6 +321,8 @@ export function useRadio() {
   const timers: number[] = [];
   const unlisten: Array<() => void> = [];
   onMounted(async () => {
+    // The app is quitting: the radio stops quickly when nobody listens to it.
+    unlisten.push(await listen("quit", () => void player.stop()));
     unlisten.push(await listen("tray-play-pause", () => void toggle()));
     unlisten.push(await listen("tray-next", () => void next()));
     // The system's controls of the native layer: the media keys, Control Center, MPRIS (`playerctl`).

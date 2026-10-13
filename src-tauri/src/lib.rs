@@ -235,9 +235,23 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
-    app.run(|app, event| {
-        if let RunEvent::Exit = event {
+    app.run(|app, event| match event {
+        // Quitting: the window goes at once. What follows takes a moment, and a window that stays
+        // while the app waits looks like a hang.
+        RunEvent::ExitRequested { .. } => {
+            for window in app.webview_windows().values() {
+                let _ = window.hide();
+            }
+        }
+        RunEvent::Exit => {
+            // The service stops quickly only when nobody listens to it (with a listener it waits for
+            // the stream to end, a minute or so, and then it is killed): close the native player and tell
+            // the page to stop its <audio>, then the service.
+            app.state::<Audio>().stop(app);
+            let _ = app.emit("quit", ());
+            std::thread::sleep(std::time::Duration::from_millis(300));
             app.state::<Radio>().stop();
         }
+        _ => {}
     });
 }

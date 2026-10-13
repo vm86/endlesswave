@@ -140,8 +140,8 @@ window.addEventListener("keydown", (event) => event.key === "Escape" && closeMen
         </span>
         <span class="d">{{ clock(row.track.duration_seconds) }}</span>
         <span v-if="row.kind === 'next'" class="acts">
-          <button :disabled="!queue?.can_skip" title="Play now" @click="emit('play', row.track.track_id)"><v-icon :icon="mdiPlay" size="14" /></button>
-          <button :disabled="locked(row)" title="Remove from the queue" @click="emit('remove', row.track.track_id)"><v-icon :icon="mdiClose" size="14" /></button>
+          <button :disabled="!queue?.can_skip" title="Play now" @click="emit('play', row.track.track_id)"><v-icon :icon="mdiPlay" size="13" /></button>
+          <button :disabled="locked(row)" title="Remove from the queue" @click="emit('remove', row.track.track_id)"><v-icon :icon="mdiClose" size="13" /></button>
         </span>
       </div>
       <div v-if="!rows.length" class="empty">
