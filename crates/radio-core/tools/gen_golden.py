@@ -436,6 +436,80 @@ def write_cache() -> None:
     print("cache: python.db, prune.db, old.db")
 
 
+def write_streams() -> None:
+    """Encoded streams (by the radio's own ffmpeg commands) and what the radio's frame readers say about cuts of them."""
+    import subprocess
+
+    from yamusic_radio import dj
+
+    folder = OUT / "stream"
+    folder.mkdir(parents=True, exist_ok=True)
+    pcm = music(41, 55, 880, 4.0)
+    (folder / "pcm.f32").write_bytes(np.ascontiguousarray(pcm, "<f4").tobytes())
+    rng = np.random.default_rng(42)
+
+    def encode(output_args: tuple[str, ...]) -> bytes:
+        command = ["ffmpeg", "-nostdin", "-v", "error", "-f", "f32le", "-ac", "2", "-ar", str(SR), "-i", "pipe:0"]
+        command += [*output_args, "-flush_packets", "1", "pipe:1"]
+        return subprocess.run(command, input=pcm.astype("<f4").tobytes(), capture_output=True, check=True).stdout
+
+    def safe(function: object, *args: object) -> object:
+        try:
+            return function(*args)
+        except ValueError:
+            return "error"
+
+    streams = {"mp3": encode(dj.MP3_ARGS), "flac": encode(dj.FLAC_ARGS), "ogg": encode(dj.OGG_ARGS)}
+    report: dict[str, object] = {}
+    for name, data in streams.items():
+        (folder / f"{name}.bin").write_bytes(data)
+        offsets = sorted({0, 1, 2, 3, 7, 100, 1000, len(data) - 1, len(data), *map(int, rng.integers(0, len(data), 40))})
+        cuts = [(o, min(len(data), o + int(n))) for o in offsets for n in (rng.integers(1, 3000), 10**9)]
+        entry: dict[str, object] = {"length": len(data), "cuts": []}
+        for begin, end in cuts:
+            cut = data[begin:end]
+            result = {"begin": begin, "end": end}
+            if name == "mp3":
+                result["start"] = dj.mp3_start(cut)
+                result["frame"] = dj.mp3_frame_length(cut[:4])
+            elif name == "flac":
+                result["start"] = dj.flac_start(cut)
+            else:
+                result["start"] = dj.ogg_start(cut)
+                result["page"] = [dj.ogg_page_length(cut, p) for p in (0, 1, 5, len(cut) - 1, len(cut), len(cut) + 3)]
+            entry["cuts"].append(result)
+        if name in ("flac", "ogg"):
+            function = dj.flac_header_length if name == "flac" else dj.ogg_header_length
+            full = function(data)
+            sizes = sorted({0, 1, 3, 4, 5, 8, 30, 38, 40, 45, 100, 500, full - 1, full, full + 1, len(data)})
+            entry["header"] = full
+            entry["headers"] = [{"size": n, "result": safe(function, data[:n])} for n in sizes]
+        report[name] = entry
+    # bytes that are not any of these streams, with the patterns of each in them
+    randoms = []
+    for i in range(40):
+        size = int(rng.integers(0, 300))
+        raw = bytearray(rng.integers(0, 256, size, dtype=np.uint8).tobytes())
+        for _ in range(int(rng.integers(0, 6))):
+            if len(raw) > 6:
+                at = int(rng.integers(0, len(raw) - 5))
+                raw[at : at + 4] = [b"\xff\xfb\x90\x00", b"\xff\xf8\x69\x08", b"OggS\x00\x00", b"fLaC\x00\x00"][int(rng.integers(0, 4))]
+        data = bytes(raw)
+        randoms.append(
+            {
+                "hex": data.hex(),
+                "mp3_start": dj.mp3_start(data),
+                "flac_start": dj.flac_start(data),
+                "ogg_start": dj.ogg_start(data),
+                "flac_header": safe(dj.flac_header_length, data),
+                "ogg_header": safe(dj.ogg_header_length, data),
+                "ogg_page": [dj.ogg_page_length(data, p) for p in (0, 1, len(data), len(data) + 2)],
+            }
+        )
+    (folder / "frames.json").write_text(json.dumps({"streams": report, "random": randoms}, indent=1) + "\n")
+    print("stream: mp3", len(streams["mp3"]), "flac", len(streams["flac"]), "ogg", len(streams["ogg"]))
+
+
 def write_effects() -> None:
     """The effects, the limiter and blend(): the noise is recorded, and the Rust side replays it."""
     folder = OUT / "effects"
@@ -610,3 +684,4 @@ if __name__ == "__main__":
     write_blends()
     write_effects()
     write_cache()
+    write_streams()

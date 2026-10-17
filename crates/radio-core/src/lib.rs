@@ -4,3 +4,4 @@
 
 pub mod cache;
 pub mod mix;
+pub mod stream;

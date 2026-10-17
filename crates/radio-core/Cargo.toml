@@ -8,13 +8,16 @@ edition = "2024"
 publish = false
 
 [dependencies]
+bytes = { version = "1.12.1", default-features = false }
 ebur128 = "0.1.10"
+futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
 rand = "0.10.3"
 rand_distr = "0.6.0"
 realfft = "3.5.0"
 rusqlite = { version = "0.37", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tokio = { version = "1.53.3", features = ["rt", "sync", "process", "io-util", "macros", "time"] }
 
 [dev-dependencies]
 

@@ -6,3 +6,5 @@
 /tests/golden/effects/*.f64
 /vendor/
 /tests/golden/cache/*.db
+/tests/golden/stream/*.bin
+/tests/golden/stream/*.f32
