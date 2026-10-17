@@ -8,7 +8,15 @@ use serde::Deserialize;
 use std::{fs, path::PathBuf};
 
 #[derive(Debug, Deserialize)]
+struct Profile {
+    key: i32,
+    confidence: f64,
+    chroma: Vec<f64>,
+}
+
+#[derive(Debug, Deserialize)]
 struct Golden {
+    profile: Profile,
     sample_rate: u32,
     frames: usize,
     key_detector: String,
@@ -90,21 +98,50 @@ fn analysis_matches_python() {
         assert!((got.bpm - want.bpm).abs() < 0.01, "bpm, {note}");
         // A beat is found to half a frame of the flux (a quarter of a hop); the same grid is meant.
         assert!((got.head_beat - want.head_beat).abs() < 1.0, "head beat, {note}");
-        assert!((got.tail_beat - want.tail_beat).abs() < 1.0, "tail beat, {note}");
+        // On a track shorter than the 30 s window the radio's slice goes negative and the tail beat is a nonsense
+        // (see find_beat); here it is the start of the flux. The golden file has Python's number.
+        let window_seconds = 30.0;
+        if golden.frames as f64 >= window_seconds * f64::from(mix::SAMPLE_RATE) || want.bpm == 0.0 {
+            assert!((got.tail_beat - want.tail_beat).abs() < 1.0, "tail beat, {note}");
+        }
         assert_eq!((got.start, got.end), (want.start, want.end), "audible range, {note}");
         assert_eq!((got.intro_end, got.outro_start), (want.intro_end, want.outro_start), "sections, {note}");
         // ebur128 and Essentia differ below ~100 Hz (Essentia presses the bass harder: 0.2 dB on a 60 Hz kick, 1.3 dB
-        // on a 30 Hz sine); the same numbers come with Essentia's own meter (task 1.5.2), then this is 0.01.
-        assert!((got.loudness_db - want.loudness_db).abs() < 0.25, "loudness, {note}");
+        // on a 30 Hz sine); with Essentia's own meter built in the numbers are the same.
+        let tolerance = if cfg!(feature = "essentia") { 0.001 } else { 0.25 };
+        assert!((got.loudness_db - want.loudness_db).abs() < tolerance, "loudness, {note}");
     }
 }
 
-/// Task 1.5 of docs/rust-port.md.
+/// The key: Essentia's (feature `essentia`), or the profiles' where it is not built in.
 #[test]
-#[ignore = "the key is not found yet"]
 fn key_matches_python() {
     for (name, golden) in cases() {
         let Some(pcm) = signal(&name, &golden) else { continue };
-        assert_eq!(mix::analyze(&pcm).key, golden.analysis.key, "{name}");
+        let want = if cfg!(feature = "essentia") {
+            golden.analysis.key
+        } else if golden.profile.confidence >= 0.3 {
+            golden.profile.key
+        } else {
+            -1
+        };
+        assert_eq!(mix::analyze(&pcm).key, want, "{name}");
+    }
+}
+
+/// The key by the profiles (task 1.5.4), which Essentia's answer falls back to.
+#[test]
+fn the_profile_key_is_the_pythons() {
+    for (name, golden) in cases() {
+        let Some(pcm) = signal(&name, &golden) else { continue };
+        let a = &golden.analysis;
+        let mono: Vec<f32> = pcm[a.start as usize * 2..a.end as usize * 2].chunks_exact(2).map(|f| (f[0] + f[1]) / 2.0).collect();
+        let chroma = mix::chroma::chroma(&mono);
+        for (i, (got, want)) in chroma.iter().zip(&golden.profile.chroma).enumerate() {
+            assert!((got - want).abs() <= 1e-4 * want.abs().max(1.0), "{name}: chroma {i}: {got} against {want}");
+        }
+        let (key, confidence) = mix::chroma::profile_key(&mono);
+        assert_eq!(key, golden.profile.key, "{name}");
+        assert!((confidence - golden.profile.confidence).abs() < 1e-6, "{name}: {confidence} against {}", golden.profile.confidence);
     }
 }

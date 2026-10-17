@@ -76,6 +76,8 @@ CASES: dict[str, np.ndarray] = {
     "chord_a_minor": chord_track(9, True, 30),
     "chord_f_sharp_minor": chord_track(6, True, 30),
     "chord_d_flat_major": chord_track(1, False, 30),
+    # every key (0-11 major, 12-23 minor): the spelling of the tonics, flats too
+    **{f"chord_key_{key:02}": chord_track(key % 12, key >= 12, 12) for key in range(24)},
 }
 
 
@@ -88,6 +90,7 @@ def main() -> None:
         data = {
             "sample_rate": SR,
             "frames": int(len(mono)),
+            "profile": profile_json(pcm, result),
             "key_detector": dj_mix.key_detector(),
             "loudness_meter": dj_mix.loudness_meter(),
             "analysis": {
@@ -105,6 +108,13 @@ def main() -> None:
         }
         (OUT / f"{name}.json").write_text(json.dumps(data, indent=2) + "\n")
         print(f"{name}: bpm {result.bpm:.2f}, key {result.key} ({result.camelot}), {result.loudness_db:.2f} LUFS")
+
+
+def profile_json(pcm: np.ndarray, result: dj_mix.TrackAnalysis) -> dict[str, object]:
+    """What the key by the profiles gives, for the tracks Essentia has no answer for."""
+    mono = np.ascontiguousarray(pcm[result.start : result.end].mean(axis=1), dtype=np.float32)
+    key, confidence = dj_mix.profile_key(mono)
+    return {"key": key, "confidence": confidence, "chroma": [float(c) for c in dj_mix.chroma(mono)]}
 
 
 def analysis_json(a: dj_mix.TrackAnalysis) -> dict[str, object]:

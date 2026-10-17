@@ -16,3 +16,11 @@ serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 serde_json = "1"
+
+[build-dependencies]
+cc = { version = "1.8.0", optional = true }
+
+[features]
+# The key and the loudness by Essentia (AGPL-3.0, built from vendor/essentia by build.rs), as the Python radio finds
+# them. Without it a simpler key detection and the ebur128 crate do it.
+essentia = ["dep:cc"]

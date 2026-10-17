@@ -15,7 +15,10 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    runs-on: ${{ matrix.os }}
     env:
       YAMUSIC_RADIO: ${{ github.workspace }}/yamusic-radio
     steps:
@@ -37,13 +40,22 @@ jobs:
           path: |
             ~/.cargo/registry
             crates/radio-core/target
-          key: cargo-radio-core-${{ hashFiles('crates/radio-core/Cargo.toml') }}
+          key: cargo-radio-core-${{ matrix.os }}-${{ hashFiles('crates/radio-core/Cargo.toml', 'crates/radio-core/native/**') }}
       # The signals are made here; the committed json is what the tests compare with (Essentia may
       # differ a little between machines, so the json is not compared with a fresh one).
       - name: Signals of the golden cases
         run: python crates/radio-core/tools/gen_golden.py
-      - name: Tests
+      - name: Tests, with the simpler key and the ebur128 crate
         working-directory: crates/radio-core
         env:
           GOLDEN_REQUIRED: "1"
         run: cargo test --locked
+      # Essentia (C++) is built from source by build.rs: a few minutes.
+      - name: Essentia and Eigen
+        working-directory: crates/radio-core
+        run: tools/fetch-vendor.sh
+      - name: Tests, with Essentia
+        working-directory: crates/radio-core
+        env:
+          GOLDEN_REQUIRED: "1"
+        run: cargo test --locked --features essentia

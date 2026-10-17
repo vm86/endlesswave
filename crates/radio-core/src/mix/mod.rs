@@ -5,9 +5,12 @@ use serde::Deserialize;
 
 pub mod analysis;
 pub mod blend;
+pub mod chroma;
 pub mod choose;
 pub mod decode;
 pub mod effects;
+#[cfg(feature = "essentia")]
+pub mod essentia;
 pub mod glide;
 pub mod key;
 pub mod loudness;
@@ -42,12 +45,28 @@ pub struct TrackAnalysis {
     pub key: i32,
 }
 
+/// Key of the track (see `TrackAnalysis::key`), -1 if there is none. Essentia tells the key much better than the plain
+/// profile match, also for dense, distorted music, whose pitch classes the plain match finds as flat as noise.
+/// Where Essentia has no answer, or is not built in, the plain match gives the key, if it finds a tonal centre.
+pub fn estimate_key(mono: &[f32]) -> i32 {
+    #[cfg(feature = "essentia")]
+    {
+        let found = essentia::essentia_key(mono);
+        if found >= 0 {
+            return found;
+        }
+    }
+    chroma::profile_estimate(mono)
+}
+
 /// Analyze a stereo, interleaved track (`analyze` of `dj_mix.py`).
 ///
-/// The key is not found yet (-1): task 1.5 of docs/rust-port.md.
+/// The key is found by Essentia (feature `essentia`), and by the profiles where it has no answer or is not built in.
 pub fn analyze(pcm: &[f32]) -> TrackAnalysis {
     let rhythm = analysis::rhythm(pcm);
     let body = &pcm[rhythm.start * CHANNELS..rhythm.end * CHANNELS];
+    let mono: Vec<f32> = body.chunks_exact(CHANNELS).map(|f| (f[0] + f[1]) / 2.0).collect();
+    let key = estimate_key(&mono);
     TrackAnalysis {
         bpm: rhythm.bpm,
         head_beat: rhythm.head_beat,
@@ -57,6 +76,6 @@ pub fn analyze(pcm: &[f32]) -> TrackAnalysis {
         loudness_db: loudness::measure_loudness(body),
         intro_end: rhythm.intro_end,
         outro_start: rhythm.outro_start,
-        key: -1,
+        key,
     }
 }

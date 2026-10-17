@@ -60,12 +60,15 @@
 - **1.2** ✅ Декодирование файла в f32-стерео (подпроцесс ffmpeg; `symphonia` позже, если уберём ffmpeg).
 - **1.3** ✅ (bpm, биты, диапазон и секции совпадают с Python на всех 10 эталонах; в Python падение на кусках 2048…23000 отсчётов, в Rust нет) Темп: `onset_envelope`, `estimate_tempo`, `refine_tempo`, `find_beat`, `find_sections`, `audible_range`.
 - **1.4** ✅ Громкость: `ebur128`; RMS+2 dB для коротких кусков, -70 для тишины (как у Essentia). Расхождение с Essentia до 0,22 дБ на басовых сигналах (ниже ~100 Гц Essentia давит низ сильнее, 30 Гц: 1,3 дБ; подгонка фильтра не получилась). Точные числа даст `LoudnessEBUR128` самой Essentia через C-обёртку из 1.5.2; `ebur128` остаётся fallback без feature `essentia`.
-- **1.5** Тональность (FFI на Essentia):
-  - **1.5.1** Статическая сборка Essentia с минимумом зависимостей: macOS arm64, Linux x86_64 (проверка в CI).
-  - **1.5.2** C-обёртка над `KeyExtractor` (`edma`) и `build.rs` (`cc`/`cmake`), биндинги через `bindgen`.
-  - **1.5.3** `estimate_key(mono: &[f32], sr: u32) -> Option<Key>`; сверка на 240 синтетических треках
-    (ожидается 91% точных, 9% соседних, 0% ошибок).
-  - **1.5.4** Fallback на Крумхансла за feature-флагом `essentia`.
+- **1.5** ✅ Тональность и точная громкость (feature `essentia`):
+  - **1.5.1** ✅ Essentia собирается без waf: `build.rs` компилирует крейтом `cc` ядро, 14 нужных алгоритмов
+    (список в `native/gen_registry.py`), KissFFT и обёртку. Нужны `vendor/essentia` (коммит `dc91e47`) и
+    `vendor/eigen` 3.3.7 (скачивает `tools/fetch-vendor.sh`). Сборка около 35 с на Apple clang; `g++` в CI не проверен.
+  - **1.5.2** ✅ C-обёртка `native/shim.cpp` (`ew_key`, `ew_loudness`) и `mix/essentia.rs`.
+  - **1.5.3** ✅ Тональность совпадает с Python на 34 эталонах, включая все 24 тональности; громкость до 0,001 дБ.
+  - **1.5.4** ✅ Запасной путь без Essentia или при её отказе: профили Крумхансла (`mix/chroma.rs`), хрома и
+    уверенность совпадают с Python.
+  - **1.5.5** Раздел лицензий в README: Essentia теперь в самом приложении (AGPL, как и сам плеер) — не сделано.
 - **1.6** ✅ Планирование (`mix/plan.rs`: `plan_matched`, `plan_early`, `plan_blend`, `tempo_ratio`, `transition_speed`, `section_length`, `choose_transition`; 300 пар, 1800 запросов `plan_early` — те же числа, что у Python): `plan_matched`, `plan_early`, `plan_blend`, `tempo_ratio`, `transition_speed`.
 - **1.7** ✅ (`mix/blend.rs`, 8 блендов + `swap_point`; SNR к Python 137–151 дБ) DSP переходов: `crossfade`, `bass_swap`, `eq_blend`, `filter_sweep`, `_lowpass`, `swap_point`.
 - **1.8** ✅ (`mix/glide.rs`; 4 glide-кейса, выход побитно совпадает с Python, сетка долей и атаки тоже) `_wsola` и `tempo_glide` (растяжение по времени, поиск атак). Нужен эталон PCM и прослушивание.

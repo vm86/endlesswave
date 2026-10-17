@@ -1,6 +1,24 @@
 {
   "sample_rate": 44100,
   "frames": 220500,
+  "profile": {
+    "key": -1,
+    "confidence": 0.0,
+    "chroma": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
   "key_detector": "essentia",
   "loudness_meter": "ebu r128",
   "analysis": {
