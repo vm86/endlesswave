@@ -100,17 +100,17 @@
 
 | № | Что | Python | Проверка |
 |---|---|---|---|
-| 3.1.1 | Типы: `Candidate`, `Played`, `TrackInfo` (+ `to_dict`), `BlendReport` (+ `to_dict`), ошибки `SkipRefused`, `QueueChangeRefused`, `UnknownQueueTrack` | 199–375 | JSON `TrackInfo` и `BlendReport` совпадает с Python |
-| 3.1.2 | Каркас `Radio::new`, поля, `Notify`, счётчики статистики (с порядком `most_common`) | 414–530 | — |
-| 3.1.3 | Пауза, удержание, часы трека, пропуск: `pause`, `resume`, `hold`, `_sync_clock`, `_heard`, `request_skip`, `skip_taken`, `skip_info`, `pause_info` | 1107–1190 | сценарий с виртуальными часами: время трека не идёт на паузе |
-| 3.1.4 | Фильтры пула: `_wanted`, `_reachable`, `_mood_allowed`, `_genre_allowed`, `_drop_unwanted`, `backends_changed`, `_give_up_the_pool` | 982–1043 | пул после каждого шага сценария совпадает |
+| 3.1.1 ✅ | Типы: `Candidate`, `Played`, `TrackInfo` (+ `to_dict`), `BlendReport` (+ `to_dict`), ошибки `SkipRefused`, `QueueChangeRefused`, `UnknownQueueTrack` | 199–375 | JSON `TrackInfo` и `BlendReport` совпадает с Python |
+| 3.1.2 ✅ | Каркас `Radio::new`, поля, `Notify`, счётчики статистики (с порядком `most_common`) | 414–530 | — |
+| 3.1.3 ✅ | Пауза, удержание, часы трека, пропуск: `pause`, `resume`, `hold`, `_sync_clock`, `_heard`, `request_skip`, `skip_taken`, `skip_info`, `pause_info` | 1107–1190 | сценарий с виртуальными часами: время трека не идёт на паузе |
+| 3.1.4 ✅ (кроме `restore_playlist`) | Фильтры пула: `_wanted`, `_reachable`, `_mood_allowed`, `_genre_allowed`, `_drop_unwanted`, `backends_changed`, `_give_up_the_pool` | 982–1043 | пул после каждого шага сценария совпадает |
 | 3.1.5 | Плейлист на диске: `_save_playlist`, `restore_playlist`, `_candidate_back` (формат `playlist` и `queue_order` в кэше — тот же JSON) | 719–805 | Python пишет — Rust читает и наоборот (как в тесте кэша) |
 | 3.1.6 | Очередь: `generation`, `is_stale`, `refresh_queue`, `_unpick`, `_set_order`, `queue_order/move/remove/play`, `_restart_next`, `_locked`, `_pinned` | 815–981 | ряд сценариев, включая отказы (`409`, `404`) и «блэнд идёт» |
 | 3.1.7 | Настройки станции: настроения, жанры, блок-лист, язык, `start_mood_arc`, `restore_settings/state`, `_release_settings`, `_set_mood`, `genres_info`, `moods_info`, `language_info` | 530–705, 1054–1073, 1191–1200 | поддельный бэкенд записывает вызовы `set_station_settings`; сравнивается их последовательность |
-| 3.1.8 | Отчёты: `upcoming` (прогноз), `queue`, `transition_stats`, `key_pair_stats`, `recent_blends` | 1074–1106, 1201–1262, 1618–1654 | JSON `queue()` после каждого шага сценария |
-| 3.1.9 | Загрузка: `_load` (пакеты, жанры, настроение, лимиты пустых пакетов), `fill`, `keep_filled`, `prepare`, `_store_analysis`, `_cached_analysis` | 1272–1447 | поддельный бэкенд + кэш; состав пула и обращения к бэкенду |
-| 3.1.10 | Выбор: `_choose`, `_pick` (догрузка при плохой стоимости), `_replay_oldest`, `_mark_played`, `next_deck` (декодирование, поколение, отмена) | 1448–1581 | выбранная последовательность треков на сценарии |
-| 3.1.11 | Жизненный цикл дек: `started`, `finished`, `transition`, `_send_feedback`, `wait_feedback` | 1582–1617, 1655–1704 | обратная связь `STARTED/FINISHED/SKIPPED` в порядке и с секундами как у Python |
+| 3.1.8 ✅ | Отчёты: `upcoming` (прогноз), `queue`, `transition_stats`, `key_pair_stats`, `recent_blends` | 1074–1106, 1201–1262, 1618–1654 | JSON `queue()` после каждого шага сценария |
+| 3.1.9 ✅ | Загрузка: `_load` (пакеты, жанры, настроение, лимиты пустых пакетов), `fill`, `keep_filled`, `prepare`, `_store_analysis`, `_cached_analysis` | 1272–1447 | поддельный бэкенд + кэш; состав пула и обращения к бэкенду |
+| 3.1.10 ✅ | Выбор: `_choose`, `_pick` (догрузка при плохой стоимости), `_replay_oldest`, `_mark_played`, `next_deck` (декодирование, поколение, отмена) | 1448–1581 | выбранная последовательность треков на сценарии |
+| 3.1.11 ✅ | Жизненный цикл дек: `started`, `finished`, `transition`, `_send_feedback`, `wait_feedback` | 1582–1617, 1655–1704 | обратная связь `STARTED/FINISHED/SKIPPED` в порядке и с секундами как у Python |
 
 ### 3.4 (остаток) Кодирование и оркестрация
 
@@ -127,6 +127,16 @@
 заново (кодировщики перезапускаются, позиции сбрасываются). Здесь нет записанных ответов Python (поведение зависит от
 реального времени), тесты проверяют правила, которые задаёт код Python, на виртуальном времени tokio. `ScriptedRadio`
 вынесен в `testing.rs` для всех тестов.
+
+**Сделано в пакете A (3.1.1–3.1.4, 3.1.8–3.1.11):** модуль `radio/` (`mod.rs` — состояние, пауза и часы, `DeckSource`;
+`load.rs` — загрузка, выбор, `next_deck`; `pool.rs` — фильтры и сохранение плейлиста; `report.rs` — `queue`, `upcoming`,
+статистика). Проверено сценариями (`tests/radio.rs`, 4 сценария, 52 шага со снимками); для проверки нужны сборка с Essentia
+(анализ берётся из кэша стенда) и ffmpeg.
+
+**Что вышло по ходу:**
+- Отмена задачи `next_deck` стирает файл кандидата, как в Python (`except BaseException: unlink`), через страж `UnlinkOnDrop`.
+- `FakeBackend::download` копирует синхронно: порядок окончания загрузок партии равен порядку их запуска, как в Python.
+- Событие `consumed` — `Notify`; `keep_filled` «очищает» его в начале каждого круга (`now_or_never`), как `Event.clear()`.
 
 ## Порядок и зависимости
 

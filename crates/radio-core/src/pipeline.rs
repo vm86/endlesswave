@@ -40,6 +40,8 @@ pub struct Deck {
     pub speed: f64,
     /// `Radio::generation` when the deck was chosen.
     pub generation: u64,
+    /// The downloaded track it was made from, kept until the deck is heard so that the deck can go back to the pool.
+    pub source: Option<crate::radio::Candidate>,
 }
 
 impl Deck {

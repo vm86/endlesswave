@@ -153,6 +153,7 @@ async fn blends_are_made_and_told_as_python_does() {
         mood: String::new(),
         speed,
         generation: 0,
+        source: None,
     };
 
     let clock = ManualClock::new(0.0);

@@ -61,6 +61,7 @@ fn deck(case: &DeckCase) -> Deck {
         mood: String::new(),
         speed: case.speed,
         generation: 0,
+        source: None,
     }
 }
 

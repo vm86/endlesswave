@@ -12,6 +12,7 @@ async-trait = "0.1.92"
 bytes = { version = "1.12.1", default-features = false }
 ebur128 = "0.1.10"
 futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
+indexmap = "2.14.2"
 rand = "0.10.3"
 rand_distr = "0.6.0"
 realfft = "3.5.0"

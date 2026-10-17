@@ -8,6 +8,7 @@ pub mod clock;
 pub mod encode;
 pub mod mix;
 pub mod pipeline;
+pub mod radio;
 pub mod spectrum;
 pub mod stream;
 pub mod testing;

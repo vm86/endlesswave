@@ -1064,6 +1064,112 @@ def dataclasses_asdict(plan: object) -> dict[str, object]:
     return dataclasses.asdict(plan)
 
 
+def write_radio_scenarios() -> None:
+    """Scenarios of the whole Radio of dj.py: what it looks like after each step."""
+    import asyncio
+    import tempfile
+
+    import radio_harness as harness
+
+    folder = OUT / "radio"
+    library = json.loads((folder / "library.json").read_text())
+    scenarios = [
+        {
+            "name": "basic",
+            "pool_size": 4,
+            "steps": [
+                {"op": "fill", "size": 4},
+                {"op": "next_deck", "into": "a", "after": None},
+                {"op": "started", "deck": "a"},
+                {"op": "advance", "seconds": 12.5},
+                {"op": "next_deck", "into": "b", "after": "a"},
+                {"op": "advance", "seconds": 7.3},
+                {"op": "transition", "kind": "bass swap", "effect": "none", "current": "a", "following": "b"},
+                {"op": "started", "deck": "b"},
+                {"op": "advance", "seconds": 8.0},
+                {"op": "finished", "deck": "a"},
+                {"op": "next_deck", "into": "c", "after": "b"},
+                {"op": "advance", "seconds": 30},
+                {"op": "transition", "kind": "eq blend", "effect": "drop", "current": "b", "following": "c"},
+                {"op": "started", "deck": "c"},
+                {"op": "finished", "deck": "b"},
+            ],
+        },
+        {
+            "name": "pause_and_skip",
+            "pool_size": 3,
+            "steps": [
+                {"op": "call", "method": "request_skip"},
+                {"op": "fill", "size": 3},
+                {"op": "next_deck", "into": "a", "after": None},
+                {"op": "started", "deck": "a"},
+                {"op": "advance", "seconds": 5.0},
+                {"op": "call", "method": "pause"},
+                {"op": "advance", "seconds": 10.0},
+                {"op": "call", "method": "hold", "args": [True]},
+                {"op": "call", "method": "resume"},
+                {"op": "advance", "seconds": 4.0},
+                {"op": "call", "method": "hold", "args": [False]},
+                {"op": "advance", "seconds": 3.0},
+                {"op": "call", "method": "request_skip"},
+                {"op": "call", "method": "skip_taken"},
+                {"op": "next_deck", "into": "b", "after": "a"},
+                {"op": "transition", "kind": "filter sweep", "effect": "echo", "current": "a", "following": "b"},
+                {"op": "call", "method": "request_skip"},
+                {"op": "started", "deck": "b"},
+                {"op": "finished", "deck": "a"},
+                {"op": "call", "method": "request_skip"},
+            ],
+        },
+        {
+            "name": "more_than_the_station_has",
+            "pool_size": 12,
+            "backend": {"batch_size": 3, "fail_downloads": ["t5"]},
+            "steps": [
+                {"op": "fill", "size": 12},
+                {"op": "next_deck", "into": "a", "after": None},
+                {"op": "next_deck", "into": "b", "after": "a"},
+                {"op": "started", "deck": "a"},
+                {"op": "next_deck", "into": "c", "after": "b"},
+            ],
+        },
+        {
+            "name": "the_station_repeats_itself",
+            "pool_size": 3,
+            "backend": {"batch_size": 8},
+            "steps": [
+                {"op": "fill", "size": 3},
+                *[
+                    {"op": "next_deck", "into": f"d{i}", "after": (f"d{i - 1}" if i else None)}
+                    for i in range(11)
+                ],
+            ],
+        },
+    ]
+
+    async def run() -> list[dict[str, object]]:
+        out = []
+        with tempfile.TemporaryDirectory() as scratch_name:
+            scratch = Path(scratch_name)
+            # a cache that has the analyses of the library: nothing is analyzed again in a scenario
+            primed = scratch / "primed.db"
+            await harness.prime_cache(folder / "library", library, primed, scratch / "prime-work")
+            shutil_copy(primed, folder / "primed.db")
+            for scenario in scenarios:
+                steps = await harness.run_scenario(scenario, folder / "library", library, primed, scratch)
+                out.append({**scenario, "results": steps})
+        return out
+
+    def shutil_copy(source: Path, target: Path) -> None:
+        import shutil
+
+        shutil.copyfile(source, target)
+
+    results = asyncio.run(run())
+    (folder / "radio_scenarios.json").write_text(json.dumps(results, indent=1) + "\n")
+    print("radio scenarios:", {r["name"]: len(r["results"]) for r in results})
+
+
 def write_effects() -> None:
     """The effects, the limiter and blend(): the noise is recorded, and the Rust side replays it."""
     folder = OUT / "effects"
@@ -1244,3 +1350,4 @@ if __name__ == "__main__":
     write_pipeline()
     write_transitions()
     write_mix()
+    write_radio_scenarios()

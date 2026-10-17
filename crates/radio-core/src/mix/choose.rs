@@ -17,6 +17,8 @@ const PLAIN_LENGTH_COST: f64 = 0.5; // no intro/outro to size the blend by
 const LOUDNESS_COST: f64 = 0.1; // per dB
 const REPEAT_ARTIST_COST: f64 = 6.0;
 const ENERGY_ARC_COST: f64 = 8.0; // per unit of distance from the target energy
+/// A next track costing more than this doesn't really fit: look for others.
+pub const SUITABLE_COST: f64 = 5.0;
 
 /// The queue is planned this many tracks ahead, trying the best few candidates at each step; later steps
 /// count for less.
@@ -32,7 +34,7 @@ const MOOD_CALM_BELOW: f64 = 0.3;
 const MOOD_FUN_BELOW: f64 = 0.5;
 const MOOD_COST: f64 = 2.0;
 /// A track by a recently played artist is penalized.
-const REPEAT_WINDOW: usize = 4;
+pub const REPEAT_WINDOW: usize = 4;
 /// A set builds up and winds down over this many tracks.
 const ARC_TRACKS: f64 = 10.0;
 const ENERGY_BPM_RANGE: (f64, f64) = (90.0, 150.0);

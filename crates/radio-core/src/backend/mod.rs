@@ -143,4 +143,9 @@ pub trait MusicBackend: Send + Sync {
     async fn set_station_settings(&self, station_id: &str, mood_energy: &str, diversity: &str, language: &str) -> Result<(), BackendError>;
     /// Stop what the backend runs in the background.
     async fn aclose(&self);
+    /// The ids of the backends that are off or can't be reached; the tracks of them that are only linked leave the
+    /// queue. Only the multi-backend has any.
+    fn unavailable(&self) -> Vec<String> {
+        Vec::new()
+    }
 }

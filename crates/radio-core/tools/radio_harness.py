@@ -234,3 +234,125 @@ async def smoke(folder: Path, library: list[dict[str, object]], workdir: Path, c
     }
     cache.close()
     return snapshot
+
+
+# ---- Scenarios of the whole Radio (docs/rust-port-radio.md, task 3.1) ---------------------------------------------------
+#
+# A scenario is a list of steps. The Python radio and the Rust one run the same steps and tell, after each of them, what
+# the radio looks like (a snapshot); the two lists of snapshots must be the same.
+#
+#   {"op": "fill", "size": 4}                                  fill the pool to that many
+#   {"op": "next_deck", "into": "b", "after": "a"}             make the deck to play after deck a (after: null for the first)
+#   {"op": "started", "deck": "a"} / {"op": "finished", "deck": "a"}
+#   {"op": "transition", "kind": "bass swap", "effect": "none", "current": "a", "following": "b"}
+#   {"op": "advance", "seconds": 12.5}                         the clock moves
+#   {"op": "call", "method": "pause", "args": []}              a method of the radio (errors are told by name)
+
+
+def _info(deck: object) -> dict[str, object]:
+    return {
+        "title": deck.title,
+        "bpm": deck.analysis.bpm,
+        "key": deck.analysis.key,
+        "beat_matched": deck.beat_matched,
+        "speed": deck.speed,
+        "generation": deck.generation,
+        "mood": deck.mood,
+    }
+
+
+def _snapshot(radio: object, backend: FakeBackend, workdir: Path, taken: list[int]) -> dict[str, object]:
+    calls = backend.calls[taken[0] :]
+    taken[0] = len(backend.calls)
+    snapshot = {
+        "queue": radio.queue(),
+        "pool": [c.title for c in radio.pool],
+        "files": sorted(p.name for p in workdir.iterdir()),
+        "generation": radio.generation,
+        "calls": calls,
+        "stats": radio.transition_stats()["session"],
+        "key_pairs": radio.key_pair_stats()["session"],
+        "blends": radio.recent_blends(),
+    }
+    return snapshot
+
+
+async def run_scenario(
+    scenario: dict[str, object], folder: Path, library: list[dict[str, object]], primed: Path, scratch: Path
+) -> list[dict[str, object]]:
+    """Run the steps on the Python radio and return what it looked like after each."""
+    from yamusic_radio import dj
+    from yamusic_radio.cache import TrackCache
+
+    clock = install_time(dj)
+    options = scenario.get("backend", {})
+    backend = FakeBackend(
+        folder,
+        library,
+        batch_size=options.get("batch_size", 3),
+        supports_moods=options.get("supports_moods", False),
+        fail_downloads=frozenset(options.get("fail_downloads", [])),
+    )
+    cache_path = scratch / f"{scenario['name']}.db"
+    shutil.copyfile(primed, cache_path)
+    cache = TrackCache(cache_path)
+    workdir = scratch / f"{scenario['name']}-work"
+    workdir.mkdir(parents=True)
+    radio = dj.Radio(backend, workdir, pool_size=scenario.get("pool_size", 4), cache=cache, mood_arc=scenario.get("mood_arc", False))
+    decks: dict[str, object] = {}
+    taken = [0]
+    results = []
+    for step in scenario["steps"]:
+        result: dict[str, object] = {}
+        op = step["op"]
+        try:
+            if op == "fill":
+                await radio.fill(step["size"])
+            elif op == "next_deck":
+                after = decks[step["after"]].analysis if step.get("after") else None
+                decks[step["into"]] = await radio.next_deck(after)
+                result["deck"] = _info(decks[step["into"]])
+            elif op == "started":
+                radio.started(decks[step["deck"]])
+            elif op == "finished":
+                radio.finished(decks[step["deck"]])
+            elif op == "transition":
+                kind = next(k for k in dj.dj_mix.Transition if k.value == step["kind"])
+                effect = next(e for e in dj.dj_mix.Effect if e.value == step["effect"])
+                radio.transition(kind, decks[step["current"]], decks[step["following"]], effect)
+            elif op == "advance":
+                clock.advance(step["seconds"])
+            elif op == "call":
+                method = getattr(radio, step["method"])
+                args = step.get("args", [])
+                if step["method"] == "hold":
+                    outcome = method(held=args[0])
+                else:
+                    outcome = method(*args)
+                    if hasattr(outcome, "__await__"):
+                        outcome = await outcome
+                if isinstance(outcome, (dict, list, str, int, float, bool)):
+                    result["returned"] = outcome
+            else:
+                raise ValueError(op)
+        except (dj.SkipRefusedError, dj.QueueChangeRefusedError, dj.UnknownQueueTrackError, ValueError) as error:
+            result["error"] = type(error).__name__
+        await radio.wait_feedback()
+        result["snapshot"] = _snapshot(radio, backend, workdir, taken)
+        results.append(result)
+    cache.close()
+    return results
+
+
+async def prime_cache(folder: Path, library: list[dict[str, object]], cache_path: Path, workdir: Path) -> None:
+    """Analyze the whole library once into a cache, which the scenarios then start from."""
+    from yamusic_radio import dj
+    from yamusic_radio.cache import TrackCache
+
+    install_time(dj)
+    backend = FakeBackend(folder, library, batch_size=len(library))
+    cache = TrackCache(cache_path)
+    workdir.mkdir(parents=True)
+    radio = dj.Radio(backend, workdir, pool_size=len(library), cache=cache)
+    await radio.fill(len(library))
+    cache.close()

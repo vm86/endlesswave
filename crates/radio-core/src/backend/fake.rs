@@ -5,7 +5,8 @@
 //! How it behaves:
 //! * `station_batch` goes round the list of tracks from where it left off and takes the next `batch_size` that are not
 //!   excluded. If every track is excluded, it repeats: the next `batch_size` whatever (the station "has nothing else").
-//! * `download` copies the file of the track; a track in `fail_downloads` fails.
+//! * `download` copies the file of the track (at once, not on another thread: the downloads of a batch end in the order
+//!   they were started in); a track in `fail_downloads` fails.
 //! * Every call is written to the log in a fixed form (see [`FakeBackend::calls`]).
 
 use super::{AuthError, AuthPrompt, BackendError, Feedback, MusicBackend, Track};
@@ -132,7 +133,8 @@ impl MusicBackend for FakeBackend {
         let file = self.tracks.iter().find(|t| t.track.track_id == track.track_id).map(|t| t.file.clone());
         let result = match file {
             Some(file) if !self.options.fail_downloads.contains(&track.track_id) => {
-                tokio::fs::copy(&file, path).await.map(|_| ()).map_err(|e| BackendError(e.to_string()))
+                // A blocking copy, like Python's: the order in which downloads finish is then the order they were started in.
+                std::fs::copy(&file, path).map(|_| ()).map_err(|e| BackendError(e.to_string()))
             }
             _ => Err(BackendError(format!("cannot download {}", track.track_id))),
         };

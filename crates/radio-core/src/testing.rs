@@ -92,6 +92,7 @@ impl DeckSource for ScriptedRadio {
             mood: String::new(),
             speed: if speed != 0.0 { speed } else { 1.0 },
             generation,
+            source: None,
         })
     }
 

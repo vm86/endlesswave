@@ -1,0 +1,6947 @@
+[
+ {
+  "name": "basic",
+  "pool_size": 4,
+  "steps": [
+   {
+    "op": "fill",
+    "size": 4
+   },
+   {
+    "op": "next_deck",
+    "into": "a",
+    "after": null
+   },
+   {
+    "op": "started",
+    "deck": "a"
+   },
+   {
+    "op": "advance",
+    "seconds": 12.5
+   },
+   {
+    "op": "next_deck",
+    "into": "b",
+    "after": "a"
+   },
+   {
+    "op": "advance",
+    "seconds": 7.3
+   },
+   {
+    "op": "transition",
+    "kind": "bass swap",
+    "effect": "none",
+    "current": "a",
+    "following": "b"
+   },
+   {
+    "op": "started",
+    "deck": "b"
+   },
+   {
+    "op": "advance",
+    "seconds": 8.0
+   },
+   {
+    "op": "finished",
+    "deck": "a"
+   },
+   {
+    "op": "next_deck",
+    "into": "c",
+    "after": "b"
+   },
+   {
+    "op": "advance",
+    "seconds": 30
+   },
+   {
+    "op": "transition",
+    "kind": "eq blend",
+    "effect": "drop",
+    "current": "b",
+    "following": "c"
+   },
+   {
+    "op": "started",
+    "deck": "c"
+   },
+   {
+    "op": "finished",
+    "deck": "b"
+   }
+  ],
+  "results": [
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 0 - Song 0",
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav",
+      "t3.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "batch fake exclude= -> t0,t1,t2",
+      "download t0 ok",
+      "download t1 ok",
+      "download t2 ok",
+      "batch fake exclude=t0,t1,t2 -> t3,t4,t5",
+      "download t3 ok"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 0 - Song 0",
+     "bpm": 117.99207744598388,
+     "key": 21,
+     "beat_matched": false,
+     "speed": 1.0,
+     "generation": 0,
+     "mood": "calm"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav",
+      "t3.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 0.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav",
+      "t3.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "feedback t0 started 0.000"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 12.5
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav",
+      "t3.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 1 - Song 1",
+     "bpm": 120.02777840423585,
+     "key": 16,
+     "beat_matched": true,
+     "speed": 0.9830397514199086,
+     "generation": 0,
+     "mood": "calm"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 12.5
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav",
+      "t3.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 19.8
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav",
+      "t3.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 19.8
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": true,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav",
+      "t3.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 1,
+      "beat_matched": 1,
+      "by_type": {
+       "bass swap": 1
+      },
+      "by_effect": {
+       "none": 1
+      },
+      "by_key": {
+       "neighbour": 1
+      },
+      "by_quality": {
+       "good": 1,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "now": {
+       "track_id": "t1",
+       "title": "Artist 1 - Song 1",
+       "artists": [
+        "Artist 1"
+       ],
+       "bpm": 120.0,
+       "loudness_db": -17.9,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "9A",
+       "key": "E minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 0.0
+      },
+      "next": [
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": true,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3"
+     ],
+     "files": [
+      "t2.wav",
+      "t3.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "feedback t1 started 0.000"
+     ],
+     "stats": {
+      "total": 1,
+      "beat_matched": 1,
+      "by_type": {
+       "bass swap": 1
+      },
+      "by_effect": {
+       "none": 1
+      },
+      "by_key": {
+       "neighbour": 1
+      },
+      "by_quality": {
+       "good": 1,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "now": {
+       "track_id": "t1",
+       "title": "Artist 1 - Song 1",
+       "artists": [
+        "Artist 1"
+       ],
+       "bpm": 120.0,
+       "loudness_db": -17.9,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "9A",
+       "key": "E minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 8.0
+      },
+      "next": [
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": true,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3"
+     ],
+     "files": [
+      "t2.wav",
+      "t3.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 1,
+      "beat_matched": 1,
+      "by_type": {
+       "bass swap": 1
+      },
+      "by_effect": {
+       "none": 1
+      },
+      "by_key": {
+       "neighbour": 1
+      },
+      "by_quality": {
+       "good": 1,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "now": {
+       "track_id": "t1",
+       "title": "Artist 1 - Song 1",
+       "artists": [
+        "Artist 1"
+       ],
+       "bpm": 120.0,
+       "loudness_db": -17.9,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "9A",
+       "key": "E minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 8.0
+      },
+      "next": [
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3"
+     ],
+     "files": [
+      "t2.wav",
+      "t3.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "feedback t0 finished 49.999"
+     ],
+     "stats": {
+      "total": 1,
+      "beat_matched": 1,
+      "by_type": {
+       "bass swap": 1
+      },
+      "by_effect": {
+       "none": 1
+      },
+      "by_key": {
+       "neighbour": 1
+      },
+      "by_quality": {
+       "good": 1,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 3 - Song 3",
+     "bpm": 124.0067098121643,
+     "key": 23,
+     "beat_matched": true,
+     "speed": 0.9679135797251985,
+     "generation": 0,
+     "mood": "calm"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "now": {
+       "track_id": "t1",
+       "title": "Artist 1 - Song 1",
+       "artists": [
+        "Artist 1"
+       ],
+       "bpm": 120.0,
+       "loudness_db": -17.9,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "9A",
+       "key": "E minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 8.0
+      },
+      "next": [
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t2.wav",
+      "t3.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 1,
+      "beat_matched": 1,
+      "by_type": {
+       "bass swap": 1
+      },
+      "by_effect": {
+       "none": 1
+      },
+      "by_key": {
+       "neighbour": 1
+      },
+      "by_quality": {
+       "good": 1,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "now": {
+       "track_id": "t1",
+       "title": "Artist 1 - Song 1",
+       "artists": [
+        "Artist 1"
+       ],
+       "bpm": 120.0,
+       "loudness_db": -17.9,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "9A",
+       "key": "E minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 38.0
+      },
+      "next": [
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t2.wav",
+      "t3.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 1,
+      "beat_matched": 1,
+      "by_type": {
+       "bass swap": 1
+      },
+      "by_effect": {
+       "none": 1
+      },
+      "by_key": {
+       "neighbour": 1
+      },
+      "by_quality": {
+       "good": 1,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "now": {
+       "track_id": "t1",
+       "title": "Artist 1 - Song 1",
+       "artists": [
+        "Artist 1"
+       ],
+       "bpm": 120.0,
+       "loudness_db": -17.9,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "9A",
+       "key": "E minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 38.0
+      },
+      "next": [
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": true,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t2.wav",
+      "t3.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 2,
+      "beat_matched": 2,
+      "by_type": {
+       "bass swap": 1,
+       "eq blend": 1
+      },
+      "by_effect": {
+       "none": 1,
+       "drop": 1
+      },
+      "by_key": {
+       "neighbour": 2
+      },
+      "by_quality": {
+       "good": 2,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      },
+      {
+       "from": "9A",
+       "to": "10A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "now": {
+       "track_id": "t3",
+       "title": "Artist 3 - Song 3",
+       "artists": [
+        "Artist 3"
+       ],
+       "bpm": 124.0,
+       "loudness_db": -18.7,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "10A",
+       "key": "B minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 0.0
+      },
+      "next": [
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": true,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "feedback t3 started 0.000"
+     ],
+     "stats": {
+      "total": 2,
+      "beat_matched": 2,
+      "by_type": {
+       "bass swap": 1,
+       "eq blend": 1
+      },
+      "by_effect": {
+       "none": 1,
+       "drop": 1
+      },
+      "by_key": {
+       "neighbour": 2
+      },
+      "by_quality": {
+       "good": 2,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      },
+      {
+       "from": "9A",
+       "to": "10A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "now": {
+       "track_id": "t3",
+       "title": "Artist 3 - Song 3",
+       "artists": [
+        "Artist 3"
+       ],
+       "bpm": 124.0,
+       "loudness_db": -18.7,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "10A",
+       "key": "B minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 0.0
+      },
+      "next": [
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "feedback t1 finished 49.999"
+     ],
+     "stats": {
+      "total": 2,
+      "beat_matched": 2,
+      "by_type": {
+       "bass swap": 1,
+       "eq blend": 1
+      },
+      "by_effect": {
+       "none": 1,
+       "drop": 1
+      },
+      "by_key": {
+       "neighbour": 2
+      },
+      "by_quality": {
+       "good": 2,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      },
+      {
+       "from": "9A",
+       "to": "10A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   }
+  ]
+ },
+ {
+  "name": "pause_and_skip",
+  "pool_size": 3,
+  "steps": [
+   {
+    "op": "call",
+    "method": "request_skip"
+   },
+   {
+    "op": "fill",
+    "size": 3
+   },
+   {
+    "op": "next_deck",
+    "into": "a",
+    "after": null
+   },
+   {
+    "op": "started",
+    "deck": "a"
+   },
+   {
+    "op": "advance",
+    "seconds": 5.0
+   },
+   {
+    "op": "call",
+    "method": "pause"
+   },
+   {
+    "op": "advance",
+    "seconds": 10.0
+   },
+   {
+    "op": "call",
+    "method": "hold",
+    "args": [
+     true
+    ]
+   },
+   {
+    "op": "call",
+    "method": "resume"
+   },
+   {
+    "op": "advance",
+    "seconds": 4.0
+   },
+   {
+    "op": "call",
+    "method": "hold",
+    "args": [
+     false
+    ]
+   },
+   {
+    "op": "advance",
+    "seconds": 3.0
+   },
+   {
+    "op": "call",
+    "method": "request_skip"
+   },
+   {
+    "op": "call",
+    "method": "skip_taken"
+   },
+   {
+    "op": "next_deck",
+    "into": "b",
+    "after": "a"
+   },
+   {
+    "op": "transition",
+    "kind": "filter sweep",
+    "effect": "echo",
+    "current": "a",
+    "following": "b"
+   },
+   {
+    "op": "call",
+    "method": "request_skip"
+   },
+   {
+    "op": "started",
+    "deck": "b"
+   },
+   {
+    "op": "finished",
+    "deck": "a"
+   },
+   {
+    "op": "call",
+    "method": "request_skip"
+   }
+  ],
+  "results": [
+   {
+    "error": "SkipRefusedError",
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [],
+     "files": [],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 0 - Song 0",
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "batch fake exclude= -> t0,t1,t2",
+      "download t0 ok",
+      "download t1 ok",
+      "download t2 ok"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 0 - Song 0",
+     "bpm": 117.99207744598388,
+     "key": 21,
+     "beat_matched": false,
+     "speed": 1.0,
+     "generation": 0,
+     "mood": "calm"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 0.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "feedback t0 started 0.000"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 5.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 5.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": true,
+      "pause_reason": "user"
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 5.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": true,
+      "pause_reason": "user"
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 5.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": true,
+      "pause_reason": "user"
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 5.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": true,
+      "pause_reason": "no_listeners"
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 5.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": true,
+      "pause_reason": "no_listeners"
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 5.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 8.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 8.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": true,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 8.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 1 - Song 1",
+     "bpm": 120.02777840423585,
+     "key": 16,
+     "beat_matched": true,
+     "speed": 0.9830397514199086,
+     "generation": 0,
+     "mood": "calm"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 8.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 8.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": true,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 1,
+      "beat_matched": 1,
+      "by_type": {
+       "filter sweep": 1
+      },
+      "by_effect": {
+       "echo": 1
+      },
+      "by_key": {
+       "neighbour": 1
+      },
+      "by_quality": {
+       "good": 1,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   },
+   {
+    "error": "SkipRefusedError",
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t0",
+       "title": "Artist 0 - Song 0",
+       "artists": [
+        "Artist 0"
+       ],
+       "bpm": 118.0,
+       "loudness_db": -19.2,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "8A",
+       "key": "A minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 8.0
+      },
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": true,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 1,
+      "beat_matched": 1,
+      "by_type": {
+       "filter sweep": 1
+      },
+      "by_effect": {
+       "echo": 1
+      },
+      "by_key": {
+       "neighbour": 1
+      },
+      "by_quality": {
+       "good": 1,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "now": {
+       "track_id": "t1",
+       "title": "Artist 1 - Song 1",
+       "artists": [
+        "Artist 1"
+       ],
+       "bpm": 120.0,
+       "loudness_db": -17.9,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "9A",
+       "key": "E minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 0.0
+      },
+      "next": [
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": true,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "feedback t1 started 0.000"
+     ],
+     "stats": {
+      "total": 1,
+      "beat_matched": 1,
+      "by_type": {
+       "filter sweep": 1
+      },
+      "by_effect": {
+       "echo": 1
+      },
+      "by_key": {
+       "neighbour": 1
+      },
+      "by_quality": {
+       "good": 1,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "now": {
+       "track_id": "t1",
+       "title": "Artist 1 - Song 1",
+       "artists": [
+        "Artist 1"
+       ],
+       "bpm": 120.0,
+       "loudness_db": -17.9,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "9A",
+       "key": "E minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 0.0
+      },
+      "next": [
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "feedback t0 skipped 8.000"
+     ],
+     "stats": {
+      "total": 1,
+      "beat_matched": 1,
+      "by_type": {
+       "filter sweep": 1
+      },
+      "by_effect": {
+       "echo": 1
+      },
+      "by_key": {
+       "neighbour": 1
+      },
+      "by_quality": {
+       "good": 1,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "now": {
+       "track_id": "t1",
+       "title": "Artist 1 - Song 1",
+       "artists": [
+        "Artist 1"
+       ],
+       "bpm": 120.0,
+       "loudness_db": -17.9,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "9A",
+       "key": "E minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 0.0
+      },
+      "next": [
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": true,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 1,
+      "beat_matched": 1,
+      "by_type": {
+       "filter sweep": 1
+      },
+      "by_effect": {
+       "echo": 1
+      },
+      "by_key": {
+       "neighbour": 1
+      },
+      "by_quality": {
+       "good": 1,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [
+      {
+       "from": "8A",
+       "to": "9A",
+       "relation": "neighbour",
+       "quality": "good",
+       "count": 1
+      }
+     ],
+     "blends": []
+    }
+   }
+  ]
+ },
+ {
+  "name": "more_than_the_station_has",
+  "pool_size": 12,
+  "backend": {
+   "batch_size": 3,
+   "fail_downloads": [
+    "t5"
+   ]
+  },
+  "steps": [
+   {
+    "op": "fill",
+    "size": 12
+   },
+   {
+    "op": "next_deck",
+    "into": "a",
+    "after": null
+   },
+   {
+    "op": "next_deck",
+    "into": "b",
+    "after": "a"
+   },
+   {
+    "op": "started",
+    "deck": "a"
+   },
+   {
+    "op": "next_deck",
+    "into": "c",
+    "after": "b"
+   }
+  ],
+  "results": [
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t6",
+        "title": "Artist 2 - Song 6",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 130.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "7A",
+        "key": "D minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t7",
+        "title": "Artist 3 - Song 7",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 132.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t4",
+        "title": "Artist 0 - Song 4",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 126.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "3B",
+        "key": "C# major",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 0 - Song 0",
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3",
+      "Artist 0 - Song 4",
+      "Artist 2 - Song 6",
+      "Artist 3 - Song 7"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav",
+      "t3.wav",
+      "t4.wav",
+      "t6.wav",
+      "t7.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "batch fake exclude= -> t0,t1,t2",
+      "download t0 ok",
+      "download t1 ok",
+      "download t2 ok",
+      "batch fake exclude=t0,t1,t2 -> t3,t4,t5",
+      "download t3 ok",
+      "download t4 ok",
+      "download t5 fail",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5 -> t6,t7",
+      "download t6 ok",
+      "download t7 ok",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t6,t7,t0",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t1,t2,t3",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t4,t5,t6",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t7,t0,t1",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t2,t3,t4",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t3,t4,t5",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t6,t7,t0",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t1,t2,t3"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 1 - Song 1",
+     "bpm": 120.02777840423585,
+     "key": 16,
+     "beat_matched": false,
+     "speed": 1.0,
+     "generation": 0,
+     "mood": "calm"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t6",
+        "title": "Artist 2 - Song 6",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 130.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "7A",
+        "key": "D minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t7",
+        "title": "Artist 3 - Song 7",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 132.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t4",
+        "title": "Artist 0 - Song 4",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 126.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "3B",
+        "key": "C# major",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 0 - Song 0",
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3",
+      "Artist 0 - Song 4",
+      "Artist 2 - Song 6",
+      "Artist 3 - Song 7"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav",
+      "t3.wav",
+      "t4.wav",
+      "t6.wav",
+      "t7.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 0 - Song 0",
+     "bpm": 117.99207744598388,
+     "key": 21,
+     "beat_matched": true,
+     "speed": 1.0172528613981213,
+     "generation": 0,
+     "mood": "calm"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t6",
+        "title": "Artist 2 - Song 6",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 130.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "7A",
+        "key": "D minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t7",
+        "title": "Artist 3 - Song 7",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 132.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t4",
+        "title": "Artist 0 - Song 4",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 126.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "3B",
+        "key": "C# major",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3",
+      "Artist 0 - Song 4",
+      "Artist 2 - Song 6",
+      "Artist 3 - Song 7"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav",
+      "t3.wav",
+      "t4.wav",
+      "t6.wav",
+      "t7.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t1",
+       "title": "Artist 1 - Song 1",
+       "artists": [
+        "Artist 1"
+       ],
+       "bpm": 120.0,
+       "loudness_db": -17.9,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "9A",
+       "key": "E minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 0.0
+      },
+      "next": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t6",
+        "title": "Artist 2 - Song 6",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 130.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "7A",
+        "key": "D minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t7",
+        "title": "Artist 3 - Song 7",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 132.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t4",
+        "title": "Artist 0 - Song 4",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 126.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "3B",
+        "key": "C# major",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3",
+      "Artist 0 - Song 4",
+      "Artist 2 - Song 6",
+      "Artist 3 - Song 7"
+     ],
+     "files": [
+      "t0.wav",
+      "t2.wav",
+      "t3.wav",
+      "t4.wav",
+      "t6.wav",
+      "t7.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "feedback t1 started 0.000"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 2 - Song 6",
+     "bpm": 130.02806512451173,
+     "key": 14,
+     "beat_matched": true,
+     "speed": 0.9074354627441201,
+     "generation": 0,
+     "mood": "fun"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": {
+       "track_id": "t1",
+       "title": "Artist 1 - Song 1",
+       "artists": [
+        "Artist 1"
+       ],
+       "bpm": 120.0,
+       "loudness_db": -17.9,
+       "duration_seconds": 50.0,
+       "mood": "calm",
+       "camelot": "9A",
+       "key": "E minor",
+       "decided": true,
+       "cover": "",
+       "pinned": false,
+       "elapsed_seconds": 0.0
+      },
+      "next": [
+       {
+        "track_id": "t6",
+        "title": "Artist 2 - Song 6",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 130.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "7A",
+        "key": "D minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t7",
+        "title": "Artist 3 - Song 7",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 132.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t4",
+        "title": "Artist 0 - Song 4",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 126.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "3B",
+        "key": "C# major",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": true,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2",
+      "Artist 3 - Song 3",
+      "Artist 0 - Song 4",
+      "Artist 3 - Song 7"
+     ],
+     "files": [
+      "t0.wav",
+      "t2.wav",
+      "t3.wav",
+      "t4.wav",
+      "t6.wav",
+      "t7.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   }
+  ]
+ },
+ {
+  "name": "the_station_repeats_itself",
+  "pool_size": 3,
+  "backend": {
+   "batch_size": 8
+  },
+  "steps": [
+   {
+    "op": "fill",
+    "size": 3
+   },
+   {
+    "op": "next_deck",
+    "into": "d0",
+    "after": null
+   },
+   {
+    "op": "next_deck",
+    "into": "d1",
+    "after": "d0"
+   },
+   {
+    "op": "next_deck",
+    "into": "d2",
+    "after": "d1"
+   },
+   {
+    "op": "next_deck",
+    "into": "d3",
+    "after": "d2"
+   },
+   {
+    "op": "next_deck",
+    "into": "d4",
+    "after": "d3"
+   },
+   {
+    "op": "next_deck",
+    "into": "d5",
+    "after": "d4"
+   },
+   {
+    "op": "next_deck",
+    "into": "d6",
+    "after": "d5"
+   },
+   {
+    "op": "next_deck",
+    "into": "d7",
+    "after": "d6"
+   },
+   {
+    "op": "next_deck",
+    "into": "d8",
+    "after": "d7"
+   },
+   {
+    "op": "next_deck",
+    "into": "d9",
+    "after": "d8"
+   },
+   {
+    "op": "next_deck",
+    "into": "d10",
+    "after": "d9"
+   }
+  ],
+  "results": [
+   {
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 0 - Song 0",
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "batch fake exclude= -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "download t0 ok",
+      "download t1 ok",
+      "download t2 ok"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 0 - Song 0",
+     "bpm": 117.99207744598388,
+     "key": 21,
+     "beat_matched": false,
+     "speed": 1.0,
+     "generation": 0,
+     "mood": "calm"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 1 - Song 1",
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 1 - Song 1",
+     "bpm": 120.02777840423585,
+     "key": 16,
+     "beat_matched": true,
+     "speed": 0.9830397514199086,
+     "generation": 0,
+     "mood": "calm"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 2 - Song 2"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 2 - Song 2",
+     "bpm": 122.0179460144043,
+     "key": 18,
+     "beat_matched": true,
+     "speed": 0.9836895499787096,
+     "generation": 0,
+     "mood": "calm"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav"
+     ],
+     "generation": 0,
+     "calls": [],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 3 - Song 7",
+     "bpm": 131.9989754486084,
+     "key": 18,
+     "beat_matched": true,
+     "speed": 0.9243855537493164,
+     "generation": 0,
+     "mood": "fun"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t7",
+        "title": "Artist 3 - Song 7",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 132.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t6",
+        "title": "Artist 2 - Song 6",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 130.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "7A",
+        "key": "D minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t4",
+        "title": "Artist 0 - Song 4",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 126.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "3B",
+        "key": "C# major",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t5",
+        "title": "Artist 1 - Song 5",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 128.0,
+        "loudness_db": -17.4,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "1A",
+        "key": "G# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 3 - Song 3",
+      "Artist 0 - Song 4",
+      "Artist 1 - Song 5",
+      "Artist 2 - Song 6"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav",
+      "t3.wav",
+      "t4.wav",
+      "t5.wav",
+      "t6.wav",
+      "t7.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "batch fake exclude=t0,t1,t2 -> t3,t4,t5,t6,t7",
+      "download t3 ok",
+      "download t4 ok",
+      "download t5 ok",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5 -> t6,t7",
+      "download t6 ok",
+      "download t7 ok",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 2 - Song 6",
+     "bpm": 130.02806512451173,
+     "key": 14,
+     "beat_matched": true,
+     "speed": 1.0151575763448404,
+     "generation": 0,
+     "mood": "fun"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t6",
+        "title": "Artist 2 - Song 6",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 130.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "7A",
+        "key": "D minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t4",
+        "title": "Artist 0 - Song 4",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 126.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "3B",
+        "key": "C# major",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t5",
+        "title": "Artist 1 - Song 5",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 128.0,
+        "loudness_db": -17.4,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "1A",
+        "key": "G# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 3 - Song 3",
+      "Artist 0 - Song 4",
+      "Artist 1 - Song 5"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav",
+      "t3.wav",
+      "t4.wav",
+      "t5.wav",
+      "t6.wav",
+      "t7.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 0 - Song 4",
+     "bpm": 126.028590839386,
+     "key": 1,
+     "beat_matched": true,
+     "speed": 1.0317346584492304,
+     "generation": 0,
+     "mood": "fun"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t4",
+        "title": "Artist 0 - Song 4",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 126.0,
+        "loudness_db": -18.2,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "3B",
+        "key": "C# major",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t5",
+        "title": "Artist 1 - Song 5",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 128.0,
+        "loudness_db": -17.4,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "1A",
+        "key": "G# minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 3 - Song 3",
+      "Artist 1 - Song 5"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav",
+      "t3.wav",
+      "t4.wav",
+      "t5.wav",
+      "t6.wav",
+      "t7.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 1 - Song 5",
+     "bpm": 127.96601402282715,
+     "key": 20,
+     "beat_matched": true,
+     "speed": 0.9848598614387133,
+     "generation": 0,
+     "mood": "fun"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t5",
+        "title": "Artist 1 - Song 5",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 128.0,
+        "loudness_db": -17.4,
+        "duration_seconds": 50.0,
+        "mood": "fun",
+        "camelot": "1A",
+        "key": "G# minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       },
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": false,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [
+      "Artist 3 - Song 3"
+     ],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav",
+      "t3.wav",
+      "t4.wav",
+      "t5.wav",
+      "t6.wav",
+      "t7.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 3 - Song 3",
+     "bpm": 124.0067098121643,
+     "key": 23,
+     "beat_matched": true,
+     "speed": 1.0319281449903808,
+     "generation": 0,
+     "mood": "calm"
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t3",
+        "title": "Artist 3 - Song 3",
+        "artists": [
+         "Artist 3"
+        ],
+        "bpm": 124.0,
+        "loudness_db": -18.7,
+        "duration_seconds": 50.0,
+        "mood": "calm",
+        "camelot": "10A",
+        "key": "B minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [],
+     "files": [
+      "t0.wav",
+      "t1.wav",
+      "t2.wav",
+      "t3.wav",
+      "t4.wav",
+      "t5.wav",
+      "t6.wav",
+      "t7.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 0 - Song 0",
+     "bpm": 117.99207744598388,
+     "key": 21,
+     "beat_matched": true,
+     "speed": 1.0509748831986951,
+     "generation": 0,
+     "mood": ""
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t0",
+        "title": "Artist 0 - Song 0",
+        "artists": [
+         "Artist 0"
+        ],
+        "bpm": 118.0,
+        "loudness_db": -19.2,
+        "duration_seconds": 50.0,
+        "mood": "",
+        "camelot": "8A",
+        "key": "A minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [],
+     "files": [
+      "t0-again.wav",
+      "t0.wav",
+      "t1.wav",
+      "t2.wav",
+      "t3.wav",
+      "t4.wav",
+      "t5.wav",
+      "t6.wav",
+      "t7.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "download t0 ok"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 1 - Song 1",
+     "bpm": 120.02777840423585,
+     "key": 16,
+     "beat_matched": true,
+     "speed": 0.9830397514199086,
+     "generation": 0,
+     "mood": ""
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t1",
+        "title": "Artist 1 - Song 1",
+        "artists": [
+         "Artist 1"
+        ],
+        "bpm": 120.0,
+        "loudness_db": -17.9,
+        "duration_seconds": 50.0,
+        "mood": "",
+        "camelot": "9A",
+        "key": "E minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [],
+     "files": [
+      "t0-again.wav",
+      "t0.wav",
+      "t1-again.wav",
+      "t1.wav",
+      "t2.wav",
+      "t3.wav",
+      "t4.wav",
+      "t5.wav",
+      "t6.wav",
+      "t7.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "download t1 ok"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   },
+   {
+    "deck": {
+     "title": "Artist 2 - Song 2",
+     "bpm": 122.0179460144043,
+     "key": 18,
+     "beat_matched": true,
+     "speed": 0.9836895499787096,
+     "generation": 0,
+     "mood": ""
+    },
+    "snapshot": {
+     "queue": {
+      "previous": [],
+      "now": null,
+      "next": [
+       {
+        "track_id": "t2",
+        "title": "Artist 2 - Song 2",
+        "artists": [
+         "Artist 2"
+        ],
+        "bpm": 122.0,
+        "loudness_db": -17.6,
+        "duration_seconds": 50.0,
+        "mood": "",
+        "camelot": "11A",
+        "key": "F# minor",
+        "decided": true,
+        "cover": "",
+        "pinned": false
+       }
+      ],
+      "moods": {
+       "available": [
+        "sad",
+        "calm",
+        "fun",
+        "active"
+       ],
+       "selected": [],
+       "station": "",
+       "steered": false
+      },
+      "language": {
+       "available": [
+        "any",
+        "russian",
+        "not-russian",
+        "without-words"
+       ],
+       "selected": null,
+       "station": "",
+       "steered": false
+      },
+      "skip_pending": false,
+      "blending": false,
+      "can_skip": false,
+      "paused": false,
+      "pause_reason": null
+     },
+     "pool": [],
+     "files": [
+      "t0-again.wav",
+      "t0.wav",
+      "t1-again.wav",
+      "t1.wav",
+      "t2-again.wav",
+      "t2.wav",
+      "t3.wav",
+      "t4.wav",
+      "t5.wav",
+      "t6.wav",
+      "t7.wav"
+     ],
+     "generation": 0,
+     "calls": [
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "batch fake exclude=t0,t1,t2,t3,t4,t5,t6,t7 -> t0,t1,t2,t3,t4,t5,t6,t7",
+      "download t2 ok"
+     ],
+     "stats": {
+      "total": 0,
+      "beat_matched": 0,
+      "by_type": {},
+      "by_effect": {},
+      "by_key": {},
+      "by_quality": {
+       "good": 0,
+       "fair": 0,
+       "poor": 0,
+       "unknown": 0
+      }
+     },
+     "key_pairs": [],
+     "blends": []
+    }
+   }
+  ]
+ }
+]
