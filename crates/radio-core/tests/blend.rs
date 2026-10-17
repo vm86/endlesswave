@@ -5,7 +5,7 @@
 //! not bit by bit. The pieces (`*.f32`) are not in git; a case without them is skipped, unless
 //! `GOLDEN_REQUIRED` is set.
 
-use radio_core::mix::blend;
+use radio_core::mix::{blend, glide};
 use serde::Deserialize;
 use std::{fs, path::PathBuf};
 
@@ -28,7 +28,17 @@ struct SwapPoint {
     swap: (f64, f64),
 }
 #[derive(Deserialize)]
+struct Glide {
+    name: String,
+    bpm: f64,
+    speed: f64,
+    length: usize,
+    grid: Vec<f64>,
+}
+#[derive(Deserialize)]
 struct Index {
+    glides: Vec<Glide>,
+    attacks: Vec<usize>,
     cases: Vec<Case>,
     swaps: Vec<SwapPoint>,
 }
@@ -83,5 +93,36 @@ fn the_swap_point_is_where_python_puts_it() {
     for s in index().swaps {
         let (point, ramp) = blend::swap_point(s.frames, s.beat_period, s.grid.as_deref());
         assert_eq!((point, ramp), s.swap, "{} frames, period {}, grid {:?}", s.frames, s.beat_period, s.grid);
+    }
+}
+
+#[test]
+fn the_blocks_with_an_attack_are_the_ones_python_finds() {
+    let Some(mono) = read("attacks", "in") else { return };
+    let found: Vec<usize> = glide::find_attacks(&mono).iter().enumerate().filter(|&(_, &a)| a).map(|(i, _)| i).collect();
+    assert!(found.len() >= 5, "{} attacks: the signal has kicks", found.len());
+    assert_eq!(found, index().attacks);
+}
+
+/// The tempo glide: WSOLA picks where to read each frame by a correlation, so a frame may go to another
+/// place than Python's when two places fit alike, and the pieces are then not bit-close. The ratio is what the
+/// ear would not tell apart.
+#[test]
+fn the_tempo_glides_as_python_makes_it() {
+    for g in index().glides {
+        let (Some(out), Some(inc), Some(want_out), Some(want_in)) =
+            (read(&g.name, "out"), read(&g.name, "in"), read(&g.name, "want_out"), read(&g.name, "want_in"))
+        else {
+            continue;
+        };
+        let (got_out, got_in, grid) = glide::tempo_glide(&out, &inc, g.bpm, g.speed, g.length);
+        assert_eq!((got_out.len(), got_in.len()), (want_out.len(), want_in.len()), "{}: lengths", g.name);
+        assert_eq!(grid.len(), g.grid.len(), "{}: beats", g.name);
+        for (got, want) in grid.iter().zip(&g.grid) {
+            assert!((got - want).abs() < 1e-6, "{}: grid {got} against {want}", g.name);
+        }
+        let (snr_out, snr_in) = (snr_db(&got_out, &want_out), snr_db(&got_in, &want_in));
+        println!("{:14} outgoing {snr_out:6.1} dB, incoming {snr_in:6.1} dB", g.name);
+        assert!(snr_out > MIN_SNR_DB && snr_in > MIN_SNR_DB, "{}: {snr_out:.1} dB, {snr_in:.1} dB", g.name);
     }
 }

@@ -299,6 +299,27 @@ def write_blends() -> None:
             (folder / f"{name}.{part}.f32").write_bytes(np.ascontiguousarray(data, "<f4").tobytes())
         index.append({"name": name, "function": function, "frames": len(out), **{k: v for k, v in arguments.items()}})
         print(f"blend/{name}")
+    # The tempo glide: the pieces are the ones the radio reads (the blend and a margin for the last frames).
+    margin = dj_mix.GLIDE_MARGIN
+    glides = []
+    for name, bpm, speed, beats, seeds in [
+        ("glide_up", 120.0, 0.95, 16, (11, 12)),
+        ("glide_down", 126.0, 1.06, 16, (13, 14)),
+        ("glide_still", 124.0, 1.0, 8, (15, 16)),
+        ("glide_short", 128.0, 0.97, 8, (17, 18)),
+    ]:
+        period = SR * 60.0 / bpm
+        length = round(beats * period)
+        out = music(seeds[0], 55, 700, (length + margin) / SR + 0.1)[: length + margin]
+        inc = music(seeds[1], 65, 1500, (length * speed + margin) / SR + 0.1)[: int(length * speed) + margin]
+        a, b, grid = dj_mix.tempo_glide(out, inc, bpm, speed, length)
+        for part, data in (("out", out), ("in", inc), ("want_out", a), ("want_in", b)):
+            (folder / f"{name}.{part}.f32").write_bytes(np.ascontiguousarray(data, "<f4").tobytes())
+        glides.append({"name": name, "bpm": bpm, "speed": speed, "length": length, "grid": [float(g) for g in grid]})
+        print(f"blend/{name}: {len(a)} frames")
+    mono = music(5, 60, 900, 6.0).mean(axis=1, dtype=np.float32)
+    (folder / "attacks.in.f32").write_bytes(np.ascontiguousarray(mono, "<f4").tobytes())
+    attacks = [int(i) for i in np.flatnonzero(dj_mix.find_attacks(mono))]
     swaps = [
         {
             "frames": int(frames),
@@ -316,7 +337,7 @@ def write_blends() -> None:
             (100000, 22050.0, [49000.0, 51000.0, 99000.0]),
         ]
     ]
-    (folder / "index.json").write_text(json.dumps({"cases": index, "swaps": swaps}, indent=1) + "\n")
+    (folder / "index.json").write_text(json.dumps({"cases": index, "swaps": swaps, "glides": glides, "attacks": attacks}, indent=1) + "\n")
 
 
 def write_logic() -> None:
