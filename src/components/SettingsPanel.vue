@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { ref } from "vue";
 import { dockIcon, hasDock } from "../composables/useDock";
 
 defineProps<{ engine: "native" | "web"; active: "native" | "web"; checking: boolean; updateStatus: string; resetting: boolean }>();
 const emit = defineEmits<{ engine: ["native" | "web"]; checkUpdate: []; reset: [] }>();
 const confirming = ref(false);
+const SOURCE = "https://github.com/vm86/endlesswave";
 </script>
 
 <template>
@@ -63,4 +65,12 @@ const confirming = ref(false);
       will start again. Your sign-in and the analysis of the tracks stay.</template>
     <template v-else>Starts the radio afresh: clears the queue, the settings and the history. The sign-in and the analysis stay.</template>
   </p>
+
+  <div class="prefs-group">
+    <div class="prefs-row">
+      <span>Source code</span>
+      <button class="btn-quiet" @click="openUrl(SOURCE)">Open</button>
+    </div>
+  </div>
+  <p class="prefs-note">EndlessWave is free software under the GNU Affero General Public License, version 3 or later: the source of this version is at the link.</p>
 </template>

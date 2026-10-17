@@ -1,0 +1,18 @@
+{
+  "sample_rate": 44100,
+  "frames": 1984500,
+  "key_detector": "essentia",
+  "loudness_meter": "ebu r128",
+  "analysis": {
+    "bpm": 89.9920669631958,
+    "head_beat": 4614.0,
+    "tail_beat": 680710.0,
+    "start": 6,
+    "end": 1984498,
+    "loudness_db": -20.197668075561523,
+    "intro_end": 4614,
+    "outro_start": 1856814,
+    "key": 0,
+    "camelot": "8B"
+  }
+}

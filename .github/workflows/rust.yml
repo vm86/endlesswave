@@ -1,0 +1,49 @@
+# Tests of the Rust core (crates/radio-core) against the answers of the Python radio.
+# The signals of the golden cases are made here by tools/gen_golden.py from vm86/yamusic-radio.
+name: radio-core
+
+on:
+  push:
+    branches: [main]
+    paths: ["crates/**", ".github/workflows/rust.yml"]
+  pull_request:
+    paths: ["crates/**", ".github/workflows/rust.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      YAMUSIC_RADIO: ${{ github.workspace }}/yamusic-radio
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: vm86/yamusic-radio
+          ref: ${{ vars.YAMUSIC_RADIO_REF || 'main' }}
+          path: yamusic-radio
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python radio (the golden answers come from it, with Essentia)
+        run: pip install numpy essentia aiohttp yandex-music
+      - name: Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            crates/radio-core/target
+          key: cargo-radio-core-${{ hashFiles('crates/radio-core/Cargo.toml') }}
+      # The signals are made here; the committed json is what the tests compare with (Essentia may
+      # differ a little between machines, so the json is not compared with a fresh one).
+      - name: Signals of the golden cases
+        run: python crates/radio-core/tools/gen_golden.py
+      - name: Tests
+        working-directory: crates/radio-core
+        env:
+          GOLDEN_REQUIRED: "1"
+        run: cargo test --locked
