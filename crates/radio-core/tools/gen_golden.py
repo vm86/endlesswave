@@ -1751,6 +1751,115 @@ def write_multi() -> None:
     print("multi scenarios:", {r["name"]: len(r["results"]) for r in results})
 
 
+def write_local() -> None:
+    """The local backend of local.py: the files it finds, the tags it reads, and what it answers."""
+    import asyncio
+    import dataclasses
+    import tempfile
+
+    import radio_harness as harness
+    from yamusic_radio import local as lc
+
+    folder = OUT / "local"
+    music = folder / "music"
+    if not music.exists():
+        harness.build_music(music)
+    files = lc.scan(music)
+    ffmeta = [
+        "text",
+        ";FFMETADATA1\ntitle=Plain\nartist=Someone\n",
+        ";FFMETADATA1\n;a comment=1\n  Title  =  spaced out  \nGENRE=Rock\n",
+        ";FFMETADATA1\ntitle=a\\=b\\;c\\#d\\\\e\\\nartist=x\n",
+        ";FFMETADATA1\r\ntitle=crlf\r\nartist=\r\n",
+        ";FFMETADATA1\nno equals here\n=nokey\nkey=\nkey2==double\n",
+        ";FFMETADATA1\ntitle=ends with a backslash\\",
+        "",
+        ";FFMETADATA1",
+        "x\ny=1\nz=2",
+        ";FFMETADATA1\ntitle=line\x0bbreak\nother=1\u2028and more=2\n",
+    ][1:]
+    expected: dict[str, object] = {
+        "files": sorted([str(p.relative_to(music).as_posix()), i] for i, p in files.items()),
+        "parse_tags": [{"text": text, "tags": lc.parse_tags(text)} for text in ffmeta],
+        "tracks": {},
+    }
+    backend = lc.LocalBackend(music)
+
+    async def tracks() -> None:
+        for i, p in files.items():
+            expected["tracks"][i] = dataclasses.asdict(await backend._track(music, i, p))  # noqa: SLF001
+
+    asyncio.run(tracks())
+    scenarios = [
+        {
+            "name": "local_choosing_the_folder",
+            "steps": [
+                {"op": "query"},
+                {"op": "batch"},
+                {"op": "download", "id": "0123456789abcdef", "name": "x"},
+                {"op": "authorize_raw", "values": {}},
+                {"op": "authorize_raw", "values": {"directory": "   "}},
+                {"op": "authorize", "directory": "/no/such/folder"},
+                {"op": "authorize", "directory": "<root>/notes.txt"},
+                {"op": "authorize", "directory": "  <root>  "},
+                {"op": "query"},
+                {"op": "authorize", "directory": "<root>/sub"},
+                {"op": "query"},
+                {"op": "authorize", "directory": "<root>"},
+            ],
+        },
+        {
+            "name": "local_batches_and_downloads",
+            "batch_size": 3,
+            "steps": [
+                {"op": "authorize", "directory": "<root>"},
+                {"op": "batch", "deterministic": False},
+                {"op": "batch", "exclude_all": True, "deterministic": False},
+                {"op": "batch", "exclude": ["a.mp3", "B.FLAC", "sub/c.ogg", "sub/deep/d.wav"], "deterministic": False},
+                {"op": "batch", "exclude": ["a.mp3", "B.FLAC", "sub/c.ogg", "sub/deep/d.wav", "sub/h.m4a"], "deterministic": True},
+                {"op": "batch", "exclude": ["a.mp3", "B.FLAC", "sub/c.ogg", "sub/deep/d.wav", "sub/h.m4a", "Other Folder/e.opus"], "deterministic": True},
+                {"op": "download", "path": "sub/h.m4a", "title": "Hotel", "name": "hotel.m4a"},
+                {"op": "download", "path": "sub/h.m4a", "title": "Hotel", "name": "hotel.m4a"},
+                {"op": "batch", "station": "sub", "deterministic": False},
+                {"op": "batch", "station": "sub/deep", "deterministic": True},
+                {"op": "batch", "station": "Other Folder", "deterministic": True},
+                {"op": "batch", "station": "nowhere", "deterministic": True},
+                {"op": "batch", "station": "sub/deep/nested.AIFF", "deterministic": True},
+                {"op": "download", "id": "0123456789abcdef", "name": "gone"},
+            ],
+        },
+        {
+            "name": "local_looks_again",
+            "batch_size": 3,
+            "steps": [
+                {"op": "authorize", "directory": "<root>"},
+                {"op": "write", "path": "brand new.mp3"},
+                {"op": "batch", "exclude": ["a.mp3", "B.FLAC", "sub/c.ogg", "sub/deep/d.wav", "sub/h.m4a", "Other Folder/e.opus"], "deterministic": True},
+                {"op": "advance", "seconds": 599},
+                {"op": "batch", "exclude": ["a.mp3", "B.FLAC", "sub/c.ogg", "sub/deep/d.wav", "sub/h.m4a", "Other Folder/e.opus"], "deterministic": True},
+                {"op": "advance", "seconds": 2},
+                {"op": "batch", "exclude": ["a.mp3", "B.FLAC", "sub/c.ogg", "sub/deep/d.wav", "sub/h.m4a", "Other Folder/e.opus"], "deterministic": True},
+                {"op": "download", "path": "brand new.mp3", "title": "brand new", "name": "new.mp3"},
+                {"op": "remove", "path": "brand new.mp3"},
+                {"op": "download", "path": "brand new.mp3", "title": "brand new", "name": "new2.mp3"},
+                {"op": "advance", "seconds": 700},
+                {"op": "batch", "exclude": ["a.mp3", "B.FLAC", "sub/c.ogg", "sub/deep/d.wav", "sub/h.m4a", "Other Folder/e.opus"], "deterministic": True},
+            ],
+        },
+    ]
+
+    async def run() -> list[dict[str, object]]:
+        out = []
+        for scenario in scenarios:
+            with tempfile.TemporaryDirectory() as scratch:
+                out.append({**scenario, "results": await harness.run_local_scenario(scenario, music, Path(scratch))})
+        return out
+
+    expected["scenarios"] = asyncio.run(run())
+    (folder / "expected.json").write_text(json.dumps(expected, indent=1) + "\n")
+    print("local:", len(files), "files;", {s["name"]: len(s["results"]) for s in expected["scenarios"]})
+
+
 def write_effects() -> None:
     """The effects, the limiter and blend(): the noise is recorded, and the Rust side replays it."""
     folder = OUT / "effects"
@@ -1933,4 +2042,5 @@ if __name__ == "__main__":
     write_transitions()
     write_mix()
     write_multi()
+    write_local()
     write_radio_scenarios()

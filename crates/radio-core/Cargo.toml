@@ -19,13 +19,13 @@ rand_distr = "0.6.0"
 realfft = "3.5.0"
 rusqlite = { version = "0.37", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
+sha1 = "0.10"
 serde_json = { version = "1", features = ["float_roundtrip"] }
 tokio = { version = "1.53.3", features = ["rt", "sync", "process", "io-util", "macros", "time", "fs"] }
 tracing = "0.1.44"
 
 [dev-dependencies]
 http-body-util = "0.1.5"
-sha1 = "0.10"
 tokio = { version = "1.53.3", features = ["rt", "macros", "time", "sync", "test-util"] }
 tower = { version = "0.5.3", features = ["util"] }
 tracing-subscriber = "0.3.23"

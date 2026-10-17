@@ -13,3 +13,4 @@
 /tests/golden/radio/*.f32
 /tests/golden/radio/*.f64
 /tests/golden/radio/*.db
+/tests/golden/local/music/

@@ -6,6 +6,7 @@
 //! collection only has to provide the same few calls.
 
 pub mod fake;
+pub mod local;
 pub mod multi;
 
 use async_trait::async_trait;

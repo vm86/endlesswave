@@ -605,3 +605,113 @@ async def run_multi_scenario(scenario: dict[str, object], folder: Path, library:
         result["snapshot"] = snapshot
         results.append(result)
     return results
+
+
+# ---- The local backend (docs/rust-port.md, task 5.2) --------------------------------------------------------------------
+
+
+def build_music(root: Path) -> None:
+    """A folder of audio files made by ffmpeg, with tags (and with what is not to be taken: hidden, other, empty)."""
+    import subprocess
+
+    def make(name: str, tags: dict[str, str], *args: str) -> None:
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        command = ["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=0.4"]
+        for key, value in tags.items():
+            command += ["-metadata", f"{key}={value}"]
+        subprocess.run([*command, *args, str(path)], check=True)
+
+    make("a.mp3", {"title": "Alpha", "artist": "A. Rtist", "genre": "Deep HOUSE"})
+    make("B.FLAC", {"album_artist": "Group", "artist": "Solo", "genre": "Techno"})
+    make("sub/c.ogg", {}, "-c:a", "flac", "-f", "ogg")
+    make("sub/deep/d.wav", {"title": "Rock = Roll; #1 \\ back", "artist": "Ünï Çode ✓"})
+    make("sub/h.m4a", {"title": "Hotel", "artist": "Dub"})
+    make("Other Folder/e.opus", {"title": "  Spaced  ", "genre": ""}, "-c:a", "flac", "-f", "ogg")
+    make(".hidden/f.mp3", {"title": "Hidden folder"})
+    make("._g.mp3", {"title": "Mac leftover"})
+    (root / "notes.txt").write_text("not music")
+    (root / "noext").write_text("not music")
+    (root / "empty.mp3").write_bytes(b"")
+    (root / "sub" / "deep" / "nested.AIFF").write_bytes(b"not audio at all")
+    if hasattr(root, "symlink_to"):
+        (root / "link-to-sub").symlink_to(root / "sub")
+
+
+def _plain(text: str, root: Path) -> str:
+    """Hide where the folder is: it is /var/... or /private/var/... as the system says it."""
+    return text.replace(str(root.resolve()), "<root>").replace(str(root), "<root>")
+
+
+async def run_local_scenario(scenario: dict[str, object], music: Path, scratch: Path) -> list[dict[str, object]]:
+    """Run the steps on the Python LocalBackend over a copy of the folder, and say what came of each."""
+    import asyncio
+    import random
+
+    from yamusic_radio.backend import AuthError, BackendError, Track
+    from yamusic_radio.local import LocalBackend, scan
+
+    root = scratch / "music"
+    shutil.copytree(music, root, symlinks=True)
+    clock = VirtualTime()
+    chosen: list[str] = []
+    backend = LocalBackend(None, chosen.append, batch_size=scenario.get("batch_size", 3), rng=random.Random(5), clock=clock.monotonic)
+    work = scratch / "downloads"
+    work.mkdir()
+    last: list[Track] = []
+    results = []
+    for step in scenario["steps"]:
+        result: dict[str, object] = {}
+        op = step["op"]
+        try:
+            if op == "authorize":
+                typed = step["directory"].replace("<root>", str(root))
+                await backend.authorize({"directory": typed} if typed is not None else {})
+                result["chosen"] = [_plain(c, root) for c in chosen]
+            elif op == "authorize_raw":
+                await backend.authorize(step["values"])
+            elif op == "batch":
+                exclude = {hashid(root, root / rel) for rel in step.get("exclude", [])}
+                if step.get("exclude_all"):
+                    exclude = set(scan(root))
+                batch = await backend.station_batch(step.get("station", "shuffle"), exclude_track_ids=exclude)
+                last[:] = batch
+                result["tracks"] = sorted((dataclasses.asdict(t) for t in batch), key=lambda t: t["track_id"])
+            elif op == "download":
+                if "path" in step:
+                    track = Track(hashid(root, root / step["path"]), step["title"], ("x",), "mp3")
+                else:
+                    track = Track(step["id"], "Gone", ("x",), "mp3")
+                target = work / step["name"]
+                await backend.download(track, target)
+                result["link"] = {"is_symlink": target.is_symlink(), "target": _plain(str(target.resolve()), root.resolve()), "size": target.stat().st_size}
+            elif op == "write":
+                (root / step["path"]).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(root / "a.mp3", root / step["path"])
+            elif op == "remove":
+                (root / step["path"]).unlink()
+            elif op == "advance":
+                clock.advance(step["seconds"])
+            elif op == "query":
+                pass
+            else:
+                raise ValueError(op)
+        except (AuthError, BackendError) as error:
+            result["error"] = _plain(f"{type(error).__name__}: {error}", root)
+        await asyncio.sleep(0)
+        result["state"] = {
+            "authorized": backend.authorized,
+            "settings": {k: _plain(v, root) for k, v in backend.settings.items()},
+            "setting_fields": [dataclasses.asdict(f) for f in backend.setting_fields],
+            "prompt": dataclasses.asdict(backend.auth_prompt),
+            "default_station": backend.default_station,
+            "supports_moods": backend.supports_moods,
+        }
+        results.append(result)
+    return results
+
+
+def hashid(root: Path, path: Path) -> str:
+    from yamusic_radio.local import track_id
+
+    return track_id(path.relative_to(root))
