@@ -4,4 +4,5 @@
 
 pub mod cache;
 pub mod mix;
+pub mod spectrum;
 pub mod stream;

@@ -89,7 +89,7 @@
 - **3.3** ✅ (`stream/`: `frames.rs`, `broadcaster.rs`, `icy.rs`, `encoder.rs`; trait `Encoder` + `FfmpegEncoder`. Парсеры, Broadcaster и ICY совпадают с Python на эталонах; MP3 и FLAC от ffmpeg побитно те же, Ogg с той же раскладкой страниц) Кодирование: trait `Encoder` + реализация на подпроцессах ffmpeg (MP3, FLAC, Ogg), `Broadcaster` с preroll 3 с; парсеры границ кадров `mp3_start`, `flac_start`, `ogg_start`, CRC8 и Ogg CRC — один в один.
   `mp3_start`, `flac_start`, `ogg_start`, CRC8, Ogg CRC — один в один.
 - **3.4** Остановка кодировщиков (`Encoder::stop` ✅), пауза «нет слушателей» (`wait_for_a_listener` ✅; логика паузы — вместе с циклом `mix()` в 3.2).
-- **3.5** `spectrum.rs`: 12 полос, SSE `/api/spectrum`, событие `start`, привязка слушателя по `?l=`.
+- **3.5** ✅ (`spectrum.rs`: анализатор, `SpectrumFeed`, `StartPositions`, SSE-текст; 179 кадров, полосы до 5e-7, JSON кадров побуквенно как у Python) `spectrum.rs`: 12 полос, SSE `/api/spectrum`, событие `start`, привязка слушателя по `?l=`.
 
 ### Этап 4. HTTP API
 - **4.1** Маршруты `axum` с теми же JSON-формами, что в README радио; контрактные тесты против живого Python.

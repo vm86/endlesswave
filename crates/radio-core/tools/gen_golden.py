@@ -629,6 +629,80 @@ def write_streams() -> None:
     print("stream: mp3", len(streams["mp3"]), "flac", len(streams["flac"]), "ogg", len(streams["ogg"]))
 
 
+def write_spectrum() -> None:
+    """The bands the radio sends to the page, frame by frame, and how the feed and the start positions behave."""
+    import asyncio
+
+    from yamusic_radio import spectrum as sp
+
+    folder = OUT / "spectrum"
+    folder.mkdir(parents=True, exist_ok=True)
+    mix = np.concatenate([music(51, 55, 880, 3.0), music(52, 80, 3000, 3.0)])
+    (folder / "mix.f32").write_bytes(np.ascontiguousarray(mix, "<f4").tobytes())
+    sizes = [1000, 1500, 11025, 11025, 700, 3000, 11025, 22050, 5, 11025]
+    sizes += [11025] * ((len(mix) - sum(sizes)) // 11025)
+    sizes.append(len(mix) - sum(sizes))
+    analyzer = sp.SpectrumAnalyzer()
+    feeds, position = [], 0
+    for size in sizes:
+        frames = analyzer.feed(mix[position : position + size])
+        position += size
+        feeds.append(
+            {
+                "size": size,
+                "position": analyzer.position,
+                "frames": [{"t": f.t, "b": list(f.bands), "json": f.to_json()} for f in frames],
+            }
+        )
+    numbers = [0.0, 1.0, 0.0004, 0.0005, 0.0015, 0.0025, 0.12349999, 0.1235, 12.0005, 1234.5678, 0.9995, 0.9999, 1 / 3, 2 / 3, 1e-9, 123456.7895]
+    formats = [
+        {"t": n, "b": [n, 1 - n if n < 1 else 0.5, 0.0, 1.0, 0.7071, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 0.0078125]}
+        for n in numbers
+    ]
+    for entry in formats:
+        entry["json"] = sp.Frame(entry["t"], tuple(entry["b"])).to_json()
+
+    feed = sp.SpectrumFeed()
+    batches = []
+    clock = 0.0
+    for size in [3, 1, 7, 50, 120, 200, 40, 1, 1]:
+        batch = [sp.Frame(clock + i * 0.033, (float(i),)) for i in range(size)]
+        clock += size * 0.033
+        feed.publish(batch)
+        batches.append(size)
+    subscribed = []
+    for since in (None, -1.0, 0.0, 5.0, clock - 1.0, clock + 5.0):
+        _, backlog = feed.subscribe(since)
+        subscribed.append({"since": since, "ts": [f.t for f in backlog]})
+    queue, _ = feed.subscribe(None)
+    for n in range(100):
+        feed.publish([sp.Frame(float(n), (0.0,))])
+    kept = []
+    while not queue.empty():
+        kept.append(queue.get_nowait()[0].t)
+    feed.reset()
+    _, after_reset = feed.subscribe(0.0)
+
+    async def starts() -> dict[str, object]:
+        positions = sp.StartPositions()
+        for i in range(300):
+            positions.set(f"n{i}", float(i))
+        positions.set("n100", 1000.5)  # again: it is among the latest now
+        for i in range(300, 330):
+            positions.set(f"n{i}", float(i))
+        return {f"n{i}": await positions.get(f"n{i}", 0) for i in range(340)}
+
+    expected = {
+        "sizes": sizes,
+        "feeds": feeds,
+        "formats": formats,
+        "feed": {"batches": batches, "subscribed": subscribed, "kept": kept, "after_reset": len(after_reset)},
+        "starts": asyncio.run(starts()),
+    }
+    (folder / "expected.json").write_text(json.dumps(expected) + "\n")
+    print("spectrum:", sum(len(f["frames"]) for f in feeds), "frames")
+
+
 def write_effects() -> None:
     """The effects, the limiter and blend(): the noise is recorded, and the Rust side replays it."""
     folder = OUT / "effects"
@@ -804,3 +878,4 @@ if __name__ == "__main__":
     write_effects()
     write_cache()
     write_streams()
+    write_spectrum()
