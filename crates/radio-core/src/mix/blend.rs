@@ -25,7 +25,7 @@ const SWEEP_DONE_AT: f32 = 0.85;
 const FFT_PADDING: usize = 1 << 14;
 
 /// `np.linspace(0, end, count, dtype=float32)`: worked out in double, then narrowed.
-fn linspace(end: f64, count: usize) -> Vec<f32> {
+pub(crate) fn linspace(end: f64, count: usize) -> Vec<f32> {
     match count {
         0 => Vec::new(),
         1 => vec![0.0],
@@ -191,7 +191,7 @@ pub fn eq_blend(outgoing: &[f32], incoming: &[f32], beat_period: f64, swap: Opti
 /// runs from the lowest cutoff to the unfiltered track, for a high-pass from the unfiltered track to the
 /// highest cutoff. The output blends neighbouring copies, which is far cheaper than a filter whose coefficients
 /// change from sample to sample.
-fn sweep(pcm: &[f32], position: &[f32], high_pass: bool) -> Vec<f32> {
+pub(crate) fn sweep(pcm: &[f32], position: &[f32], high_pass: bool) -> Vec<f32> {
     let spectrum = Spectrum::new(pcm);
     let levels = SWEEP_CUTOFFS_HZ.len();
     let mut result = vec![0.0f32; pcm.len()];

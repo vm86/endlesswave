@@ -7,6 +7,7 @@ pub mod analysis;
 pub mod blend;
 pub mod choose;
 pub mod decode;
+pub mod effects;
 pub mod glide;
 pub mod key;
 pub mod loudness;

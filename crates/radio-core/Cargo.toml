@@ -9,6 +9,8 @@ publish = false
 
 [dependencies]
 ebur128 = "0.1.10"
+rand = "0.10.3"
+rand_distr = "0.6.0"
 realfft = "3.5.0"
 serde = { version = "1", features = ["derive"] }
 

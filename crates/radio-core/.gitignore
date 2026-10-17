@@ -2,3 +2,5 @@
 /tests/golden/*.f32
 /tests/golden/blend/*.f32
 /target/
+/tests/golden/effects/*.f32
+/tests/golden/effects/*.f64

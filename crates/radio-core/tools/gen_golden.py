@@ -273,6 +273,113 @@ def music(seed: int, low_hz: float, high_hz: float, seconds: float) -> np.ndarra
     return np.stack([left, right], axis=1).astype(np.float32)
 
 
+class Recorder:
+    """A numpy generator that remembers every normal() draw, so that the Rust side can be given the same noise."""
+
+    def __init__(self, seed: int) -> None:
+        self._rng = np.random.default_rng(seed)
+        self.draws: list[np.ndarray] = []
+
+    def normal(self, loc: float, scale: float, size: object) -> np.ndarray:
+        drawn = self._rng.normal(loc, scale, size)
+        self.draws.append(np.asarray(drawn, dtype=np.float64).ravel())
+        return drawn
+
+
+def write_effects() -> None:
+    """The effects, the limiter and blend(): the noise is recorded, and the Rust side replays it."""
+    folder = OUT / "effects"
+    folder.mkdir(parents=True, exist_ok=True)
+    short = music(21, 55, 880, 3.0)
+    long_ = music(22, 50, 600, 8.0)
+    other = music(23, 70, 2000, 8.0)
+    cases: list[dict[str, object]] = []
+
+    def save(name: str, **arrays: np.ndarray) -> None:
+        for part, data in arrays.items():
+            (folder / f"{name}.{part}.f32").write_bytes(np.ascontiguousarray(data, "<f4").tobytes())
+
+    def save_noise(name: str, recorder: Recorder) -> list[int]:
+        flat = np.concatenate(recorder.draws) if recorder.draws else np.zeros(0)
+        (folder / f"{name}.noise.f64").write_bytes(np.ascontiguousarray(flat, "<f8").tobytes())
+        return [len(d) for d in recorder.draws]
+
+    for name, frames in (("riser_short", 30000), ("riser_long", 90000)):
+        recorder = Recorder(31)
+        want = dj_mix.riser(frames, recorder)
+        save(name, want=want)
+        cases.append({"name": name, "function": "riser", "frames": frames, "draws": save_noise(name, recorder)})
+    for name, frames in (("impact_short", 20000), ("impact_long", 120000)):
+        recorder = Recorder(32)
+        want = dj_mix.impact(frames, recorder)
+        save(name, want=want)
+        cases.append({"name": name, "function": "impact", "frames": frames, "draws": save_noise(name, recorder)})
+    for name, cut_share, level in (("echo_a", 0.55, 0.8), ("echo_b", 0.3, 1.0)):
+        cut = round(len(long_) * cut_share)
+        save(name, **{"in": long_, "want": dj_mix.echo_out(long_, cut, level)})
+        cases.append({"name": name, "function": "echo_out", "cut": cut, "level": level})
+    for name, source, gain in (
+        ("limit_loud", other, 3.5),
+        ("limit_clear", short, 0.5),
+        ("limit_edge", music(24, 60, 900, 2.0), 1.9),
+    ):
+        pcm = (source * np.float32(gain)).astype(np.float32)
+        save(name, **{"in": pcm, "want": dj_mix.limit(pcm)})
+        cases.append({"name": name, "function": "limit"})
+    for name, drop, period, level in (("drop_a", 120000, 22050.0, 0.7), ("drop_b", 60000, 20000.0, 1.0)):
+        recorder = Recorder(33)
+        want = dj_mix.add_drop(long_, drop, period, level, recorder)
+        save(name, **{"in": long_, "want": want})
+        cases.append(
+            {
+                "name": name,
+                "function": "add_drop",
+                "drop": drop,
+                "period": period,
+                "level": level,
+                "draws": save_noise(name, recorder),
+            }
+        )
+    grid = [float(g) for g in np.arange(17) * 22050.0 * 0.98]
+    for name, kind, period, effects, pieces, beat_grid in (
+        ("blend_swap_drop", dj_mix.Transition.BASS_SWAP, 22050.0, 0.8, (long_, other), None),
+        ("blend_eq_drop", dj_mix.Transition.EQ_BLEND, 22050.0, 1.0, (long_, other), None),
+        ("blend_sweep_drop", dj_mix.Transition.FILTER_SWEEP, 22050.0, 0.6, (long_, other), None),
+        ("blend_sweep_grid", dj_mix.Transition.FILTER_SWEEP, 21609.0, 0.9, (long_, other), grid),
+        ("blend_sweep_echo", dj_mix.Transition.FILTER_SWEEP, 0.0, 0.8, (long_, other), None),
+        ("blend_swap_echo", dj_mix.Transition.BASS_SWAP, 0.0, 0.5, (long_, other), None),
+        ("blend_swap_plain", dj_mix.Transition.BASS_SWAP, 22050.0, 0.0, (long_, other), None),
+        ("blend_short", dj_mix.Transition.EQ_BLEND, 22050.0, 0.8, (music(25, 60, 800, 1.5), music(26, 60, 900, 1.5)), None),
+    ):
+        recorder = Recorder(34)
+        out, inc = pieces
+        want = dj_mix.blend(
+            kind,
+            out,
+            inc,
+            period,
+            effects=effects,
+            rng=recorder,
+            beat_grid=None if beat_grid is None else np.array(beat_grid),
+        )
+        save(name, out=out, **{"in": inc}, want=want)
+        applied = dj_mix.applied_blend(kind, len(out), period, effects)
+        cases.append(
+            {
+                "name": name,
+                "function": "blend",
+                "kind": kind.value,
+                "period": period,
+                "effects": effects,
+                "grid": beat_grid,
+                "draws": save_noise(name, recorder),
+                "applied": [applied.kind.value, applied.effect.value],
+            }
+        )
+    (folder / "index.json").write_text(json.dumps({"cases": cases}, indent=1) + "\n")
+    print(f"effects: {len(cases)} cases")
+
+
 def write_blends() -> None:
     """Blends of two pieces, to compare by the signal to noise ratio (the FFTs round differently)."""
     folder = OUT / "blend"
@@ -351,3 +458,4 @@ if __name__ == "__main__":
     main()
     write_logic()
     write_blends()
+    write_effects()
