@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 async-trait = "0.1.92"
+axum = "0.8.9"
 bytes = { version = "1.12.1", default-features = false }
 ebur128 = "0.1.10"
 futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
@@ -23,8 +24,10 @@ tokio = { version = "1.53.3", features = ["rt", "sync", "process", "io-util", "m
 tracing = "0.1.44"
 
 [dev-dependencies]
+http-body-util = "0.1.5"
 sha1 = "0.10"
 tokio = { version = "1.53.3", features = ["rt", "macros", "time", "sync", "test-util"] }
+tower = { version = "0.5.3", features = ["util"] }
 tracing-subscriber = "0.3.23"
 
 [build-dependencies]

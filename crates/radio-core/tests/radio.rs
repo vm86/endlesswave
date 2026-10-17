@@ -9,19 +9,27 @@
 //! key and loudness the cache holds. The tracks (`library/*.wav`) and the cache are not in git; without them, or ffmpeg,
 //! the test is skipped, unless `GOLDEN_REQUIRED` is set.
 
+use async_trait::async_trait;
+use axum::{Router, body::Body, http::Request};
+use http_body_util::BodyExt as _;
 use radio_core::{
+    api::{Api, BackendSet, router},
     backend::{
-        MusicBackend,
+        AuthError, MusicBackend,
         fake::{FakeBackend, FakeOptions, FakeTrack},
     },
     cache::TrackCache,
     clock::ManualClock,
     mix::{effects::Effect, plan::Transition},
+    encode::Streams,
     pipeline::{Deck, DeckSource},
     radio::{Radio, RadioConfig, RadioError},
+    spectrum::{SpectrumFeed, StartPositions},
+    stream::broadcaster::{Broadcaster, Config},
 };
+use tower::ServiceExt as _;
 use serde_json::{Value, json};
-use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, fs, path::PathBuf, sync::{Arc, Mutex}};
 
 fn dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden/radio")
@@ -48,6 +56,76 @@ fn first_difference(got: &Value, want: &Value, path: &str) -> Option<String> {
         _ if got == want => None,
         _ => Some(format!("{path}: {got} against {want}")),
     }
+}
+
+/// The set of backends that can be turned on and off, as `StubBackends` of `tools/radio_harness.py` has it.
+struct StubBackends {
+    on: Mutex<Vec<&'static str>>,
+}
+
+const STUB_IDS: [&str; 2] = ["alpha", "beta"];
+
+fn unknown(id: &str) -> String {
+    format!("unknown music backend {}", radio_core::api::py_repr(id))
+}
+
+#[async_trait]
+impl BackendSet for StubBackends {
+    async fn enable(&self, id: &str) -> Result<(), String> {
+        let id = STUB_IDS.iter().find(|i| **i == id).ok_or_else(|| unknown(id))?;
+        let mut on = self.on.lock().unwrap();
+        if !on.contains(id) {
+            on.push(id);
+        }
+        Ok(())
+    }
+    async fn disable(&self, id: &str) -> Result<(), String> {
+        let id = STUB_IDS.iter().find(|i| **i == id).ok_or_else(|| unknown(id))?;
+        self.on.lock().unwrap().retain(|i| i != id);
+        Ok(())
+    }
+    fn status(&self) -> Value {
+        let on = self.on.lock().unwrap();
+        STUB_IDS
+            .iter()
+            .map(|i| {
+                let enabled = on.contains(i);
+                let name: String = i.chars().enumerate().map(|(n, c)| if n == 0 { c.to_ascii_uppercase() } else { c }).collect();
+                json!({"id": i, "name": name, "enabled": enabled, "authorized": enabled, "available": enabled, "url": null, "code": null,
+                       "fields": [], "settings": {}, "setting_fields": []})
+            })
+            .collect()
+    }
+    async fn authorize_backend(&self, id: &str, values: &HashMap<String, String>) -> Result<(), AuthError> {
+        if !self.on.lock().unwrap().contains(&id) && !self.on.lock().unwrap().iter().any(|i| *i == id) {
+            return Err(AuthError(format!("music backend {} is not on", radio_core::api::py_repr(id))));
+        }
+        if values.get("token").map(String::as_str) != Some("good") {
+            return Err(AuthError("the token is wrong".to_owned()));
+        }
+        Ok(())
+    }
+}
+
+/// Ask the router of the radio as a client would, without a socket.
+async fn ask(router: &Router, step: &Value) -> Value {
+    let body = match step.get("json") {
+        Some(json) => json.to_string(),
+        None => step["raw"].as_str().unwrap_or("").to_owned(),
+    };
+    let request = Request::builder().method(step["method"].as_str().unwrap()).uri(step["path"].as_str().unwrap()).body(Body::from(body)).unwrap();
+    let response = router.clone().oneshot(request).await.unwrap();
+    let status = response.status().as_u16();
+    let content_type = response.headers().get("content-type").map(|v| v.to_str().unwrap().to_owned());
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let text = String::from_utf8(bytes.to_vec()).unwrap();
+    let mut answer = json!({"status": status, "content_type": content_type});
+    if content_type.as_deref().is_some_and(|t| t.contains("json")) {
+        answer["json"] = serde_json::from_str(&text).unwrap();
+    } else {
+        answer["text"] = text.into();
+    }
+    answer
 }
 
 fn deck_info(deck: &Deck) -> Value {
@@ -135,6 +213,7 @@ async fn the_radio_looks_after_each_step_as_the_python_radio_does() {
                 batch_size: options["batch_size"].as_u64().unwrap_or(3) as usize,
                 supports_moods: options["supports_moods"].as_bool().unwrap_or(false),
                 fail_downloads: options["fail_downloads"].as_array().into_iter().flatten().map(|v| v.as_str().unwrap().to_owned()).collect(),
+                authorized: options["authorized"].as_bool().unwrap_or(true),
                 ..FakeOptions::default()
             },
         ));
@@ -158,6 +237,8 @@ async fn the_radio_looks_after_each_step_as_the_python_radio_does() {
             )
         };
         let mut radio = make_radio();
+        // The HTTP side, started when a step first asks for it.
+        let mut web: Option<Router> = None;
 
         let mut decks: HashMap<String, Deck> = HashMap::new();
         let mut taken = 0;
@@ -183,6 +264,19 @@ async fn the_radio_looks_after_each_step_as_the_python_radio_does() {
                     DeckSource::transition(&*radio, kind, &decks[step["current"].as_str().unwrap()], &decks[step["following"].as_str().unwrap()], effect, None);
                 }
                 "advance" => clock.advance(step["seconds"].as_f64().unwrap()),
+                "http" => {
+                    let app = web.get_or_insert_with(|| {
+                        router(Api {
+                            radio: radio.clone(),
+                            backends: scenario["backends"].as_bool().unwrap_or(false).then(|| Arc::new(StubBackends { on: Mutex::new(vec!["alpha"]) }) as Arc<dyn BackendSet>),
+                            streams: Streams { mp3: Broadcaster::new(Config::mp3()), flac: Some(Broadcaster::new(Config::flac())), ogg: Some(Broadcaster::new(Config::ogg())) },
+                            spectrum: Some(SpectrumFeed::new()),
+                            starts: Arc::new(StartPositions::new()),
+                        })
+                    });
+                    let answer = ask(app, step).await;
+                    got.as_object_mut().unwrap().extend(answer.as_object().unwrap().clone());
+                }
                 "restart" => {
                     // the program is stopped and started again: the files and the cache stay
                     drop(radio);

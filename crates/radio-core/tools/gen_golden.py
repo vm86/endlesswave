@@ -1293,6 +1293,164 @@ def write_radio_scenarios() -> None:
         },
     ]
 
+    def http(method: str, path: str, **body: object) -> dict[str, object]:
+        step: dict[str, object] = {"op": "http", "method": method, "path": path}
+        if body:
+            step["json"] = body
+        return step
+
+    def raw(method: str, path: str, text: str) -> dict[str, object]:
+        return {"op": "http", "method": method, "path": path, "raw": text}
+
+    playing = [
+        {"op": "fill", "size": 6},
+        {"op": "next_deck", "into": "a", "after": None},
+        {"op": "started", "deck": "a"},
+    ]
+    scenarios += [
+        {
+            "name": "http_reads",
+            "pool_size": 6,
+            "backends": True,
+            "steps": [
+                http("GET", "/"),
+                http("GET", "/nothing/here"),
+                http("GET", "/api/queue"),
+                *playing,
+                {"op": "advance", "seconds": 3.5},
+                http("GET", "/api/queue"),
+                http("GET", "/api/queue?previous=1&next=2"),
+                http("GET", "/api/queue?previous=0&next=0"),
+                http("GET", "/api/queue?next=99&previous=99"),
+                http("GET", "/api/queue?next=abc"),
+                http("GET", "/api/queue?previous=-1"),
+                http("GET", "/api/queue?next="),
+                http("GET", "/api/queue?next=%202%20"),
+                http("GET", "/api/queue?next=1_0"),
+                http("GET", "/api/queue?next=%2B3"),
+                http("GET", "/api/queue?next=2.5"),
+                http("GET", "/api/moods"),
+                http("GET", "/api/language"),
+                http("GET", "/api/genres"),
+                http("GET", "/api/next"),
+                http("GET", "/api/stats"),
+                http("GET", "/api/transitions"),
+                http("GET", "/api/stats/keys"),
+                http("GET", "/api/auth"),
+                http("POST", "/api/queue"),
+            ],
+        },
+        {
+            "name": "http_changes",
+            "pool_size": 6,
+            "backends": True,
+            "backend": {"supports_moods": True},
+            "steps": [
+                *playing,
+                http("PUT", "/api/moods", moods=["calm", "fun"]),
+                raw("PUT", "/api/moods", "not json"),
+                raw("PUT", "/api/moods", ""),
+                http("PUT", "/api/moods", moods="calm"),
+                http("PUT", "/api/moods", moods=["zzz", "nope", "zzz"]),
+                http("PUT", "/api/moods", mood=["calm"]),
+                raw("PUT", "/api/moods", "[1, 2]"),
+                http("DELETE", "/api/moods"),
+                http("POST", "/api/pause"),
+                {"op": "advance", "seconds": 5},
+                http("POST", "/api/resume"),
+                http("POST", "/api/next"),
+                http("GET", "/api/next"),
+                http("POST", "/api/queue/refresh"),
+                http("PUT", "/api/queue/order", track_ids=["t4", "t2"]),
+                http("PUT", "/api/queue/order", track_ids=["t4", "t99"]),
+                http("PUT", "/api/queue/order", track_ids="t4"),
+                http("PUT", "/api/queue/order", track_ids=[1]),
+                http("POST", "/api/queue/move", track_id="t5", position=0),
+                http("POST", "/api/queue/move", track_id="t5", position=True),
+                http("POST", "/api/queue/move", track_id="t5", position=1.0),
+                http("POST", "/api/queue/move", track_id="t5"),
+                http("POST", "/api/queue/move", position=0),
+                http("POST", "/api/queue/move", track_id="", position=0),
+                http("POST", "/api/queue/move", track_id="nope", position=0),
+                http("POST", "/api/queue/move", track_id="it's", position=0),
+                {"op": "http", "method": "DELETE", "path": "/api/queue/tracks/t3"},
+                {"op": "http", "method": "DELETE", "path": "/api/queue/tracks/t3"},
+                {"op": "http", "method": "DELETE", "path": "/api/queue/tracks/a%20b"},
+                http("POST", "/api/queue/play", track_id="t2"),
+                http("POST", "/api/queue/play", track_id="t9"),
+                http("POST", "/api/queue/play"),
+                {"op": "next_deck", "into": "b", "after": "a"},
+                {"op": "transition", "kind": "bass swap", "effect": "none", "current": "a", "following": "b"},
+                http("POST", "/api/next"),
+                http("POST", "/api/queue/play", track_id="t5"),
+                http("PUT", "/api/queue/order", track_ids=["t5", "t4"]),
+                {"op": "http", "method": "DELETE", "path": "/api/queue/tracks/t2"},
+                http("PUT", "/api/language", language="russian"),
+                http("PUT", "/api/language", language="klingon"),
+                http("PUT", "/api/language"),
+                http("GET", "/api/language"),
+                http("DELETE", "/api/language"),
+                http("PUT", "/api/genres", genres=["house", "dance"]),
+                http("PUT", "/api/genres", genres="house"),
+                http("PUT", "/api/genres/blocked", genres=["rock"]),
+                http("DELETE", "/api/genres/blocked"),
+                http("DELETE", "/api/genres"),
+                http("GET", "/api/stats"),
+                http("GET", "/api/transitions"),
+                http("GET", "/api/stats/keys"),
+            ],
+        },
+        {
+            "name": "http_backends",
+            "pool_size": 4,
+            "backends": True,
+            "steps": [
+                {"op": "fill", "size": 4},
+                http("GET", "/api/auth"),
+                http("PUT", "/api/auth/backend", backend="beta"),
+                http("PUT", "/api/auth/backend", backend="gamma"),
+                http("PUT", "/api/auth/backend"),
+                http("PUT", "/api/auth/backend", backend=7),
+                {"op": "http", "method": "DELETE", "path": "/api/auth/backend/alpha"},
+                {"op": "http", "method": "DELETE", "path": "/api/auth/backend/gamma"},
+                http("POST", "/api/auth", backend="beta", values={"token": "good"}),
+                http("POST", "/api/auth", backend="beta", values={"token": "bad"}),
+                http("POST", "/api/auth", backend="alpha", values={"token": "good"}),
+                http("POST", "/api/auth", values={"token": "good"}),
+                http("POST", "/api/auth", values={"token": 1}),
+                http("POST", "/api/auth", values="good"),
+                http("POST", "/api/auth"),
+            ],
+        },
+        {
+            "name": "http_without_backends",
+            "pool_size": 4,
+            "steps": [
+                {"op": "fill", "size": 4},
+                http("GET", "/api/auth"),
+                http("PUT", "/api/auth/backend", backend="beta"),
+                {"op": "http", "method": "DELETE", "path": "/api/auth/backend/beta"},
+                http("PUT", "/api/language", language="russian"),
+                http("DELETE", "/api/language"),
+                http("PUT", "/api/moods", moods=["calm"]),
+                http("POST", "/api/auth", values={"x": "y"}),
+            ],
+        },
+        {
+            "name": "http_unauthorized",
+            "pool_size": 4,
+            "backend": {"authorized": False, "supports_moods": True},
+            "steps": [
+                http("GET", "/api/auth"),
+                http("PUT", "/api/moods", moods=["calm"]),
+                http("DELETE", "/api/moods"),
+                http("PUT", "/api/language", language="russian"),
+                http("DELETE", "/api/language"),
+                http("GET", "/api/moods"),
+            ],
+        },
+    ]
+
     async def run() -> list[dict[str, object]]:
         out = []
         with tempfile.TemporaryDirectory() as scratch_name:
@@ -1314,6 +1472,142 @@ def write_radio_scenarios() -> None:
     results = asyncio.run(run())
     (folder / "radio_scenarios.json").write_text(json.dumps(results, indent=1) + "\n")
     print("radio scenarios:", {r["name"]: len(r["results"]) for r in results})
+
+
+def write_http_streams() -> None:
+    """What a listener of /stream, /stream.flac, /stream.ogg and /api/spectrum receives from the Python radio's server."""
+    import asyncio
+    import hashlib
+
+    from aiohttp.test_utils import TestClient, TestServer
+    from yamusic_radio import dj
+    from yamusic_radio import spectrum as sp
+
+    folder = OUT / "stream"
+    data = {name: (folder / f"{name}.bin").read_bytes() for name in ("mp3", "flac", "ogg")}
+    headers_of = {"flac": dj.flac_header_length, "ogg": dj.ogg_header_length}
+
+    def hubs() -> dict[str, dj.Broadcaster]:
+        return {
+            "mp3": dj.Broadcaster(),
+            "flac": dj.Broadcaster(
+                bytes_per_second=dj.FLAC_BYTES_PER_SECOND, frame_start=dj.flac_start,
+                header_length=dj.flac_header_length, lag_seconds=dj.FLAC_LAG_SECONDS,
+            ),
+            "ogg": dj.Broadcaster(
+                bytes_per_second=dj.FLAC_BYTES_PER_SECOND, frame_start=dj.ogg_start,
+                header_length=dj.ogg_header_length, lag_seconds=dj.OGG_LAG_SECONDS,
+            ),
+        }  # fmt: skip
+
+    def publish(table: dict[str, dj.Broadcaster], op: dict[str, object]) -> None:
+        name = str(op["stream"])
+        hub = table[name]
+        start = int(op["from"])
+        if name in headers_of and start == 0:
+            start = headers_of[name](data[name])
+            hub.header = data[name][:start]
+        fed = float(op.get("fed", 0.0))
+        for at in range(start, int(op["to"]), int(op["chunk"])):
+            fed += float(op["fed_step"])
+            hub.fed = fed
+            hub.publish(data[name][at : min(at + int(op["chunk"]), int(op["to"]))])
+
+    def frames(first: int, count: int) -> list[sp.Frame]:
+        return [sp.Frame((first + i) * 0.033, tuple(((first + i) % 100) / 100 for _ in range(12))) for i in range(count)]
+
+    plan = [
+        {"name": "mp3_plain", "setup": [{"stream": "mp3", "from": 0, "to": 150000, "chunk": 4096, "fed_step": 0.1}],
+         "calls": [{"path": "/stream"}]},
+        {"name": "mp3_with_titles", "title": "Artist - Song",
+         "setup": [{"stream": "mp3", "from": 0, "to": 150000, "chunk": 4096, "fed_step": 0.1}],
+         "calls": [{"path": "/stream", "headers": {"Icy-MetaData": "1"},
+                    "then": [{"stream": "mp3", "from": 100000, "to": 162003, "chunk": 4096, "fed_step": 0.1, "fed": 20.0}]}]},
+        {"name": "mp3_titles_not_asked", "title": "Artist - Song",
+         "setup": [{"stream": "mp3", "from": 0, "to": 90000, "chunk": 4096, "fed_step": 0.1}],
+         "calls": [{"path": "/stream", "headers": {"Icy-MetaData": "0"}}]},
+        {"name": "flac", "setup": [{"stream": "flac", "from": 0, "to": 400000, "chunk": 4096, "fed_step": 0.05}],
+         "calls": [{"path": "/stream.flac", "headers": {"Icy-MetaData": "1"}}]},
+        {"name": "ogg", "setup": [{"stream": "ogg", "from": 0, "to": 400000, "chunk": 4096, "fed_step": 0.05}],
+         "calls": [{"path": "/stream.ogg"}]},
+        {"name": "spectrum", "setup": [{"stream": "mp3", "from": 0, "to": 150000, "chunk": 4096, "fed_step": 0.1}],
+         "spectrum": 400,
+         "calls": [
+            {"path": "/stream?l=page1", "headers": {}},
+            {"path": "/api/spectrum?l=page1", "then_frames": [400, 3]},
+            {"path": "/api/spectrum"},
+         ]},
+    ]  # fmt: skip
+
+    async def read_idle(response: object) -> bytes:
+        got = b""
+        while True:
+            try:
+                piece = await asyncio.wait_for(response.content.readany(), 0.4)
+            except TimeoutError:
+                return got
+            if not piece:
+                return got
+            got += piece
+
+    async def run() -> list[dict[str, object]]:
+        results = []
+        for scenario in plan:
+            table = hubs()
+            feed = sp.SpectrumFeed()
+            starts = None
+            table["mp3"].title = scenario.get("title", "")
+            for op in scenario["setup"]:
+                publish(table, op)
+            if scenario.get("spectrum"):
+                for first in range(0, scenario["spectrum"], 10):
+                    feed.publish(frames(first, 10))
+            app = dj.make_app(table["mp3"], None, None, table["flac"], feed, ogg=table["ogg"])
+            client = TestClient(TestServer(app))
+            await client.start_server()
+            calls = []
+            for call in scenario["calls"]:
+                async with client.get(call["path"], headers=call.get("headers", {})) as response:
+                    reads = [await read_idle(response)]
+                    for op in call.get("then", []):
+                        publish(table, op)
+                        reads.append(await read_idle(response))
+                    if call.get("then_frames"):
+                        first, count = call["then_frames"]
+                        feed.publish(frames(first, count))
+                        reads.append(await read_idle(response))
+                    wanted = ("content-type", "cache-control", "icy-name", "icy-metaint", "access-control-allow-origin", "x-accel-buffering")
+                    calls.append(
+                        {
+                            **call,
+                            "status": response.status,
+                            "response_headers": {k.lower(): v for k, v in response.headers.items() if k.lower() in wanted},
+                            "reads": [
+                                {
+                                    "bytes": len(r),
+                                    "sha1": hashlib.sha1(r).hexdigest(),
+                                    "text": r.decode() if call["path"].startswith("/api/spectrum") else None,
+                                }
+                                for r in reads
+                            ],
+                        }
+                    )
+            await client.close()
+            results.append({**scenario, "results": calls})
+        # without the lossless streams and the spectrum
+        app = dj.make_app(dj.Broadcaster(), None, None, None, None)
+        client = TestClient(TestServer(app))
+        await client.start_server()
+        absent = []
+        for path in ("/stream.flac", "/stream.ogg", "/api/spectrum", "/api/queue", "/"):
+            async with client.get(path) as response:
+                absent.append({"path": path, "status": response.status, "text": await response.text()})
+        await client.close()
+        return {"scenarios": results, "absent": absent}
+
+    expected = asyncio.run(run())
+    (folder / "http_streams.json").write_text(json.dumps(expected, indent=1) + "\n")
+    print("http streams:", [(s["name"], [[r["bytes"] for r in c["reads"]] for c in s["results"]]) for s in expected["scenarios"]])
 
 
 def write_effects() -> None:
@@ -1491,6 +1785,7 @@ if __name__ == "__main__":
     write_effects()
     write_cache()
     write_streams()
+    write_http_streams()
     write_spectrum()
     write_radio()
     write_pipeline()

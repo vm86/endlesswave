@@ -3,6 +3,12 @@
 Цель: заменить Python-демон из `yamusic-radio` (около 8 000 строк, сборка PyInstaller) на Rust-крейт внутри
 `yamusic-radio-player`. Интерфейс (Vue) и нативный плеер (`audio.rs`) остаются как есть.
 
+## Состояние (кратко)
+
+Готово и проверено на эталонах Python: аудио-ядро и DSP (этап 1), кэш (2), потоки, спектр, кодирование, `Radio`, `mix()` и
+цикл кодирования (3), HTTP API (4). Осталось: бэкенды (5: `MultiBackend`, `local`, Яндекс), интеграция в приложение (6) и
+A/B-проверка (7). Подробности по 3.x в [rust-port-radio.md](rust-port-radio.md).
+
 ## Принятые решения
 
 - **Лицензия плеера: AGPL-3.0-or-later** (сделано: `LICENSE`, `NOTICE`, `Cargo.toml`, `tauri.conf.json`,
@@ -92,10 +98,10 @@
 - **3.5** ✅ (`spectrum.rs`: анализатор, `SpectrumFeed`, `StartPositions`, SSE-текст; 179 кадров, полосы до 5e-7, JSON кадров побуквенно как у Python) `spectrum.rs`: 12 полос, SSE `/api/spectrum`, событие `start`, привязка слушателя по `?l=`.
 
 ### Этап 4. HTTP API
-- **4.1** Маршруты `axum` с теми же JSON-формами, что в README радио; контрактные тесты против живого Python.
-- **4.2** `/api/queue`, `/api/next`, `/api/pause`, `/api/resume`, `/api/moods`, `/api/genres`, `/api/language`,
+- **4.1** ✅ (`api/`: каркас, ошибки, разбор запросов) Маршруты `axum` с теми же JSON-формами, что в README радио; контрактные тесты против живого Python.
+- **4.2** ✅ (все маршруты записи и чтения; 5 HTTP-сценариев, 110 запросов совпадают с Python) `/api/queue`, `/api/next`, `/api/pause`, `/api/resume`, `/api/moods`, `/api/genres`, `/api/language`,
   `/api/stats`, `/api/stats/keys`, `/api/transitions`, `/api/auth*`.
-- **4.3** CORS `*` для потока и спектра, ICY-заголовки, `GET /` → 404 с JSON.
+- **4.3** ✅ (потоки, ICY, спектр по SSE, `serve`; 6 сценариев потоков совпадают по заголовкам и sha1) CORS `*` для потока и спектра, ICY-заголовки, `GET /` → 404 с JSON.
 
 ### Этап 5. Бэкенды
 - **5.1** trait `MusicBackend` и `MultiBackend`: общий пул треков, отключение, откат после сбоев (30 с → 10 мин).

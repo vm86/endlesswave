@@ -33,6 +33,8 @@ pub struct FakeOptions {
     pub settings: (String, String, String),
     /// Ids of tracks that cannot be downloaded.
     pub fail_downloads: HashSet<String>,
+    /// Whether the backend can give tracks.
+    pub authorized: bool,
 }
 
 impl Default for FakeOptions {
@@ -43,6 +45,7 @@ impl Default for FakeOptions {
             default_station: "fake".to_owned(),
             settings: ("all".to_owned(), "default".to_owned(), "any".to_owned()),
             fail_downloads: HashSet::new(),
+            authorized: true,
         }
     }
 }
@@ -80,7 +83,7 @@ impl FakeBackend {
 #[async_trait]
 impl MusicBackend for FakeBackend {
     fn authorized(&self) -> bool {
-        true
+        self.options.authorized
     }
 
     fn auth_prompt(&self) -> AuthPrompt {

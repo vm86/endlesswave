@@ -16,6 +16,7 @@ Run through `gen_golden.py`, which needs the radio's checkout (YAMUSIC_RADIO).
 from __future__ import annotations
 
 import dataclasses
+import json
 import shutil
 import wave
 from pathlib import Path
@@ -98,6 +99,7 @@ class FakeBackend:
         default_station: str = "fake",
         settings: tuple[str, str, str] = ("all", "default", "any"),
         fail_downloads: frozenset[str] = frozenset(),
+        authorized: bool = True,
     ) -> None:
         from yamusic_radio.backend import Track
 
@@ -113,8 +115,7 @@ class FakeBackend:
         self._cursor = 0
         self._settings = settings
         self.calls: list[str] = []
-
-    authorized = True
+        self.authorized = authorized
 
     @property
     def auth_prompt(self) -> object:
@@ -282,6 +283,53 @@ def _snapshot(radio: object, backend: FakeBackend, workdir: Path, taken: list[in
     return snapshot
 
 
+class StubBackends:
+    """The set of backends that can be turned on and off, as the page sees it. The Rust test has the same one."""
+
+    IDS = ("alpha", "beta")
+
+    def __init__(self) -> None:
+        self.on = {"alpha"}
+
+    async def enable(self, backend_id: str) -> None:
+        if backend_id not in self.IDS:
+            raise ValueError(f"unknown music backend {backend_id!r}")
+        self.on.add(backend_id)
+
+    async def disable(self, backend_id: str) -> None:
+        if backend_id not in self.IDS:
+            raise ValueError(f"unknown music backend {backend_id!r}")
+        self.on.discard(backend_id)
+
+    def status(self) -> list[dict[str, object]]:
+        return [
+            {
+                "id": i,
+                "name": i.title(),
+                "enabled": i in self.on,
+                "authorized": i in self.on,
+                "available": i in self.on,
+                "url": None,
+                "code": None,
+                "fields": [],
+                "settings": {},
+                "setting_fields": [],
+            }
+            for i in self.IDS
+        ]
+
+    async def authorize_backend(self, backend_id: str, values: dict[str, str]) -> None:
+        from yamusic_radio.backend import AuthError
+
+        if backend_id not in self.on:
+            raise AuthError(f"music backend {backend_id!r} is not on")
+        if values.get("token") != "good":
+            raise AuthError("the token is wrong")
+
+    def unavailable(self) -> set[str]:
+        return set(self.IDS) - self.on
+
+
 async def run_scenario(
     scenario: dict[str, object], folder: Path, library: list[dict[str, object]], primed: Path, scratch: Path
 ) -> list[dict[str, object]]:
@@ -297,6 +345,7 @@ async def run_scenario(
         batch_size=options.get("batch_size", 3),
         supports_moods=options.get("supports_moods", False),
         fail_downloads=frozenset(options.get("fail_downloads", [])),
+        authorized=options.get("authorized", True),
     )
     cache_path = scratch / f"{scenario['name']}.db"
     shutil.copyfile(primed, cache_path)
@@ -317,6 +366,19 @@ async def run_scenario(
     decks: dict[str, object] = {}
     taken = [0]
     results = []
+    client = None
+
+    async def web_client() -> object:
+        """The HTTP side of the radio, started when a step first asks for it."""
+        from aiohttp.test_utils import TestClient, TestServer
+
+        hub, lossless, ogg = dj.Broadcaster(), dj.Broadcaster(), dj.Broadcaster()
+        backends = StubBackends() if scenario.get("backends") else None
+        app = dj.make_app(hub, radio, backends, lossless, dj.SpectrumFeed(), ogg=ogg)
+        started = TestClient(TestServer(app))
+        await started.start_server()
+        return started
+
     for step in scenario["steps"]:
         result: dict[str, object] = {}
         op = step["op"]
@@ -337,6 +399,17 @@ async def run_scenario(
                 radio.transition(kind, decks[step["current"]], decks[step["following"]], effect)
             elif op == "advance":
                 clock.advance(step["seconds"])
+            elif op == "http":
+                client = client or await web_client()
+                body = json.dumps(step["json"]).encode() if "json" in step else str(step.get("raw", "")).encode()
+                async with client.request(step["method"], step["path"], data=body or None) as response:
+                    text = await response.text()
+                    result["status"] = response.status
+                    result["content_type"] = response.headers.get("Content-Type")
+                    if "json" in (response.content_type or ""):
+                        result["json"] = json.loads(text)
+                    else:
+                        result["text"] = text
             elif op == "restart":
                 # the program is stopped and started again: the files and the cache stay
                 cache.close()
@@ -361,6 +434,8 @@ async def run_scenario(
         await radio.wait_feedback()
         result["snapshot"] = _snapshot(radio, backend, workdir, taken, cache)
         results.append(result)
+    if client is not None:
+        await client.close()
     cache.close()
     return results
 
