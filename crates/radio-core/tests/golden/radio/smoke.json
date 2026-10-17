@@ -1,0 +1,134 @@
+{
+ "pool": [
+  {
+   "title": "Artist 1 - Song 1",
+   "bpm": 120.02777840423585,
+   "key": 16,
+   "loudness_db": -17.88148307800293,
+   "mood": "calm",
+   "genre": "techno"
+  },
+  {
+   "title": "Artist 2 - Song 2",
+   "bpm": 122.0179460144043,
+   "key": 18,
+   "loudness_db": -17.62277603149414,
+   "mood": "calm",
+   "genre": "house"
+  },
+  {
+   "title": "Artist 3 - Song 3",
+   "bpm": 124.0067098121643,
+   "key": 23,
+   "loudness_db": -18.73621940612793,
+   "mood": "calm",
+   "genre": "dance"
+  }
+ ],
+ "queue": {
+  "previous": [],
+  "now": {
+   "track_id": "t0",
+   "title": "Artist 0 - Song 0",
+   "artists": [
+    "Artist 0"
+   ],
+   "bpm": 118.0,
+   "loudness_db": -19.2,
+   "duration_seconds": 50.0,
+   "mood": "calm",
+   "camelot": "8A",
+   "key": "A minor",
+   "decided": true,
+   "cover": "",
+   "pinned": false,
+   "elapsed_seconds": 12.5
+  },
+  "next": [
+   {
+    "track_id": "t1",
+    "title": "Artist 1 - Song 1",
+    "artists": [
+     "Artist 1"
+    ],
+    "bpm": 120.0,
+    "loudness_db": -17.9,
+    "duration_seconds": 50.0,
+    "mood": "calm",
+    "camelot": "9A",
+    "key": "E minor",
+    "decided": false,
+    "cover": "",
+    "pinned": false
+   },
+   {
+    "track_id": "t3",
+    "title": "Artist 3 - Song 3",
+    "artists": [
+     "Artist 3"
+    ],
+    "bpm": 124.0,
+    "loudness_db": -18.7,
+    "duration_seconds": 50.0,
+    "mood": "calm",
+    "camelot": "10A",
+    "key": "B minor",
+    "decided": false,
+    "cover": "",
+    "pinned": false
+   },
+   {
+    "track_id": "t2",
+    "title": "Artist 2 - Song 2",
+    "artists": [
+     "Artist 2"
+    ],
+    "bpm": 122.0,
+    "loudness_db": -17.6,
+    "duration_seconds": 50.0,
+    "mood": "calm",
+    "camelot": "11A",
+    "key": "F# minor",
+    "decided": false,
+    "cover": "",
+    "pinned": false
+   }
+  ],
+  "moods": {
+   "available": [
+    "sad",
+    "calm",
+    "fun",
+    "active"
+   ],
+   "selected": [],
+   "station": "",
+   "steered": false
+  },
+  "language": {
+   "available": [
+    "any",
+    "russian",
+    "not-russian",
+    "without-words"
+   ],
+   "selected": null,
+   "station": "",
+   "steered": false
+  },
+  "skip_pending": false,
+  "blending": false,
+  "can_skip": true,
+  "paused": false,
+  "pause_reason": null
+ },
+ "calls": [
+  "batch fake exclude= -> t0,t1,t2",
+  "download t0 ok",
+  "download t1 ok",
+  "download t2 ok",
+  "batch fake exclude=t0,t1,t2 -> t3,t4,t5",
+  "download t3 ok",
+  "feedback t0 started 0.000"
+ ]
+}

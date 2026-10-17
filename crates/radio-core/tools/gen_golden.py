@@ -19,6 +19,7 @@ import numpy as np
 
 radio = Path(os.environ.get("YAMUSIC_RADIO", "~/devel/yamusic-radio")).expanduser()
 sys.path.insert(0, str(radio))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from yamusic_radio import dj_mix  # noqa: E402
 
 SR = dj_mix.SAMPLE_RATE
@@ -703,6 +704,71 @@ def write_spectrum() -> None:
     print("spectrum:", sum(len(f["frames"]) for f in feeds), "frames")
 
 
+def write_radio() -> None:
+    """The stand of the radio: the library of fake tracks, the fake backend's answers, a first scenario."""
+    import asyncio
+    import tempfile
+
+    import radio_harness as harness
+
+    folder = OUT / "radio"
+    folder.mkdir(parents=True, exist_ok=True)
+    library = harness.build_library(folder / "library")
+    (folder / "library.json").write_text(json.dumps(library, indent=1) + "\n")
+
+    # The fake backend on a fixed series of calls: what Rust's must answer the same
+    from yamusic_radio.backend import Feedback
+
+    async def backend_calls() -> dict[str, object]:
+        backend = harness.FakeBackend(folder / "library", library, fail_downloads=frozenset({"t5"}), supports_moods=True)
+        results: list[dict[str, object]] = []
+        work = Path(tempfile.mkdtemp())
+        tracks = {}
+
+        async def batch(exclude: list[str]) -> None:
+            got = await backend.station_batch("fake", exclude_track_ids=set(exclude))
+            tracks.update({t.track_id: t for t in got})
+            results.append({"op": "batch", "exclude": exclude, "ids": [t.track_id for t in got]})
+
+        await batch([])
+        await batch(["t3"])
+        await batch(["t6", "t7", "t0"])
+        await batch([f"t{i}" for i in range(8)])  # everything is excluded: the station repeats
+        for track_id in ("t0", "t5", "t7", "nothing"):
+            ok = True
+            try:
+                track = tracks.get(track_id) or dataclasses_track(library, track_id)
+                await backend.download(track, work / f"{track_id}.wav")
+            except RuntimeError:
+                ok = False
+            size = (work / f"{track_id}.wav").stat().st_size if ok else None
+            results.append({"op": "download", "id": track_id, "ok": ok, "size": size})
+        for track_id, kind, seconds in (("t0", Feedback.STARTED, 0.0), ("t1", Feedback.FINISHED, 49.9996), ("t2", Feedback.SKIPPED, 12.3456)):
+            await backend.feedback_track(tracks.get(track_id) or dataclasses_track(library, track_id), kind, "fake", seconds)
+            results.append({"op": "feedback", "id": track_id, "kind": kind.value, "seconds": seconds})
+        settings = await backend.station_settings("fake")
+        await backend.set_station_settings("fake", "calm", "default", "russian")
+        after = await backend.station_settings("fake")
+        results.append({"op": "settings", "before": list(settings), "after": list(after)})
+        return {"results": results, "calls": backend.calls}
+
+    def dataclasses_track(lib: list[dict[str, object]], track_id: str) -> object:
+        from yamusic_radio.backend import Track
+
+        entry = next((e for e in lib if e["track_id"] == track_id), {"track_id": track_id, "title": "?", "artists": [], "codec": "wav"})
+        return Track(
+            track_id=str(entry["track_id"]), title=str(entry["title"]), artists=tuple(entry["artists"]), codec=str(entry["codec"])
+        )
+
+    (folder / "backend.json").write_text(json.dumps(asyncio.run(backend_calls()), indent=1) + "\n")
+
+    with tempfile.TemporaryDirectory() as scratch:
+        scratch_path = Path(scratch)
+        smoke = asyncio.run(harness.smoke(folder / "library", library, scratch_path / "work", scratch_path / "cache.db"))
+    (folder / "smoke.json").write_text(json.dumps(smoke, indent=1) + "\n")
+    print("radio: library of", len(library), "tracks; smoke:", [c["title"] for c in smoke["pool"]], smoke["queue"]["now"]["title"])
+
+
 def write_effects() -> None:
     """The effects, the limiter and blend(): the noise is recorded, and the Rust side replays it."""
     folder = OUT / "effects"
@@ -879,3 +945,4 @@ if __name__ == "__main__":
     write_cache()
     write_streams()
     write_spectrum()
+    write_radio()

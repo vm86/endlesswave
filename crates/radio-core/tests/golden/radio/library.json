@@ -1,0 +1,130 @@
+[
+ {
+  "track_id": "t0",
+  "title": "Song 0",
+  "artists": [
+   "Artist 0"
+  ],
+  "codec": "wav",
+  "bitrate_in_kbps": 0,
+  "genre": "house",
+  "cover": "",
+  "batch_id": "",
+  "mood": "",
+  "source": "",
+  "native_id": "",
+  "file": "t0.wav"
+ },
+ {
+  "track_id": "t1",
+  "title": "Song 1",
+  "artists": [
+   "Artist 1"
+  ],
+  "codec": "wav",
+  "bitrate_in_kbps": 0,
+  "genre": "techno",
+  "cover": "",
+  "batch_id": "",
+  "mood": "",
+  "source": "",
+  "native_id": "",
+  "file": "t1.wav"
+ },
+ {
+  "track_id": "t2",
+  "title": "Song 2",
+  "artists": [
+   "Artist 2"
+  ],
+  "codec": "wav",
+  "bitrate_in_kbps": 0,
+  "genre": "house",
+  "cover": "",
+  "batch_id": "",
+  "mood": "",
+  "source": "",
+  "native_id": "",
+  "file": "t2.wav"
+ },
+ {
+  "track_id": "t3",
+  "title": "Song 3",
+  "artists": [
+   "Artist 3"
+  ],
+  "codec": "wav",
+  "bitrate_in_kbps": 0,
+  "genre": "dance",
+  "cover": "",
+  "batch_id": "",
+  "mood": "",
+  "source": "",
+  "native_id": "",
+  "file": "t3.wav"
+ },
+ {
+  "track_id": "t4",
+  "title": "Song 4",
+  "artists": [
+   "Artist 0"
+  ],
+  "codec": "wav",
+  "bitrate_in_kbps": 0,
+  "genre": "techno",
+  "cover": "",
+  "batch_id": "",
+  "mood": "",
+  "source": "",
+  "native_id": "",
+  "file": "t4.wav"
+ },
+ {
+  "track_id": "t5",
+  "title": "Song 5",
+  "artists": [
+   "Artist 1"
+  ],
+  "codec": "wav",
+  "bitrate_in_kbps": 0,
+  "genre": "house",
+  "cover": "",
+  "batch_id": "",
+  "mood": "",
+  "source": "",
+  "native_id": "",
+  "file": "t5.wav"
+ },
+ {
+  "track_id": "t6",
+  "title": "Song 6",
+  "artists": [
+   "Artist 2"
+  ],
+  "codec": "wav",
+  "bitrate_in_kbps": 0,
+  "genre": "dance",
+  "cover": "",
+  "batch_id": "",
+  "mood": "",
+  "source": "",
+  "native_id": "",
+  "file": "t6.wav"
+ },
+ {
+  "track_id": "t7",
+  "title": "Song 7",
+  "artists": [
+   "Artist 3"
+  ],
+  "codec": "wav",
+  "bitrate_in_kbps": 0,
+  "genre": "techno",
+  "cover": "",
+  "batch_id": "",
+  "mood": "",
+  "source": "",
+  "native_id": "",
+  "file": "t7.wav"
+ }
+]

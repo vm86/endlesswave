@@ -9,3 +9,4 @@
 /tests/golden/stream/*.bin
 /tests/golden/stream/*.f32
 /tests/golden/spectrum/*.f32
+/tests/golden/radio/library/

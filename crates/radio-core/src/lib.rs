@@ -2,7 +2,9 @@
 //!
 //! The crate has no Tauri in it: the app starts it, the tests drive it alone.
 
+pub mod backend;
 pub mod cache;
+pub mod clock;
 pub mod mix;
 pub mod spectrum;
 pub mod stream;
