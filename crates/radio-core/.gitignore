@@ -10,3 +10,5 @@
 /tests/golden/stream/*.f32
 /tests/golden/spectrum/*.f32
 /tests/golden/radio/library/
+/tests/golden/radio/*.f32
+/tests/golden/radio/*.f64

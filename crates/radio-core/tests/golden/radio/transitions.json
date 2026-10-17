@@ -1,0 +1,2346 @@
+{
+ "tracks": [
+  {
+   "title": "Artist 0 - Song 0",
+   "file": "t0.wav",
+   "analysis": {
+    "bpm": 117.99207744598388,
+    "head_beat": 13330.0,
+    "tail_beat": 887826.0,
+    "start": 18,
+    "end": 2204979,
+    "loudness_db": -19.19856834411621,
+    "intro_end": 103031,
+    "outro_start": 2053938,
+    "key": 21
+   }
+  },
+  {
+   "title": "Artist 1 - Song 1",
+   "file": "t1.wav",
+   "analysis": {
+    "bpm": 120.02777840423585,
+    "head_beat": 13580.0,
+    "tail_beat": 895500.0,
+    "start": 12,
+    "end": 2204988,
+    "loudness_db": -17.88148307800293,
+    "intro_end": 101760,
+    "outro_start": 2041835,
+    "key": 16
+   }
+  },
+  {
+   "title": "Artist 2 - Song 2",
+   "file": "t2.wav",
+   "analysis": {
+    "bpm": 122.0179460144043,
+    "head_beat": 13580.0,
+    "tail_beat": 902924.0,
+    "start": 12,
+    "end": 2205000,
+    "loudness_db": -17.62277603149414,
+    "intro_end": 100321,
+    "outro_start": 2030561,
+    "key": 18
+   }
+  },
+  {
+   "title": "Artist 3 - Song 3",
+   "file": "t3.wav",
+   "analysis": {
+    "bpm": 124.0067098121643,
+    "head_beat": 13586.0,
+    "tail_beat": 888338.0,
+    "start": 18,
+    "end": 2205000,
+    "loudness_db": -18.73621940612793,
+    "intro_end": 98936,
+    "outro_start": 2083241,
+    "key": 23
+   }
+  },
+  {
+   "title": "Artist 0 - Song 4",
+   "file": "t4.wav",
+   "analysis": {
+    "bpm": 126.028590839386,
+    "head_beat": 13324.0,
+    "tail_beat": 895500.0,
+    "start": 12,
+    "end": 2205000,
+    "loudness_db": -18.183372497558594,
+    "intro_end": 97305,
+    "outro_start": 2071233,
+    "key": 1
+   }
+  },
+  {
+   "title": "Artist 1 - Song 5",
+   "file": "t5.wav",
+   "analysis": {
+    "bpm": 127.96601402282715,
+    "head_beat": 13322.0,
+    "tail_beat": 902154.0,
+    "start": 10,
+    "end": 2205000,
+    "loudness_db": -17.395265579223633,
+    "intro_end": 96031,
+    "outro_start": 2060086,
+    "key": 20
+   }
+  },
+  {
+   "title": "Artist 2 - Song 6",
+   "file": "t6.wav",
+   "analysis": {
+    "bpm": 130.02806512451173,
+    "head_beat": 13581.0,
+    "tail_beat": 888845.0,
+    "start": 13,
+    "end": 2205000,
+    "loudness_db": -18.162731170654297,
+    "intro_end": 94979,
+    "outro_start": 2109812,
+    "key": 14
+   }
+  },
+  {
+   "title": "Artist 3 - Song 7",
+   "file": "t7.wav",
+   "analysis": {
+    "bpm": 131.9989754486084,
+    "head_beat": 13325.0,
+    "tail_beat": 895501.0,
+    "start": 13,
+    "end": 2205000,
+    "loudness_db": -17.608095169067383,
+    "intro_end": 93507,
+    "outro_start": 2018055,
+    "key": 18
+   }
+  }
+ ],
+ "cases": [
+  {
+   "name": "transition_0",
+   "current": 0,
+   "following": 1,
+   "effects": 0.0,
+   "input": {
+    "beat_matched": true,
+    "speed": 0.9830397514199086
+   },
+   "plan": {
+    "start": 1829686,
+    "following_start": 13580,
+    "length": 375293,
+    "speed": 0.9830397514199086
+   },
+   "matched_after_plan": true,
+   "beat_matched_after": true,
+   "events": [
+    "transition bass swap none Artist 0 - Song 0 -> Artist 1 - Song 1",
+    "started Artist 1 - Song 1",
+    "finished Artist 0 - Song 0"
+   ],
+   "report": {
+    "from": "Artist 0 - Song 0",
+    "to": "Artist 1 - Song 1",
+    "kind": "bass swap",
+    "effect": "none",
+    "beat_matched": true,
+    "from_bpm": 118.0,
+    "to_bpm": 120.0,
+    "glide": -0.017,
+    "seconds": 8.4,
+    "loudness_gap_db": 1.3,
+    "key_relation": "neighbour",
+    "over_db": 0.0
+   },
+   "pieces": [
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     9646
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     9646
+    ]
+   ],
+   "draws": []
+  },
+  {
+   "name": "transition_1",
+   "current": 1,
+   "following": 2,
+   "effects": 0.0,
+   "input": {
+    "beat_matched": true,
+    "speed": 0.9836895499787096
+   },
+   "plan": {
+    "start": 1843431,
+    "following_start": 13580,
+    "length": 361557,
+    "speed": 0.9836895499787096
+   },
+   "matched_after_plan": true,
+   "beat_matched_after": true,
+   "events": [
+    "transition bass swap none Artist 1 - Song 1 -> Artist 2 - Song 2",
+    "started Artist 2 - Song 2",
+    "finished Artist 1 - Song 1"
+   ],
+   "report": {
+    "from": "Artist 1 - Song 1",
+    "to": "Artist 2 - Song 2",
+    "kind": "bass swap",
+    "effect": "none",
+    "beat_matched": true,
+    "from_bpm": 120.0,
+    "to_bpm": 122.0,
+    "glide": -0.016,
+    "seconds": 8.1,
+    "loudness_gap_db": 0.3,
+    "key_relation": "boost",
+    "over_db": 0.0
+   },
+   "pieces": [
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     2896
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     2896
+    ]
+   ],
+   "draws": []
+  },
+  {
+   "name": "transition_2",
+   "current": 2,
+   "following": 4,
+   "effects": 0.0,
+   "input": {
+    "beat_matched": true,
+    "speed": 0.9681767065848339
+   },
+   "plan": {
+    "start": 1857079,
+    "following_start": 13324,
+    "length": 347921,
+    "speed": 0.9681767065848339
+   },
+   "matched_after_plan": true,
+   "beat_matched_after": true,
+   "events": [
+    "transition eq blend none Artist 2 - Song 2 -> Artist 0 - Song 4",
+    "started Artist 0 - Song 4",
+    "finished Artist 2 - Song 2"
+   ],
+   "report": {
+    "from": "Artist 2 - Song 2",
+    "to": "Artist 0 - Song 4",
+    "kind": "eq blend",
+    "effect": "none",
+    "beat_matched": true,
+    "from_bpm": 122.0,
+    "to_bpm": 126.0,
+    "glide": -0.032,
+    "seconds": 7.8,
+    "loudness_gap_db": 0.6,
+    "key_relation": "clash",
+    "over_db": 0.0
+   },
+   "pieces": [
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     5787
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     5788
+    ]
+   ],
+   "draws": []
+  },
+  {
+   "name": "transition_3",
+   "current": 3,
+   "following": 0,
+   "effects": 0.0,
+   "input": {
+    "beat_matched": true,
+    "speed": 1.0509748831986951
+   },
+   "plan": {
+    "start": 1848528,
+    "following_start": 13330,
+    "length": 356472,
+    "speed": 1.0509748831986951
+   },
+   "matched_after_plan": true,
+   "beat_matched_after": true,
+   "events": [
+    "transition bass swap none Artist 3 - Song 3 -> Artist 0 - Song 0",
+    "started Artist 0 - Song 0",
+    "finished Artist 3 - Song 3"
+   ],
+   "report": {
+    "from": "Artist 3 - Song 3",
+    "to": "Artist 0 - Song 0",
+    "kind": "bass swap",
+    "effect": "none",
+    "beat_matched": true,
+    "from_bpm": 124.0,
+    "to_bpm": 118.0,
+    "glide": 0.051,
+    "seconds": 8.3,
+    "loudness_gap_db": 0.5,
+    "key_relation": "down",
+    "over_db": 0.0
+   },
+   "pieces": [
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     6303
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     6303
+    ]
+   ],
+   "draws": []
+  },
+  {
+   "name": "transition_4",
+   "current": 5,
+   "following": 6,
+   "effects": 0.0,
+   "input": {
+    "beat_matched": true,
+    "speed": 0.9841414920716539
+   },
+   "plan": {
+    "start": 1873990,
+    "following_start": 13581,
+    "length": 331010,
+    "speed": 0.9841414920716539
+   },
+   "matched_after_plan": true,
+   "beat_matched_after": true,
+   "events": [
+    "transition eq blend none Artist 1 - Song 5 -> Artist 2 - Song 6",
+    "started Artist 2 - Song 6",
+    "finished Artist 1 - Song 5"
+   ],
+   "report": {
+    "from": "Artist 1 - Song 5",
+    "to": "Artist 2 - Song 6",
+    "kind": "eq blend",
+    "effect": "none",
+    "beat_matched": true,
+    "from_bpm": 128.0,
+    "to_bpm": 130.0,
+    "glide": -0.016,
+    "seconds": 7.4,
+    "loudness_gap_db": 0.8,
+    "key_relation": "clash",
+    "over_db": 0.0
+   },
+   "pieces": [
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     9835
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     9836
+    ]
+   ],
+   "draws": []
+  },
+  {
+   "name": "transition_5",
+   "current": 7,
+   "following": 3,
+   "effects": 0.0,
+   "input": {
+    "beat_matched": true,
+    "speed": 1.0644502676391476
+   },
+   "plan": {
+    "start": 1877736,
+    "following_start": 13586,
+    "length": 327264,
+    "speed": 1.0644502676391476
+   },
+   "matched_after_plan": true,
+   "beat_matched_after": true,
+   "events": [
+    "transition bass swap none Artist 3 - Song 7 -> Artist 3 - Song 3",
+    "started Artist 3 - Song 3",
+    "finished Artist 3 - Song 7"
+   ],
+   "report": {
+    "from": "Artist 3 - Song 7",
+    "to": "Artist 3 - Song 3",
+    "kind": "bass swap",
+    "effect": "none",
+    "beat_matched": true,
+    "from_bpm": 132.0,
+    "to_bpm": 124.0,
+    "glide": 0.064,
+    "seconds": 7.7,
+    "loudness_gap_db": 1.1,
+    "key_relation": "neighbour",
+    "over_db": 0.0
+   },
+   "pieces": [
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     3420
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     3420
+    ]
+   ],
+   "draws": []
+  },
+  {
+   "name": "transition_6",
+   "current": 0,
+   "following": 5,
+   "effects": 0.8,
+   "input": {
+    "beat_matched": true,
+    "speed": 0.922057925668732
+   },
+   "plan": {
+    "start": 1829686,
+    "following_start": 13322,
+    "length": 375293,
+    "speed": 0.922057925668732
+   },
+   "matched_after_plan": true,
+   "beat_matched_after": true,
+   "events": [
+    "transition eq blend drop Artist 0 - Song 0 -> Artist 1 - Song 5",
+    "started Artist 1 - Song 5",
+    "finished Artist 0 - Song 0"
+   ],
+   "report": {
+    "from": "Artist 0 - Song 0",
+    "to": "Artist 1 - Song 5",
+    "kind": "eq blend",
+    "effect": "drop",
+    "beat_matched": true,
+    "from_bpm": 118.0,
+    "to_bpm": 128.0,
+    "glide": -0.078,
+    "seconds": 8.2,
+    "loudness_gap_db": 1.8,
+    "key_relation": "clash",
+    "over_db": 0.0
+   },
+   "pieces": [
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     3735
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     3736
+    ]
+   ],
+   "draws": [
+    345042,
+    52920
+   ]
+  },
+  {
+   "name": "transition_7",
+   "current": 4,
+   "following": 1,
+   "effects": 1.0,
+   "input": {
+    "beat_matched": true,
+    "speed": 1.0499951970696342
+   },
+   "plan": {
+    "start": 1861281,
+    "following_start": 13580,
+    "length": 343719,
+    "speed": 1.0499951970696342
+   },
+   "matched_after_plan": true,
+   "beat_matched_after": true,
+   "events": [
+    "transition eq blend drop Artist 0 - Song 4 -> Artist 1 - Song 1",
+    "started Artist 1 - Song 1",
+    "finished Artist 0 - Song 4"
+   ],
+   "report": {
+    "from": "Artist 0 - Song 4",
+    "to": "Artist 1 - Song 1",
+    "kind": "eq blend",
+    "effect": "drop",
+    "beat_matched": true,
+    "from_bpm": 126.0,
+    "to_bpm": 120.0,
+    "glide": 0.05,
+    "seconds": 8.0,
+    "loudness_gap_db": 0.3,
+    "key_relation": "clash",
+    "over_db": 0.0
+   },
+   "pieces": [
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     10710
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     10711
+    ]
+   ],
+   "draws": [
+    339894,
+    52920
+   ]
+  },
+  {
+   "name": "transition_8",
+   "current": 6,
+   "following": 2,
+   "effects": 0.5,
+   "input": {
+    "beat_matched": true,
+    "speed": 1.0656470574349926
+   },
+   "plan": {
+    "start": 1865619,
+    "following_start": 13580,
+    "length": 339381,
+    "speed": 1.0656470574349926
+   },
+   "matched_after_plan": true,
+   "beat_matched_after": true,
+   "events": [
+    "transition eq blend drop Artist 2 - Song 6 -> Artist 2 - Song 2",
+    "started Artist 2 - Song 2",
+    "finished Artist 2 - Song 6"
+   ],
+   "report": {
+    "from": "Artist 2 - Song 6",
+    "to": "Artist 2 - Song 2",
+    "kind": "eq blend",
+    "effect": "drop",
+    "beat_matched": true,
+    "from_bpm": 130.0,
+    "to_bpm": 122.0,
+    "glide": 0.066,
+    "seconds": 7.9,
+    "loudness_gap_db": 0.5,
+    "key_relation": "clash",
+    "over_db": 0.0
+   },
+   "pieces": [
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     9767
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     9767
+    ]
+   ],
+   "draws": [
+    330498,
+    52920
+   ]
+  },
+  {
+   "name": "transition_9",
+   "current": 2,
+   "following": 7,
+   "effects": 0.8,
+   "input": {
+    "beat_matched": true,
+    "speed": 0.9243855537493164
+   },
+   "plan": {
+    "start": 1857079,
+    "following_start": 13325,
+    "length": 347921,
+    "speed": 0.9243855537493164
+   },
+   "matched_after_plan": true,
+   "beat_matched_after": true,
+   "events": [
+    "transition bass swap drop Artist 2 - Song 2 -> Artist 3 - Song 7",
+    "started Artist 3 - Song 7",
+    "finished Artist 2 - Song 2"
+   ],
+   "report": {
+    "from": "Artist 2 - Song 2",
+    "to": "Artist 3 - Song 7",
+    "kind": "bass swap",
+    "effect": "drop",
+    "beat_matched": true,
+    "from_bpm": 122.0,
+    "to_bpm": 132.0,
+    "glide": -0.076,
+    "seconds": 7.6,
+    "loudness_gap_db": 0.0,
+    "key_relation": "same",
+    "over_db": 0.0
+   },
+   "pieces": [
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     11025
+    ],
+    [
+     "Artist 2 - Song 2",
+     1836
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     11025
+    ],
+    [
+     "Artist 3 - Song 7",
+     1836
+    ]
+   ],
+   "draws": [
+    333538,
+    52920
+   ]
+  },
+  {
+   "name": "transition_10",
+   "current": 3,
+   "following": 6,
+   "effects": 0.0,
+   "input": {
+    "beat_matched": false,
+    "speed": 0.9536918794678555
+   },
+   "plan": {
+    "start": 1852200,
+    "following_start": 13,
+    "length": 352800,
+    "speed": 1.0
+   },
+   "matched_after_plan": false,
+   "beat_matched_after": false,
+   "events": [
+    "transition filter sweep none Artist 3 - Song 3 -> Artist 2 - Song 6",
+    "started Artist 2 - Song 6",
+    "finished Artist 3 - Song 3"
+   ],
+   "report": {
+    "from": "Artist 3 - Song 3",
+    "to": "Artist 2 - Song 6",
+    "kind": "filter sweep",
+    "effect": "none",
+    "beat_matched": false,
+    "from_bpm": 124.0,
+    "to_bpm": 130.0,
+    "glide": 0.0,
+    "seconds": 8.0,
+    "loudness_gap_db": 0.6,
+    "key_relation": "clash",
+    "over_db": 0.0
+   },
+   "pieces": [
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 3 - Song 3",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ],
+    [
+     "Artist 2 - Song 6",
+     11025
+    ]
+   ],
+   "draws": []
+  },
+  {
+   "name": "transition_11",
+   "current": 1,
+   "following": 4,
+   "effects": 0.8,
+   "input": {
+    "beat_matched": false,
+    "speed": 0.9523853088003044
+   },
+   "plan": {
+    "start": 1852188,
+    "following_start": 12,
+    "length": 352800,
+    "speed": 1.0
+   },
+   "matched_after_plan": false,
+   "beat_matched_after": false,
+   "events": [
+    "transition filter sweep echo Artist 1 - Song 1 -> Artist 0 - Song 4",
+    "started Artist 0 - Song 4",
+    "finished Artist 1 - Song 1"
+   ],
+   "report": {
+    "from": "Artist 1 - Song 1",
+    "to": "Artist 0 - Song 4",
+    "kind": "filter sweep",
+    "effect": "echo",
+    "beat_matched": false,
+    "from_bpm": 120.0,
+    "to_bpm": 126.0,
+    "glide": 0.0,
+    "seconds": 8.0,
+    "loudness_gap_db": 0.3,
+    "key_relation": "clash",
+    "over_db": 0.0
+   },
+   "pieces": [
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 1 - Song 1",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ],
+    [
+     "Artist 0 - Song 4",
+     11025
+    ]
+   ],
+   "draws": []
+  },
+  {
+   "name": "transition_12",
+   "current": 5,
+   "following": 0,
+   "effects": 1.0,
+   "input": {
+    "beat_matched": false,
+    "speed": 1.0845305616507115
+   },
+   "plan": {
+    "start": 1852200,
+    "following_start": 18,
+    "length": 352800,
+    "speed": 1.0
+   },
+   "matched_after_plan": false,
+   "beat_matched_after": false,
+   "events": [
+    "transition filter sweep echo Artist 1 - Song 5 -> Artist 0 - Song 0",
+    "started Artist 0 - Song 0",
+    "finished Artist 1 - Song 5"
+   ],
+   "report": {
+    "from": "Artist 1 - Song 5",
+    "to": "Artist 0 - Song 0",
+    "kind": "filter sweep",
+    "effect": "echo",
+    "beat_matched": false,
+    "from_bpm": 128.0,
+    "to_bpm": 118.0,
+    "glide": 0.0,
+    "seconds": 8.0,
+    "loudness_gap_db": 1.8,
+    "key_relation": "semitone",
+    "over_db": 0.0
+   },
+   "pieces": [
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 1 - Song 5",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ],
+    [
+     "Artist 0 - Song 0",
+     11025
+    ]
+   ],
+   "draws": []
+  }
+ ]
+}

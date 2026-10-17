@@ -126,3 +126,205 @@ pub fn followed_until(plan: &BlendPlan, following: &Deck) -> i64 {
     let glided = following.beat_matched && (plan.speed - 1.0).abs() >= NEGLIGIBLE_TEMPO_SHIFT;
     plan.following_start + (plan.length as f64 * if glided { plan.speed } else { 1.0 }).round_ties_even() as i64
 }
+
+// ---- The blend itself (tasks 3.2.2 and 3.2.3) ----------------------------------------------------------------------
+// Ported from `dj.py`: `BlendReport`, `DeckSource`, `_blend_pieces`, `_transition`.
+
+use crate::{
+    clock::Clock,
+    mix::{
+        blend, effects::{self, Effect, NoiseSource}, glide, key,
+        plan::{self as mix_plan, Transition},
+    },
+};
+use async_trait::async_trait;
+use serde::Serialize;
+use std::sync::Mutex;
+use tokio::sync::mpsc::Sender;
+
+/// Python's `round(value, digits)`: the decimal number nearest to the value.
+pub fn round_to(value: f64, digits: usize) -> f64 {
+    format!("{value:.digits$}").parse().unwrap_or(value)
+}
+
+/// How one blend was made, to look at when it did not sound right.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct BlendReport {
+    #[serde(rename = "from")]
+    pub from_title: String,
+    #[serde(rename = "to")]
+    pub to_title: String,
+    pub kind: String,
+    pub effect: String,
+    pub beat_matched: bool,
+    pub from_bpm: f64,
+    pub to_bpm: f64,
+    /// How far the tempo glided, as a fraction (0.05: 5% faster); 0 if not.
+    pub glide: f64,
+    pub seconds: f64,
+    pub loudness_gap_db: f64,
+    pub key_relation: String,
+    /// How far above the ceiling the blend peaked before it was limited.
+    pub over_db: f64,
+    pub at: f64,
+}
+
+/// The radio could not make a deck.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeckError(pub String);
+
+impl std::fmt::Display for DeckError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for DeckError {}
+
+/// What the mix needs of the radio: decks to play, and word of them.
+#[async_trait]
+pub trait DeckSource: Send + Sync {
+    /// The next track was asked for (the skip button).
+    fn skip_requested(&self) -> bool;
+    /// Choose, tempo-match and decode the track to play after `current`.
+    async fn next_deck(&self, current: Option<&TrackAnalysis>) -> Result<Deck, DeckError>;
+    /// Whether the queue was rebuilt after the deck was chosen.
+    fn is_stale(&self, deck: &Deck) -> bool;
+    /// Note that the track that plays is left early, at the user's wish.
+    fn skip_taken(&self);
+    /// Count a blend of the current deck into the following one.
+    fn transition(&self, kind: Transition, current: &Deck, following: &Deck, effect: Effect, report: Option<BlendReport>);
+    /// Tell that the deck has begun to be heard.
+    fn started(&self, deck: &Deck);
+    /// Tell that the deck has been heard to the end, or skipped.
+    fn finished(&self, deck: &Deck);
+    /// Paused through the API.
+    fn user_paused(&self) -> bool;
+    /// Note that the mix waits for listeners, or goes on.
+    fn hold(&self, held: bool);
+    /// Return once the mix is not paused.
+    async fn wait_resumed(&self);
+}
+
+/// The noise of the effects, shared with the thread that makes the blend.
+pub type SharedNoise = std::sync::Arc<Mutex<dyn NoiseSource + Send>>;
+
+/// The consumer of the mix has gone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Closed;
+
+/// Frames `from..to` of a piece, as Python's slice: it stops at the ends.
+fn slice(pcm: &[f32], from: i64, to: i64) -> &[f32] {
+    let frames = (pcm.len() / CHANNELS) as i64;
+    let (from, to) = (from.clamp(0, frames) as usize, to.clamp(0, frames) as usize);
+    &pcm[from * CHANNELS..to.max(from) * CHANNELS]
+}
+
+/// Cut the two pieces that are blended, equally long. If the tempos differ, the pieces glide from one to the other (and
+/// the beats of the blend are returned); otherwise they are just cut out.
+pub async fn blend_pieces(current: &Deck, following: &mut Deck, plan: &BlendPlan) -> (Vec<f32>, Vec<f32>, Option<Vec<f64>>) {
+    let (start, following_start) = (plan.start, plan.following_start);
+    let glides = following.beat_matched && (plan.speed - 1.0).abs() >= glide::NEGLIGIBLE_TEMPO_SHIFT;
+    if glides {
+        let span = (plan.length as f64 * plan.speed).round_ties_even() as i64;
+        let margin = glide::GLIDE_MARGIN as i64;
+        let outgoing = slice(&current.pcm, start, start + plan.length + margin).to_vec();
+        let incoming = slice(&following.pcm, following_start, following_start + span + margin).to_vec();
+        let (bpm, speed, length) = (current.analysis.bpm, plan.speed, plan.length as usize);
+        // Stretching takes a while too.
+        match tokio::task::spawn_blocking(move || glide::tempo_glide(&outgoing, &incoming, bpm, speed, length)).await {
+            Ok((outgoing, incoming, grid)) => return (outgoing, incoming, Some(grid)),
+            Err(error) => {
+                tracing::error!("The tempo glide failed, the beats will not match: {error}");
+                following.beat_matched = false;
+            }
+        }
+    }
+    let outgoing = slice(&current.pcm, start, start + plan.length);
+    let incoming = slice(&following.pcm, following_start, following_start + plan.length);
+    // The pieces must be equally long, whatever the analysis says.
+    let length = outgoing.len().min(incoming.len());
+    (outgoing[..length].to_vec(), incoming[..length].to_vec(), None)
+}
+
+async fn emit(out: &Sender<Piece>, piece: Piece) -> Result<(), Closed> {
+    out.send(piece).await.map_err(|_| Closed)
+}
+
+/// Blend the following deck into the current one, piece by piece. The pieces go to `out`; `Err(Closed)` if nobody takes
+/// them any more.
+#[allow(clippy::too_many_arguments)]
+pub async fn transition(
+    radio: &dyn DeckSource,
+    clock: &dyn Clock,
+    current: &Deck,
+    following: &mut Deck,
+    plan: &BlendPlan,
+    effects_level: f64,
+    noise: SharedNoise,
+    out: &Sender<Piece>,
+) -> Result<(), Closed> {
+    let (outgoing, incoming, beat_grid) = blend_pieces(current, following, plan).await;
+    let frames = outgoing.len() / CHANNELS;
+    let period = beat_period(current, following, beat_grid.as_deref());
+    let seconds = frames as f64 / f64::from(SAMPLE_RATE);
+    let kind = mix_plan::choose_transition(&current.analysis, &following.analysis, following.beat_matched, seconds);
+    let mut used = effects::applied_blend(kind, frames, period, effects_level);
+    // The filtering takes a while, don't stall the event loop with it.
+    let task = {
+        let (outgoing, incoming, grid, noise) = (outgoing.clone(), incoming.clone(), beat_grid.clone(), noise);
+        tokio::task::spawn_blocking(move || {
+            let mut noise = noise.lock().expect("not poisoned");
+            effects::blend(kind, &outgoing, &incoming, period, effects_level, &mut *noise, grid.as_deref())
+        })
+    };
+    let mut blended = match task.await {
+        Ok(blended) => blended,
+        Err(error) => {
+            // A broken blend must not end the stream: fade instead.
+            tracing::error!("Blend failed ({}), crossfading: {error}", kind.name());
+            used = effects::Applied { kind: Transition::Crossfade, effect: Effect::None };
+            blend::crossfade(&outgoing, &incoming)
+        }
+    };
+    // Two loud tracks and the effects add up to more than fits in the encoder.
+    let peak = f64::from(blended.iter().fold(0.0f32, |top, x| top.max(x.abs())));
+    let over_db = if peak != 0.0 { (20.0 * (peak / 0.97).log10()).max(0.0) } else { 0.0 };
+    blended = effects::limit(&blended, effects::LIMIT_CEILING);
+    let blended_frames = blended.len() / CHANNELS;
+    let report = BlendReport {
+        from_title: current.title.to_string(),
+        to_title: following.title.to_string(),
+        kind: used.kind.name().to_owned(),
+        effect: used.effect.name().to_owned(),
+        beat_matched: following.beat_matched,
+        from_bpm: round_to(current.analysis.bpm, 1),
+        to_bpm: round_to(following.analysis.bpm, 1),
+        glide: if beat_grid.is_some() { round_to(plan.speed - 1.0, 3) } else { 0.0 },
+        seconds: round_to(blended_frames as f64 / f64::from(SAMPLE_RATE), 1),
+        loudness_gap_db: round_to((current.analysis.loudness_db - following.analysis.loudness_db).abs(), 1),
+        key_relation: key::key_relation(current.analysis.key, following.analysis.key).name().to_owned(),
+        over_db: round_to(over_db, 1),
+        at: clock.wall(),
+    };
+    tracing::info!(
+        "Transition: {}, effect {}, {:.1} s, glide {:+.1}%, over the ceiling by {:.1} dB",
+        used.kind.name(),
+        used.effect.name(),
+        report.seconds,
+        report.glide * 100.0,
+        report.over_db
+    );
+    // Count what was really made, not what was meant.
+    radio.transition(used.kind, current, following, used.effect, Some(report));
+    radio.started(following);
+    let half = blended_frames / 2;
+    for piece in pieces(&blended[..half * CHANNELS], &current.title) {
+        emit(out, piece).await?;
+    }
+    for piece in pieces(&blended[half * CHANNELS..], &following.title) {
+        emit(out, piece).await?;
+    }
+    radio.finished(current);
+    Ok(())
+}

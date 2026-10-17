@@ -855,6 +855,101 @@ def write_pipeline() -> None:
     print("pipeline:", len(cases), "plans,", sum(c["early"] is not None for c in cases), "early,", sum(c["plan"]["length"] == 0 for c in cases), "empty")
 
 
+def write_transitions() -> None:
+    """Whole blends between decks of the library, as `_transition` of dj.py makes and reports them."""
+    import asyncio
+
+    from yamusic_radio import dj
+
+    folder = OUT / "radio"
+    library = json.loads((folder / "library.json").read_text())
+
+    class Recorder:
+        """Remembers the noise of the effects (the radio draws it unseeded), so that Rust can be given the same."""
+
+        def __init__(self) -> None:
+            self._rng = np.random.default_rng(91)
+            self.draws: list[np.ndarray] = []
+
+        def normal(self, loc: float, scale: float, size: object) -> np.ndarray:
+            drawn = self._rng.normal(loc, scale, size)
+            self.draws.append(np.asarray(drawn, dtype=np.float64).ravel())
+            return drawn
+
+    class Radio:
+        def __init__(self) -> None:
+            self.events: list[str] = []
+            self.reports: list[dict[str, object]] = []
+
+        def transition(self, kind: object, current: object, following: object, effect: object, report: object = None) -> None:
+            self.events.append(f"transition {kind.value} {effect.value} {current.title} -> {following.title}")
+            if report is not None:
+                self.reports.append({k: v for k, v in report.to_dict().items() if k != "at"})
+
+        def started(self, deck: object) -> None:
+            self.events.append(f"started {deck.title}")
+
+        def finished(self, deck: object) -> None:
+            self.events.append(f"finished {deck.title}")
+
+    async def run() -> dict[str, object]:
+        decks = []
+        for entry in library:
+            pcm = await dj.decode_file(folder / "library" / str(entry["file"]))
+            decks.append((f"{entry['artists'][0]} - {entry['title']}", pcm, dj_mix.analyze(pcm)))
+        cases = [
+            (0, 1, 0.0), (1, 2, 0.0), (2, 4, 0.0), (3, 0, 0.0), (5, 6, 0.0), (7, 3, 0.0),
+            (0, 5, 0.8), (4, 1, 1.0), (6, 2, 0.5), (2, 7, 0.8),
+            (3, 6, 0.0, False), (1, 4, 0.8, False), (5, 0, 1.0, False),
+        ]  # fmt: skip
+        out = []
+        for number, (a, b, effects, *rest) in enumerate(cases):
+            name = f"transition_{number}"
+            current = dj.Deck(decks[a][0], decks[a][1], decks[a][2], True)
+            speed = dj_mix.transition_speed(current.analysis.bpm, decks[b][2])
+            matched = bool(speed) and (rest[0] if rest else True)  # a pair whose tempos do not match: (…, False)
+            following = dj.Deck(decks[b][0], decks[b][1], decks[b][2], matched, speed=speed or 1.0)
+            before = {"beat_matched": following.beat_matched, "speed": following.speed}
+            plan = dj._plan(current, following, current.analysis.start)
+            after_plan = following.beat_matched
+            radio, recorder = Radio(), Recorder()
+            original = np.random.default_rng
+            np.random.default_rng = lambda *args, **kwargs: recorder  # type: ignore[assignment]
+            try:
+                pieces = [piece async for piece in dj._transition(radio, current, following, plan, effects)]
+            finally:
+                np.random.default_rng = original  # type: ignore[assignment]
+            want = np.concatenate([p for p, _ in pieces])
+            (folder / f"{name}.want.f32").write_bytes(np.ascontiguousarray(want, "<f4").tobytes())
+            flat = np.concatenate(recorder.draws) if recorder.draws else np.zeros(0)
+            (folder / f"{name}.noise.f64").write_bytes(np.ascontiguousarray(flat, "<f8").tobytes())
+            out.append(
+                {
+                    "name": name,
+                    "current": a,
+                    "following": b,
+                    "effects": effects,
+                    "input": before,
+                    "plan": dataclasses_asdict(plan),
+                    "matched_after_plan": after_plan,
+                    "beat_matched_after": following.beat_matched,
+                    "events": radio.events,
+                    "report": radio.reports[0] if radio.reports else None,
+                    "pieces": [[title, len(p)] for p, title in pieces],
+                    "draws": [len(d) for d in recorder.draws],
+                }
+            )
+        return {
+            "tracks": [{"title": t, "file": library[i]["file"], "analysis": analysis_json(an)} for i, (t, _, an) in enumerate(decks)],
+            "cases": out,
+        }
+
+    expected = asyncio.run(run())
+    (folder / "transitions.json").write_text(json.dumps(expected, indent=1) + "\n")
+    kinds = [c["report"]["kind"] + "/" + c["report"]["effect"] for c in expected["cases"]]
+    print("transitions:", kinds)
+
+
 def dataclasses_asdict(plan: object) -> dict[str, object]:
     import dataclasses
 
@@ -1039,3 +1134,4 @@ if __name__ == "__main__":
     write_spectrum()
     write_radio()
     write_pipeline()
+    write_transitions()
