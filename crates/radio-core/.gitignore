@@ -5,3 +5,4 @@
 /tests/golden/effects/*.f32
 /tests/golden/effects/*.f64
 /vendor/
+/tests/golden/cache/*.db

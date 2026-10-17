@@ -135,3 +135,37 @@ pub fn key_cost(current: i32, following: i32) -> f64 {
     };
     KEY_COST_SCALE * cost
 }
+
+/// The quality of a key change by the name the statistics keep it under (`KeyRelation::name`); "unknown" for any
+/// other name.
+pub fn quality_of_name(name: &str) -> KeyQuality {
+    match name {
+        "same" | "neighbour" => KeyQuality::Good,
+        "boost" | "semitone" | "down" | "diagonal" => KeyQuality::Fair,
+        "clash" => KeyQuality::Poor,
+        _ => KeyQuality::Unknown,
+    }
+}
+
+/// How many key changes of each quality (`quality_counts`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
+pub struct QualityCounts {
+    pub good: i64,
+    pub fair: i64,
+    pub poor: i64,
+    pub unknown: i64,
+}
+
+/// Sum the counts of key relations up into the qualities.
+pub fn quality_counts<'a>(by_key: impl IntoIterator<Item = (&'a str, i64)>) -> QualityCounts {
+    let mut counts = QualityCounts::default();
+    for (relation, number) in by_key {
+        match quality_of_name(relation) {
+            KeyQuality::Good => counts.good += number,
+            KeyQuality::Fair => counts.fair += number,
+            KeyQuality::Poor => counts.poor += number,
+            KeyQuality::Unknown => counts.unknown += number,
+        }
+    }
+    counts
+}

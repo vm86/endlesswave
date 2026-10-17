@@ -1,7 +1,7 @@
 //! The audio core: analysis of a track, planning and making a blend, the choice of the next track.
 //! Ported from `yamusic_radio/dj_mix.py`; the numbers are the same, so the tests can compare them.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub mod analysis;
 pub mod blend;
@@ -23,7 +23,7 @@ pub const CHANNELS: usize = 2;
 pub type Pcm = Vec<f32>;
 
 /// What the analysis finds in a track (`TrackAnalysis` of `dj_mix.py`).
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrackAnalysis {
     /// 0 when the tempo could not be told.
     pub bpm: f64,
@@ -43,6 +43,17 @@ pub struct TrackAnalysis {
     pub outro_start: i64,
     /// 0-11 a major key (C, C#, ... B), 12-23 the minor key with tonic 0-11, -1 when it could not be told.
     pub key: i32,
+}
+
+/// Name of what finds the keys: "essentia" or "chroma profiles" (what the cache of the Python radio calls them).
+pub fn key_detector() -> &'static str {
+    if cfg!(feature = "essentia") { "essentia" } else { "chroma profiles" }
+}
+
+/// Name of what measures the loudness. The `ebur128` crate does EBU R128 too, so it is "ebu r128" either way; "rms"
+/// is only for the Python radio without Essentia.
+pub fn loudness_meter() -> &'static str {
+    "ebu r128"
 }
 
 /// Key of the track (see `TrackAnalysis::key`), -1 if there is none. Essentia tells the key much better than the plain

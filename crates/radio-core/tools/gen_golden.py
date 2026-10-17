@@ -296,6 +296,146 @@ class Recorder:
         return drawn
 
 
+def cache_scenario(cache: object, rng: np.random.Generator, tick: object) -> dict[str, object]:
+    """Fill a Python TrackCache with tracks, plays, blends and settings; say what its readers answer."""
+    tracks = []
+    genres = ["house", "techno", "", "rock", "house"]
+    for i in range(30):
+        tracks.append((f"ya:{i}", ("mp3", "flac", "aac")[i % 3], f"Title {i}", random_analysis(rng), genres[i % 5]))
+    for track_id, codec, title, analysis, genre in tracks:
+        cache.put_analysis(track_id, codec, title, analysis, genre)
+    # the same track in another codec, and a track put again with another genre
+    cache.put_analysis("ya:0", "flac", "Title 0 flac", random_analysis(rng), "ambient")
+    cache.put_analysis("ya:1", "flac", "Title 1", tracks[1][3], "dub")
+    for i in (5, 3, 9, 3, 12, 20, 7):
+        cache.mark_played(tracks[i][0], tracks[i][1])
+    cache.set_genre("ya:4", tracks[4][1], "electro")
+    cache.mark_played("ya:0", "flac")
+    kinds = ["bass swap", "eq blend", "filter sweep", "crossfade"]
+    effects = ["none", "drop", "echo"]
+    camelot = ["8A", "9A", "8B", "3B", "", "12A"]
+    for n in range(40):
+        a, b = camelot[n % 6], camelot[(n * 5 + 1) % 6]
+        relation = ["same", "neighbour", "boost", "clash", "unknown", "diagonal"][n % 6]
+        cache.add_transition(
+            kinds[n % 4],
+            beat_matched=bool(n % 3),
+            key_relation=relation,
+            from_track=f"ya:{n % 30}",
+            to_track=f"ya:{(n + 1) % 30}",
+            from_key=a,
+            to_key=b,
+            effect=effects[n % 3],
+        )
+    # rows made before the keys and the effects were kept have NULLs there
+    for n in range(5):
+        cache._db.execute(
+            "INSERT INTO transitions (at, kind, beat_matched, key_relation, from_track, to_track) "
+            "VALUES (?, 'crossfade', 1, 'same', 'old', 'older')",
+            (tick(),),
+        )
+    cache._db.commit()
+    settings = {
+        "moods": ["calm", "fun"],
+        "language": "russian",
+        "playlist": [{"track_id": "ya:1", "codec": "mp3", "pinned": True}],
+        "number": 7,
+        "nothing": None,
+        "text": "тест ✓",
+    }
+    for key, value in settings.items():
+        cache.put_setting(key, value)
+    cache.put_setting("gone", 1)
+    cache.delete_setting("gone")
+    cache._db.execute("INSERT INTO settings (key, value) VALUES ('broken', '{not json')")
+    cache._db.commit()
+
+    ids = [(t[0], t[1]) for t in tracks] + [("ya:0", "mp3"), ("missing", "mp3")]
+    return {
+        "key_detector": dj_mix.key_detector(),
+        "loudness_meter": dj_mix.loudness_meter(),
+        "analyses": [
+            {
+                "track_id": track_id,
+                "codec": codec,
+                "analysis": None if (a := cache.get_analysis(track_id, codec)) is None else analysis_json(a),
+                "genre": cache.get_genre(track_id, codec),
+            }
+            for track_id, codec in ids
+        ],
+        "settings": {key: cache.get_setting(key) for key in [*settings, "gone", "broken", "never"]},
+        "stats": cache.transition_stats(),
+        "key_pairs": [list(p) for p in cache.key_pairs()],
+        "known_genres": [list(g) for g in cache.known_genres()],
+        "recently_played": {str(n): sorted(cache.recently_played(n)) for n in (1, 3, 5, 100)},
+    }
+
+
+def write_cache() -> None:
+    """Caches of the Python radio, and what it reads from them, for the Rust cache to read the same."""
+    from yamusic_radio import cache as cache_module
+
+    folder = OUT / "cache"
+    folder.mkdir(parents=True, exist_ok=True)
+    clock = iter(np.arange(1_000_000.0, 2_000_000.0, 1.0))
+    cache_module.time.time = lambda: float(next(clock))  # a clock that ticks once a call: a play has its order
+    expected: dict[str, object] = {}
+
+    for name in ("python.db", "prune.db", "old.db"):
+        (folder / name).unlink(missing_ok=True)
+
+    cache = cache_module.TrackCache(folder / "python.db")
+    expected["main"] = cache_scenario(cache, np.random.default_rng(7), lambda: float(next(clock)))
+    cache.close()
+
+    cache_module.MAX_ROWS = 5
+    small = cache_module.TrackCache(folder / "prune.db")
+    rng = np.random.default_rng(8)
+    for i in range(9):
+        small.put_analysis(f"p:{i}", "mp3", f"P {i}", random_analysis(rng))
+        if i == 2:
+            small.mark_played("p:0", "mp3")  # used again: it stays longer
+    expected["prune"] = sorted(r[0] for r in small._db.execute("SELECT track_id FROM tracks"))
+    small.close()
+    cache_module.MAX_ROWS = 20000
+
+    # a cache of the first version: no genre, no keys and effects of the transitions
+    import sqlite3
+
+    old = sqlite3.connect(folder / "old.db")
+    old.executescript(
+        "CREATE TABLE tracks (track_id TEXT NOT NULL, codec TEXT NOT NULL, title TEXT NOT NULL, analysis TEXT NOT NULL,"
+        " played_at REAL, used_at REAL NOT NULL, PRIMARY KEY (track_id, codec));"
+        "CREATE TABLE transitions (at REAL NOT NULL, kind TEXT NOT NULL, beat_matched INTEGER NOT NULL,"
+        " key_relation TEXT NOT NULL, from_track TEXT NOT NULL, to_track TEXT NOT NULL);"
+        "INSERT INTO transitions VALUES (1.0, 'bass swap', 1, 'same', 'a', 'b');"
+    )
+    old.commit()
+    old.close()
+    migrated = cache_module.TrackCache(folder / "old.db")
+    expected["old"] = {
+        "tracks": [r[1] for r in migrated._db.execute("PRAGMA table_info(tracks)")],
+        "transitions": [r[1] for r in migrated._db.execute("PRAGMA table_info(transitions)")],
+        "stats": migrated.transition_stats(),
+        "key_pairs": migrated.key_pairs(),
+    }
+    migrated.close()
+    # the migration above changed old.db: start the Rust side from the old one again
+    (folder / "old.db").unlink()
+    old = sqlite3.connect(folder / "old.db")
+    old.executescript(
+        "CREATE TABLE tracks (track_id TEXT NOT NULL, codec TEXT NOT NULL, title TEXT NOT NULL, analysis TEXT NOT NULL,"
+        " played_at REAL, used_at REAL NOT NULL, PRIMARY KEY (track_id, codec));"
+        "CREATE TABLE transitions (at REAL NOT NULL, kind TEXT NOT NULL, beat_matched INTEGER NOT NULL,"
+        " key_relation TEXT NOT NULL, from_track TEXT NOT NULL, to_track TEXT NOT NULL);"
+        "INSERT INTO transitions VALUES (1.0, 'bass swap', 1, 'same', 'a', 'b');"
+    )
+    old.commit()
+    old.close()
+    (folder / "expected.json").write_text(json.dumps(expected, indent=1, sort_keys=True) + "\n")
+    print("cache: python.db, prune.db, old.db")
+
+
 def write_effects() -> None:
     """The effects, the limiter and blend(): the noise is recorded, and the Rust side replays it."""
     folder = OUT / "effects"
@@ -469,3 +609,4 @@ if __name__ == "__main__":
     write_logic()
     write_blends()
     write_effects()
+    write_cache()
