@@ -56,10 +56,10 @@
 - **0.5** Ссылка на исходники в Settings ✅. `THIRD-PARTY-LICENSES` (`cargo-about`, `license-checker`) в пакеты — не сделано.
 
 ### Этап 1. Аудио-ядро (`mix/`), самый рискованный
-- **1.1** Типы `Pcm`, `TrackAnalysis`, константы, `SAMPLE_RATE`.
-- **1.2** Декодирование файла в f32-стерео (подпроцесс ffmpeg; `symphonia` позже, если уберём ffmpeg).
-- **1.3** Темп: `onset_envelope`, `estimate_tempo`, `refine_tempo`, `find_beat`, `find_sections`, `audible_range`.
-- **1.4** Громкость: `ebur128`; fallback RMS+2 dB для коротких кусков. Сверка с Essentia эталоном.
+- **1.1** ✅ Типы `Pcm`, `TrackAnalysis`, константы, `SAMPLE_RATE`.
+- **1.2** ✅ Декодирование файла в f32-стерео (подпроцесс ffmpeg; `symphonia` позже, если уберём ffmpeg).
+- **1.3** ✅ (bpm, биты, диапазон и секции совпадают с Python на всех 10 эталонах; в Python падение на кусках 2048…23000 отсчётов, в Rust нет) Темп: `onset_envelope`, `estimate_tempo`, `refine_tempo`, `find_beat`, `find_sections`, `audible_range`.
+- **1.4** ✅ Громкость: `ebur128`; RMS+2 dB для коротких кусков, -70 для тишины (как у Essentia). Расхождение с Essentia до 0,22 дБ на басовых сигналах (ниже ~100 Гц Essentia давит низ сильнее, 30 Гц: 1,3 дБ; подгонка фильтра не получилась). Точные числа даст `LoudnessEBUR128` самой Essentia через C-обёртку из 1.5.2; `ebur128` остаётся fallback без feature `essentia`.
 - **1.5** Тональность (FFI на Essentia):
   - **1.5.1** Статическая сборка Essentia с минимумом зависимостей: macOS arm64, Linux x86_64 (проверка в CI).
   - **1.5.2** C-обёртка над `KeyExtractor` (`edma`) и `build.rs` (`cc`/`cmake`), биндинги через `bindgen`.

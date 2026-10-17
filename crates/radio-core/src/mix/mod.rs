@@ -3,6 +3,10 @@
 
 use serde::Deserialize;
 
+pub mod analysis;
+pub mod decode;
+pub mod loudness;
+
 pub const SAMPLE_RATE: u32 = 44100;
 pub const CHANNELS: usize = 2;
 
@@ -32,7 +36,21 @@ pub struct TrackAnalysis {
     pub key: i32,
 }
 
-/// Analyze a track. Stage 1 of docs/rust-port.md (1.3 tempo, 1.4 loudness, 1.5 key).
-pub fn analyze(_pcm: &[f32]) -> TrackAnalysis {
-    todo!("stage 1 of docs/rust-port.md")
+/// Analyze a stereo, interleaved track (`analyze` of `dj_mix.py`).
+///
+/// The key is not found yet (-1): task 1.5 of docs/rust-port.md.
+pub fn analyze(pcm: &[f32]) -> TrackAnalysis {
+    let rhythm = analysis::rhythm(pcm);
+    let body = &pcm[rhythm.start * CHANNELS..rhythm.end * CHANNELS];
+    TrackAnalysis {
+        bpm: rhythm.bpm,
+        head_beat: rhythm.head_beat,
+        tail_beat: rhythm.tail_beat,
+        start: rhythm.start as i64,
+        end: rhythm.end as i64,
+        loudness_db: loudness::measure_loudness(body),
+        intro_end: rhythm.intro_end,
+        outro_start: rhythm.outro_start,
+        key: -1,
+    }
 }

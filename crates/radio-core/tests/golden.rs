@@ -79,17 +79,32 @@ fn the_signals_match_their_files() {
     }
 }
 
-/// Stage 1 of docs/rust-port.md: 1.3 the tempo and the beats, 1.4 the loudness, 1.5 the key.
+/// Everything but the key: 1.3 the tempo, the beats and the sections, 1.4 the loudness.
 #[test]
-#[ignore = "analyze() is not written yet"]
 fn analysis_matches_python() {
     for (name, golden) in cases() {
         let Some(pcm) = signal(&name, &golden) else { continue };
         let got = mix::analyze(&pcm);
         let want = &golden.analysis;
-        assert!((got.bpm - want.bpm).abs() < 0.1, "{name}: bpm {} against {}", got.bpm, want.bpm);
-        assert_eq!(got.key, want.key, "{name}: key");
-        assert!((got.loudness_db - want.loudness_db).abs() < 0.5, "{name}: LUFS {} against {}", got.loudness_db, want.loudness_db);
-        assert_eq!((got.start, got.end), (want.start, want.end), "{name}: audible range");
+        let note = format!("{name}: got {got:?}, python {want:?}");
+        assert!((got.bpm - want.bpm).abs() < 0.01, "bpm, {note}");
+        // A beat is found to half a frame of the flux (a quarter of a hop); the same grid is meant.
+        assert!((got.head_beat - want.head_beat).abs() < 1.0, "head beat, {note}");
+        assert!((got.tail_beat - want.tail_beat).abs() < 1.0, "tail beat, {note}");
+        assert_eq!((got.start, got.end), (want.start, want.end), "audible range, {note}");
+        assert_eq!((got.intro_end, got.outro_start), (want.intro_end, want.outro_start), "sections, {note}");
+        // ebur128 and Essentia differ below ~100 Hz (Essentia presses the bass harder: 0.2 dB on a 60 Hz kick, 1.3 dB
+        // on a 30 Hz sine); the same numbers come with Essentia's own meter (task 1.5.2), then this is 0.01.
+        assert!((got.loudness_db - want.loudness_db).abs() < 0.25, "loudness, {note}");
+    }
+}
+
+/// Task 1.5 of docs/rust-port.md.
+#[test]
+#[ignore = "the key is not found yet"]
+fn key_matches_python() {
+    for (name, golden) in cases() {
+        let Some(pcm) = signal(&name, &golden) else { continue };
+        assert_eq!(mix::analyze(&pcm).key, golden.analysis.key, "{name}");
     }
 }
