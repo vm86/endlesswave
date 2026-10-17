@@ -174,7 +174,7 @@ async fn blends_are_made_and_told_as_python_does() {
         let noise: SharedNoise = Arc::new(Mutex::new(Replay(draws.into_iter())));
 
         let radio = Recorder::default();
-        let (sender, mut receiver) = tokio::sync::mpsc::channel(4);
+        let (sender, mut receiver) = tokio::sync::mpsc::channel::<radio_core::pipeline::Piece>(4);
         let collector = tokio::spawn(async move {
             let mut pieces = Vec::new();
             while let Some(piece) = receiver.recv().await {
@@ -182,7 +182,7 @@ async fn blends_are_made_and_told_as_python_does() {
             }
             pieces
         });
-        transition(&radio, &clock, &current, &mut following, &plan, case.effects, noise, &sender).await.expect("the mix is taken");
+        transition(&radio, &clock, &current, &mut following, &plan, case.effects, noise, &sender as &dyn radio_core::pipeline::PieceSink).await.expect("the mix is taken");
         drop(sender);
         let pieces = collector.await.unwrap();
 

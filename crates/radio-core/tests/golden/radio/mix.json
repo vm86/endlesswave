@@ -1,0 +1,804 @@
+{
+ "tracks": [
+  {
+   "title": "Artist 0 - Song 0",
+   "file": "t0.wav",
+   "analysis": {
+    "bpm": 117.99207744598388,
+    "head_beat": 13330.0,
+    "tail_beat": 887826.0,
+    "start": 18,
+    "end": 2204979,
+    "loudness_db": -19.19856834411621,
+    "intro_end": 103031,
+    "outro_start": 2053938,
+    "key": 21
+   }
+  },
+  {
+   "title": "Artist 1 - Song 1",
+   "file": "t1.wav",
+   "analysis": {
+    "bpm": 120.02777840423585,
+    "head_beat": 13580.0,
+    "tail_beat": 895500.0,
+    "start": 12,
+    "end": 2204988,
+    "loudness_db": -17.88148307800293,
+    "intro_end": 101760,
+    "outro_start": 2041835,
+    "key": 16
+   }
+  },
+  {
+   "title": "Artist 2 - Song 2",
+   "file": "t2.wav",
+   "analysis": {
+    "bpm": 122.0179460144043,
+    "head_beat": 13580.0,
+    "tail_beat": 902924.0,
+    "start": 12,
+    "end": 2205000,
+    "loudness_db": -17.62277603149414,
+    "intro_end": 100321,
+    "outro_start": 2030561,
+    "key": 18
+   }
+  },
+  {
+   "title": "Artist 3 - Song 3",
+   "file": "t3.wav",
+   "analysis": {
+    "bpm": 124.0067098121643,
+    "head_beat": 13586.0,
+    "tail_beat": 888338.0,
+    "start": 18,
+    "end": 2205000,
+    "loudness_db": -18.73621940612793,
+    "intro_end": 98936,
+    "outro_start": 2083241,
+    "key": 23
+   }
+  },
+  {
+   "title": "Artist 0 - Song 4",
+   "file": "t4.wav",
+   "analysis": {
+    "bpm": 126.028590839386,
+    "head_beat": 13324.0,
+    "tail_beat": 895500.0,
+    "start": 12,
+    "end": 2205000,
+    "loudness_db": -18.183372497558594,
+    "intro_end": 97305,
+    "outro_start": 2071233,
+    "key": 1
+   }
+  },
+  {
+   "title": "Artist 1 - Song 5",
+   "file": "t5.wav",
+   "analysis": {
+    "bpm": 127.96601402282715,
+    "head_beat": 13322.0,
+    "tail_beat": 902154.0,
+    "start": 10,
+    "end": 2205000,
+    "loudness_db": -17.395265579223633,
+    "intro_end": 96031,
+    "outro_start": 2060086,
+    "key": 20
+   }
+  },
+  {
+   "title": "Artist 2 - Song 6",
+   "file": "t6.wav",
+   "analysis": {
+    "bpm": 130.02806512451173,
+    "head_beat": 13581.0,
+    "tail_beat": 888845.0,
+    "start": 13,
+    "end": 2205000,
+    "loudness_db": -18.162731170654297,
+    "intro_end": 94979,
+    "outro_start": 2109812,
+    "key": 14
+   }
+  },
+  {
+   "title": "Artist 3 - Song 7",
+   "file": "t7.wav",
+   "analysis": {
+    "bpm": 131.9989754486084,
+    "head_beat": 13325.0,
+    "tail_beat": 895501.0,
+    "start": 13,
+    "end": 2205000,
+    "loudness_db": -17.608095169067383,
+    "intro_end": 93507,
+    "outro_start": 2018055,
+    "key": 18
+   }
+  }
+ ],
+ "scenarios": [
+  {
+   "name": "plain",
+   "order": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "limit": 450,
+   "actions": {},
+   "log": [
+    [
+     "event",
+     "next_deck after none -> Artist 0 - Song 0 gen=0"
+    ],
+    [
+     "event",
+     "started Artist 0 - Song 0"
+    ],
+    [
+     "piece",
+     "Artist 0 - Song 0",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 117.992 -> Artist 1 - Song 1 gen=0"
+    ],
+    [
+     "piece",
+     "Artist 0 - Song 0",
+     165,
+     1818643
+    ],
+    [
+     "event",
+     "transition bass swap none Artist 0 - Song 0 -> Artist 1 - Song 1"
+    ],
+    [
+     "event",
+     "started Artist 1 - Song 1"
+    ],
+    [
+     "piece",
+     "Artist 0 - Song 0",
+     17,
+     186046
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 1",
+     17,
+     186046
+    ],
+    [
+     "event",
+     "finished Artist 0 - Song 0"
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 1",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 120.028 -> Artist 2 - Song 2 gen=0"
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 1",
+     133,
+     1449898
+    ],
+    [
+     "event",
+     "transition bass swap none Artist 1 - Song 1 -> Artist 2 - Song 2"
+    ],
+    [
+     "event",
+     "started Artist 2 - Song 2"
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 1",
+     17,
+     179296
+    ],
+    [
+     "piece",
+     "Artist 2 - Song 2",
+     17,
+     179296
+    ],
+    [
+     "event",
+     "finished Artist 1 - Song 1"
+    ],
+    [
+     "piece",
+     "Artist 2 - Song 2",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 122.018 -> Artist 3 - Song 3 gen=0"
+    ],
+    [
+     "piece",
+     "Artist 2 - Song 2",
+     81,
+     887610
+    ]
+   ],
+   "frames": 4919910
+  },
+  {
+   "name": "skip",
+   "order": [
+    2,
+    5,
+    7,
+    1
+   ],
+   "limit": 300,
+   "actions": {
+    "15": [
+     "skip"
+    ]
+   },
+   "log": [
+    [
+     "event",
+     "next_deck after none -> Artist 2 - Song 2 gen=0"
+    ],
+    [
+     "event",
+     "started Artist 2 - Song 2"
+    ],
+    [
+     "piece",
+     "Artist 2 - Song 2",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 122.018 -> Artist 1 - Song 5 gen=0"
+    ],
+    [
+     "piece",
+     "Artist 2 - Song 2",
+     14,
+     154350
+    ],
+    [
+     "event",
+     "action skip after piece 15"
+    ],
+    [
+     "event",
+     "skip_taken"
+    ],
+    [
+     "piece",
+     "Artist 2 - Song 2",
+     10,
+     108417
+    ],
+    [
+     "event",
+     "transition bass swap none Artist 2 - Song 2 -> Artist 1 - Song 5"
+    ],
+    [
+     "event",
+     "started Artist 1 - Song 5"
+    ],
+    [
+     "piece",
+     "Artist 2 - Song 2",
+     16,
+     169386
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 5",
+     16,
+     169387
+    ],
+    [
+     "event",
+     "finished Artist 2 - Song 2"
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 5",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 127.966 -> Artist 3 - Song 7 gen=0"
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 5",
+     138,
+     1518805
+    ],
+    [
+     "event",
+     "transition bass swap none Artist 1 - Song 5 -> Artist 3 - Song 7"
+    ],
+    [
+     "event",
+     "started Artist 3 - Song 7"
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 5",
+     15,
+     162950
+    ],
+    [
+     "piece",
+     "Artist 3 - Song 7",
+     15,
+     162951
+    ],
+    [
+     "event",
+     "finished Artist 1 - Song 5"
+    ],
+    [
+     "piece",
+     "Artist 3 - Song 7",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 131.999 -> Artist 1 - Song 1 gen=0"
+    ],
+    [
+     "piece",
+     "Artist 3 - Song 7",
+     73,
+     801353
+    ]
+   ],
+   "frames": 3280674
+  },
+  {
+   "name": "rebuild_solo",
+   "order": [
+    0,
+    4,
+    6,
+    3
+   ],
+   "limit": 300,
+   "actions": {
+    "10": [
+     "rebuild"
+    ]
+   },
+   "log": [
+    [
+     "event",
+     "next_deck after none -> Artist 0 - Song 0 gen=0"
+    ],
+    [
+     "event",
+     "started Artist 0 - Song 0"
+    ],
+    [
+     "piece",
+     "Artist 0 - Song 0",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 117.992 -> Artist 0 - Song 4 gen=0"
+    ],
+    [
+     "piece",
+     "Artist 0 - Song 0",
+     9,
+     99225
+    ],
+    [
+     "event",
+     "action rebuild after piece 10"
+    ],
+    [
+     "piece",
+     "Artist 0 - Song 0",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 117.992 -> Artist 2 - Song 6 gen=1"
+    ],
+    [
+     "piece",
+     "Artist 0 - Song 0",
+     155,
+     1708393
+    ],
+    [
+     "event",
+     "transition bass swap none Artist 0 - Song 0 -> Artist 2 - Song 6"
+    ],
+    [
+     "event",
+     "started Artist 2 - Song 6"
+    ],
+    [
+     "piece",
+     "Artist 0 - Song 0",
+     17,
+     178680
+    ],
+    [
+     "piece",
+     "Artist 2 - Song 6",
+     17,
+     178681
+    ],
+    [
+     "event",
+     "finished Artist 0 - Song 0"
+    ],
+    [
+     "piece",
+     "Artist 2 - Song 6",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 130.028 -> Artist 3 - Song 3 gen=1"
+    ],
+    [
+     "piece",
+     "Artist 2 - Song 6",
+     99,
+     1090140
+    ]
+   ],
+   "frames": 3288194
+  },
+  {
+   "name": "rebuild_approach",
+   "order": [
+    1,
+    3,
+    5,
+    7
+   ],
+   "limit": 300,
+   "actions": {
+    "60": [
+     "rebuild"
+    ]
+   },
+   "log": [
+    [
+     "event",
+     "next_deck after none -> Artist 1 - Song 1 gen=0"
+    ],
+    [
+     "event",
+     "started Artist 1 - Song 1"
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 1",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 120.028 -> Artist 3 - Song 3 gen=0"
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 1",
+     59,
+     650451
+    ],
+    [
+     "event",
+     "action rebuild after piece 60"
+    ],
+    [
+     "event",
+     "next_deck after 120.028 -> Artist 1 - Song 5 gen=1"
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 1",
+     108,
+     1181943
+    ],
+    [
+     "event",
+     "transition eq blend none Artist 1 - Song 1 -> Artist 1 - Song 5"
+    ],
+    [
+     "event",
+     "started Artist 1 - Song 5"
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 1",
+     16,
+     175051
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 5",
+     16,
+     175052
+    ],
+    [
+     "event",
+     "finished Artist 1 - Song 1"
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 5",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 127.966 -> Artist 3 - Song 7 gen=1"
+    ],
+    [
+     "piece",
+     "Artist 1 - Song 5",
+     99,
+     1080800
+    ]
+   ],
+   "frames": 3285347
+  },
+  {
+   "name": "skip_rebuild",
+   "order": [
+    3,
+    0,
+    2,
+    6
+   ],
+   "limit": 300,
+   "actions": {
+    "12": [
+     "skip"
+    ],
+    "14": [
+     "rebuild"
+    ]
+   },
+   "log": [
+    [
+     "event",
+     "next_deck after none -> Artist 3 - Song 3 gen=0"
+    ],
+    [
+     "event",
+     "started Artist 3 - Song 3"
+    ],
+    [
+     "piece",
+     "Artist 3 - Song 3",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 124.007 -> Artist 0 - Song 0 gen=0"
+    ],
+    [
+     "piece",
+     "Artist 3 - Song 3",
+     11,
+     121275
+    ],
+    [
+     "event",
+     "action skip after piece 12"
+    ],
+    [
+     "event",
+     "skip_taken"
+    ],
+    [
+     "piece",
+     "Artist 3 - Song 3",
+     2,
+     22050
+    ],
+    [
+     "event",
+     "action rebuild after piece 14"
+    ],
+    [
+     "event",
+     "next_deck after 124.007 -> Artist 2 - Song 2 gen=1"
+    ],
+    [
+     "piece",
+     "Artist 3 - Song 3",
+     154,
+     1694160
+    ],
+    [
+     "event",
+     "transition bass swap none Artist 3 - Song 3 -> Artist 2 - Song 2"
+    ],
+    [
+     "event",
+     "started Artist 2 - Song 2"
+    ],
+    [
+     "piece",
+     "Artist 3 - Song 3",
+     17,
+     179680
+    ],
+    [
+     "piece",
+     "Artist 2 - Song 2",
+     17,
+     179681
+    ],
+    [
+     "event",
+     "finished Artist 3 - Song 3"
+    ],
+    [
+     "piece",
+     "Artist 2 - Song 2",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 122.018 -> Artist 2 - Song 6 gen=1"
+    ],
+    [
+     "piece",
+     "Artist 2 - Song 2",
+     97,
+     1068413
+    ]
+   ],
+   "frames": 3287309
+  },
+  {
+   "name": "rebuild_twice",
+   "order": [
+    7,
+    6,
+    5,
+    4
+   ],
+   "limit": 300,
+   "actions": {
+    "60": [
+     "rebuild"
+    ],
+    "70": [
+     "rebuild"
+    ]
+   },
+   "log": [
+    [
+     "event",
+     "next_deck after none -> Artist 3 - Song 7 gen=0"
+    ],
+    [
+     "event",
+     "started Artist 3 - Song 7"
+    ],
+    [
+     "piece",
+     "Artist 3 - Song 7",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 131.999 -> Artist 2 - Song 6 gen=0"
+    ],
+    [
+     "piece",
+     "Artist 3 - Song 7",
+     59,
+     650462
+    ],
+    [
+     "event",
+     "action rebuild after piece 60"
+    ],
+    [
+     "event",
+     "next_deck after 131.999 -> Artist 1 - Song 5 gen=1"
+    ],
+    [
+     "piece",
+     "Artist 3 - Song 7",
+     10,
+     110250
+    ],
+    [
+     "event",
+     "action rebuild after piece 70"
+    ],
+    [
+     "event",
+     "next_deck after 131.999 -> Artist 0 - Song 4 gen=2"
+    ],
+    [
+     "piece",
+     "Artist 3 - Song 7",
+     101,
+     1105986
+    ],
+    [
+     "event",
+     "transition eq blend none Artist 3 - Song 7 -> Artist 0 - Song 4"
+    ],
+    [
+     "event",
+     "started Artist 0 - Song 4"
+    ],
+    [
+     "piece",
+     "Artist 3 - Song 7",
+     16,
+     167448
+    ],
+    [
+     "piece",
+     "Artist 0 - Song 4",
+     16,
+     167448
+    ],
+    [
+     "event",
+     "finished Artist 3 - Song 7"
+    ],
+    [
+     "piece",
+     "Artist 0 - Song 4",
+     1,
+     11025
+    ],
+    [
+     "event",
+     "next_deck after 126.029 -> Artist 3 - Song 7 gen=2"
+    ],
+    [
+     "piece",
+     "Artist 0 - Song 4",
+     96,
+     1055108
+    ]
+   ],
+   "frames": 3278752
+  }
+ ]
+}

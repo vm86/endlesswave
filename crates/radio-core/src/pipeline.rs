@@ -247,8 +247,23 @@ pub async fn blend_pieces(current: &Deck, following: &mut Deck, plan: &BlendPlan
     (outgoing[..length].to_vec(), incoming[..length].to_vec(), None)
 }
 
-async fn emit(out: &Sender<Piece>, piece: Piece) -> Result<(), Closed> {
-    out.send(piece).await.map_err(|_| Closed)
+/// Where the pieces of the mix go. In the radio it is a channel to the encoders; a test takes them one by one and
+/// changes the radio between two, as the consumer of the generator of the Python radio does.
+#[async_trait]
+pub trait PieceSink: Send + Sync {
+    /// Take a piece; `Err(Closed)` when nobody wants more.
+    async fn send(&self, piece: Piece) -> Result<(), Closed>;
+}
+
+#[async_trait]
+impl PieceSink for Sender<Piece> {
+    async fn send(&self, piece: Piece) -> Result<(), Closed> {
+        Sender::send(self, piece).await.map_err(|_| Closed)
+    }
+}
+
+async fn emit(out: &dyn PieceSink, piece: Piece) -> Result<(), Closed> {
+    out.send(piece).await
 }
 
 /// Blend the following deck into the current one, piece by piece. The pieces go to `out`; `Err(Closed)` if nobody takes
@@ -262,7 +277,7 @@ pub async fn transition(
     plan: &BlendPlan,
     effects_level: f64,
     noise: SharedNoise,
-    out: &Sender<Piece>,
+    out: &dyn PieceSink,
 ) -> Result<(), Closed> {
     let (outgoing, incoming, beat_grid) = blend_pieces(current, following, plan).await;
     let frames = outgoing.len() / CHANNELS;
@@ -327,4 +342,195 @@ pub async fn transition(
     }
     radio.finished(current);
     Ok(())
+}
+
+// ---- The endless mix (tasks 3.2.4 and 3.2.5) ------------------------------------------------------------------------
+// Ported from `dj.py`: `_ready_deck`, `_fresh`, `_early_plan` (the part that looks at the radio), `_approach`, `mix`.
+
+use tokio::task::JoinHandle;
+
+/// Why the mix ended.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MixError {
+    /// The radio could not make a deck.
+    Deck(DeckError),
+    /// Nobody takes the pieces any more.
+    Closed,
+}
+
+impl From<DeckError> for MixError {
+    fn from(error: DeckError) -> Self {
+        Self::Deck(error)
+    }
+}
+
+impl From<Closed> for MixError {
+    fn from(_: Closed) -> Self {
+        Self::Closed
+    }
+}
+
+impl std::fmt::Display for MixError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Deck(error) => error.fmt(f),
+            Self::Closed => f.write_str("the mix is not taken any more"),
+        }
+    }
+}
+
+impl std::error::Error for MixError {}
+
+/// A deck that is being made, in a task of its own. It can be looked at before it is done (the Python radio asks a
+/// task for its result); a task that is let go is stopped.
+struct NextDeck {
+    slot: Arc<Mutex<Option<Result<Deck, DeckError>>>>,
+    handle: JoinHandle<()>,
+}
+
+impl NextDeck {
+    fn spawn(radio: &Arc<dyn DeckSource>, current: &TrackAnalysis) -> Self {
+        let slot = Arc::new(Mutex::new(None));
+        let (radio, current, put) = (Arc::clone(radio), current.clone(), Arc::clone(&slot));
+        let handle = tokio::spawn(async move {
+            let result = radio.next_deck(Some(&current)).await;
+            *put.lock().expect("not poisoned") = Some(result);
+        });
+        Self { slot, handle }
+    }
+
+    /// The deck, if the task is done and made one. (A deck is cheap to copy: its samples are shared.)
+    fn ready(&self) -> Option<Deck> {
+        match self.slot.lock().expect("not poisoned").as_ref() {
+            Some(Ok(deck)) => Some(deck.clone()),
+            _ => None,
+        }
+    }
+
+    /// Wait for the deck.
+    async fn wait(&mut self) -> Result<Deck, DeckError> {
+        let finished = (&mut self.handle).await;
+        match self.slot.lock().expect("not poisoned").take() {
+            Some(result) => result,
+            None => Err(DeckError(format!("the task that makes the next deck ended: {finished:?}"))),
+        }
+    }
+}
+
+impl Drop for NextDeck {
+    fn drop(&mut self) {
+        self.handle.abort();
+    }
+}
+
+/// Wait for the next deck; choose again if the queue was rebuilt.
+async fn ready_deck(radio: &Arc<dyn DeckSource>, current: &TrackAnalysis, task: &mut NextDeck) -> Result<Deck, DeckError> {
+    let mut following = task.wait().await?;
+    while radio.is_stale(&following) {
+        following = radio.next_deck(Some(current)).await?;
+    }
+    Ok(following)
+}
+
+/// Choose the next deck anew at once if the queue was changed. A deck that was chosen before the change would wait to be
+/// found stale until the track is nearly over; a track asked for would wait with it.
+fn fresh(radio: &Arc<dyn DeckSource>, current: &Deck, task: NextDeck) -> NextDeck {
+    match task.ready() {
+        Some(deck) if radio.is_stale(&deck) => NextDeck::spawn(radio, &current.analysis),
+        _ => task,
+    }
+}
+
+/// Plan the blend asked for by the skip button, if it can be made now. It needs the next deck to be ready (the music
+/// goes on until it is) and some room left in both tracks.
+fn early_plan(radio: &Arc<dyn DeckSource>, current: &Deck, task: &NextDeck, position: i64) -> Option<BlendPlan> {
+    let following = task.ready()?;
+    if radio.is_stale(&following) {
+        return None;
+    }
+    plan_early(current, &following, position)
+}
+
+/// Play the track up to its blend, and choose again if the queue changed. Until the blend begins the queue may still be
+/// changed by hand: the deck that was chosen is then given up for another, and the blend planned anew.
+async fn approach(
+    radio: &Arc<dyn DeckSource>,
+    current: &Deck,
+    following: &mut Deck,
+    plan: &mut BlendPlan,
+    position: i64,
+    out: &dyn PieceSink,
+) -> Result<(), MixError> {
+    let mut position = position;
+    loop {
+        let mut stale = false;
+        for piece in pieces(slice(&current.pcm, position, plan.start), &current.title) {
+            let frames = (piece.pcm.len() / CHANNELS) as i64;
+            emit(out, piece).await?;
+            position += frames;
+            if radio.is_stale(following) {
+                stale = true;
+                break;
+            }
+        }
+        if !stale {
+            return Ok(());
+        }
+        let mut task = NextDeck::spawn(radio, &current.analysis);
+        *following = ready_deck(radio, &current.analysis, &mut task).await?;
+        *plan = plan_blend(current, following, position);
+    }
+}
+
+/// Produce the endless mix: PCM pieces and the title of each. It ends when a deck cannot be made or when nobody takes
+/// the pieces; the tasks that make decks are stopped with it.
+pub async fn mix(
+    radio: Arc<dyn DeckSource>,
+    clock: Arc<dyn Clock>,
+    effects_level: f64,
+    noise: SharedNoise,
+    out: &dyn PieceSink,
+) -> Result<(), MixError> {
+    let mut current = radio.next_deck(None).await?;
+    radio.started(&current);
+    let mut position = current.analysis.start;
+    let lookahead = (LOOKAHEAD_SECONDS * f64::from(SAMPLE_RATE)) as i64;
+
+    loop {
+        let mut task = NextDeck::spawn(&radio, &current.analysis);
+
+        // Everything up to the look-ahead point can be played without knowing the next track, unless the next track is
+        // asked for.
+        let solo_end = position.max(current.analysis.end - lookahead);
+        let mut early = None;
+        for piece in pieces(slice(&current.pcm, position, solo_end), &current.title) {
+            let frames = (piece.pcm.len() / CHANNELS) as i64;
+            emit(out, piece).await?;
+            position += frames;
+            task = fresh(&radio, &current, task);
+            if radio.skip_requested() {
+                early = early_plan(&radio, &current, &task, position);
+                if early.is_some() {
+                    break;
+                }
+            }
+        }
+        if early.is_none() {
+            position = solo_end;
+        }
+
+        let mut following = ready_deck(&radio, &current.analysis, &mut task).await?;
+        if early.is_some() {
+            radio.skip_taken();
+        }
+        let mut plan = match early {
+            Some(plan) => plan,
+            None => plan_blend(&current, &mut following, position),
+        };
+
+        approach(&radio, &current, &mut following, &mut plan, position, out).await?;
+        transition(&*radio, &*clock, &current, &mut following, &plan, effects_level, Arc::clone(&noise), out).await?;
+        position = followed_until(&plan, &following);
+        current = following;
+    }
 }

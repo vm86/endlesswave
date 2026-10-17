@@ -950,6 +950,114 @@ def write_transitions() -> None:
     print("transitions:", kinds)
 
 
+def write_mix() -> None:
+    """The endless mix, `mix()` of dj.py, run on a radio that is told when to skip and when the queue is rebuilt."""
+    import asyncio
+
+    from yamusic_radio import dj
+
+    folder = OUT / "radio"
+    library = json.loads((folder / "library.json").read_text())
+
+    class Scripted:
+        """A radio with decks in a fixed order, and the flags the mix looks at, which the scenario sets."""
+
+        def __init__(self, decks: list[tuple[str, object, dj_mix.TrackAnalysis]], order: list[int], log: list[list[object]]) -> None:
+            self.decks, self.order, self.log = decks, order, log
+            self.generation, self.cursor, self.skip = 0, 0, False
+
+        def event(self, text: str) -> None:
+            self.log.append(["event", text])
+
+        @property
+        def skip_requested(self) -> bool:
+            return self.skip
+
+        async def next_deck(self, current: dj_mix.TrackAnalysis | None, /) -> object:
+            title, pcm, analysis = self.decks[self.order[self.cursor % len(self.order)]]
+            self.cursor += 1
+            speed = dj_mix.transition_speed(current.bpm, analysis) if current is not None else 0.0
+            self.event(f"next_deck after {'none' if current is None else format(current.bpm, '.3f')} -> {title} gen={self.generation}")
+            return dj.Deck(title, pcm, analysis, bool(speed), speed=speed or 1.0, generation=self.generation)
+
+        def is_stale(self, deck: object, /) -> bool:
+            return deck.generation != self.generation
+
+        def skip_taken(self) -> None:
+            self.skip = False
+            self.event("skip_taken")
+
+        def transition(self, kind: object, current: object, following: object, effect: object = None, report: object = None) -> None:
+            self.skip = False
+            self.event(f"transition {kind.value} {effect.value} {current.title} -> {following.title}")
+
+        def started(self, deck: object, /) -> None:
+            self.event(f"started {deck.title}")
+
+        def finished(self, deck: object, /) -> None:
+            self.event(f"finished {deck.title}")
+
+        user_paused = False
+
+        def hold(self, *, held: bool) -> None:
+            return None
+
+        async def wait_resumed(self) -> None:
+            return None
+
+    scenarios = [
+        {"name": "plain", "order": [0, 1, 2, 3], "limit": 450, "actions": {}},
+        {"name": "skip", "order": [2, 5, 7, 1], "limit": 300, "actions": {"15": ["skip"]}},
+        {"name": "rebuild_solo", "order": [0, 4, 6, 3], "limit": 300, "actions": {"10": ["rebuild"]}},
+        {"name": "rebuild_approach", "order": [1, 3, 5, 7], "limit": 300, "actions": {"60": ["rebuild"]}},
+        {"name": "skip_rebuild", "order": [3, 0, 2, 6], "limit": 300, "actions": {"12": ["skip"], "14": ["rebuild"]}},
+        {"name": "rebuild_twice", "order": [7, 6, 5, 4], "limit": 300, "actions": {"60": ["rebuild"], "70": ["rebuild"]}},
+    ]
+
+    async def run() -> dict[str, object]:
+        decks = []
+        for entry in library:
+            pcm = await dj.decode_file(folder / "library" / str(entry["file"]))
+            decks.append((f"{entry['artists'][0]} - {entry['title']}", pcm, dj_mix.analyze(pcm)))
+        results = []
+        for scenario in scenarios:
+            log: list[list[object]] = []
+            radio = Scripted(decks, scenario["order"], log)
+            heard = []
+            count = 0
+            generator = dj.mix(radio, 0.0)
+            async for pcm, title in generator:
+                count += 1
+                heard.append(pcm)
+                if log and log[-1][0] == "piece" and log[-1][1] == title:
+                    log[-1][2] += 1
+                    log[-1][3] += len(pcm)
+                else:
+                    log.append(["piece", title, 1, len(pcm)])
+                for action in scenario["actions"].get(str(count), []):
+                    log.append(["event", f"action {action} after piece {count}"])
+                    if action == "skip":
+                        radio.skip = True
+                    else:
+                        radio.generation += 1
+                await asyncio.sleep(0)  # the tasks that make decks get their turn
+                if count >= scenario["limit"]:
+                    break
+            await generator.aclose()
+            want = np.concatenate(heard)
+            (folder / f"mix_{scenario['name']}.want.f32").write_bytes(np.ascontiguousarray(want, "<f4").tobytes())
+            results.append({**scenario, "log": log, "frames": len(want)})
+        return {
+            "tracks": [{"title": t, "file": library[i]["file"], "analysis": analysis_json(an)} for i, (t, _, an) in enumerate(decks)],
+            "scenarios": results,
+        }
+
+    expected = asyncio.run(run())
+    (folder / "mix.json").write_text(json.dumps(expected, indent=1) + "\n")
+    for scenario in expected["scenarios"]:
+        print("mix", scenario["name"], scenario["frames"], "frames,", sum(e[0] == "event" and e[1].startswith("transition") for e in scenario["log"]), "transitions")
+
+
 def dataclasses_asdict(plan: object) -> dict[str, object]:
     import dataclasses
 
@@ -1135,3 +1243,4 @@ if __name__ == "__main__":
     write_radio()
     write_pipeline()
     write_transitions()
+    write_mix()
