@@ -8,6 +8,7 @@ mod load;
 mod pool;
 mod queue;
 mod report;
+mod settings;
 mod types;
 
 pub use types::{Candidate, Counter, MAX_LISTED, Played, RadioError, TrackInfo};

@@ -356,7 +356,7 @@ async def run_scenario(
                     result["returned"] = outcome
             else:
                 raise ValueError(op)
-        except (dj.SkipRefusedError, dj.QueueChangeRefusedError, dj.UnknownQueueTrackError, ValueError) as error:
+        except (dj.SkipRefusedError, dj.QueueChangeRefusedError, dj.UnknownQueueTrackError, ValueError) as error:  # noqa: PERF203
             result["error"] = type(error).__name__
         await radio.wait_feedback()
         result["snapshot"] = _snapshot(radio, backend, workdir, taken, cache)

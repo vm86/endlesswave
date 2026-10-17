@@ -86,12 +86,14 @@ pub enum RadioError {
     UnknownQueueTrack(String),
     /// A value that is not one of the choices (`ValueError` of Python).
     Invalid(String),
+    /// The backend could not do it.
+    Backend(String),
 }
 
 impl std::fmt::Display for RadioError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::SkipRefused(why) | Self::QueueChangeRefused(why) | Self::Invalid(why) => f.write_str(why),
+            Self::SkipRefused(why) | Self::QueueChangeRefused(why) | Self::Invalid(why) | Self::Backend(why) => f.write_str(why),
             Self::UnknownQueueTrack(id) => f.write_str(id),
         }
     }

@@ -68,6 +68,7 @@ fn error_name(error: &RadioError) -> &'static str {
         RadioError::QueueChangeRefused(_) => "QueueChangeRefusedError",
         RadioError::UnknownQueueTrack(_) => "UnknownQueueTrackError",
         RadioError::Invalid(_) => "ValueError",
+        RadioError::Backend(_) => "BackendError",
     }
 }
 
@@ -207,6 +208,19 @@ async fn the_radio_looks_after_each_step_as_the_python_radio_does() {
                         "set_blocked_genres" => Ok(radio.set_blocked_genres(list(0))),
                         "genres_info" => {
                             got["returned"] = radio.genres_info();
+                            Ok(())
+                        }
+                        "set_allowed_moods" => radio.set_allowed_moods(list(0)).await,
+                        "set_language" => radio.set_language(args[0].as_str()).await,
+                        "start_mood_arc" => radio.start_mood_arc().await,
+                        "restore_settings" => radio.restore_settings().await,
+                        "restore_state" => radio.restore_state().await,
+                        "language_info" => {
+                            got["returned"] = radio.language_info();
+                            Ok(())
+                        }
+                        "auth_info" => {
+                            got["returned"] = radio.auth_info();
                             Ok(())
                         }
                         "restore_playlist" => {

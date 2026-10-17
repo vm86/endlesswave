@@ -106,7 +106,7 @@
 | 3.1.4 ✅ | Фильтры пула: `_wanted`, `_reachable`, `_mood_allowed`, `_genre_allowed`, `_drop_unwanted`, `backends_changed`, `_give_up_the_pool` | 982–1043 | пул после каждого шага сценария совпадает |
 | 3.1.5 ✅ | Плейлист на диске: `_save_playlist`, `restore_playlist`, `_candidate_back` (формат `playlist` и `queue_order` в кэше — тот же JSON) | 719–805 | Python пишет — Rust читает и наоборот (как в тесте кэша) |
 | 3.1.6 ✅ | Очередь: `generation`, `is_stale`, `refresh_queue`, `_unpick`, `_set_order`, `queue_order/move/remove/play`, `_restart_next`, `_locked`, `_pinned` | 815–981 | ряд сценариев, включая отказы (`409`, `404`) и «блэнд идёт» |
-| 3.1.7 | Настройки станции: настроения, жанры, блок-лист, язык, `start_mood_arc`, `restore_settings/state`, `_release_settings`, `_set_mood`, `genres_info`, `moods_info`, `language_info` | 530–705, 1054–1073, 1191–1200 | поддельный бэкенд записывает вызовы `set_station_settings`; сравнивается их последовательность |
+| 3.1.7 ✅ | Настройки станции: настроения, жанры, блок-лист, язык, `start_mood_arc`, `restore_settings/state`, `_release_settings`, `_set_mood`, `genres_info`, `moods_info`, `language_info` | 530–705, 1054–1073, 1191–1200 | поддельный бэкенд записывает вызовы `set_station_settings`; сравнивается их последовательность |
 | 3.1.8 ✅ | Отчёты: `upcoming` (прогноз), `queue`, `transition_stats`, `key_pair_stats`, `recent_blends` | 1074–1106, 1201–1262, 1618–1654 | JSON `queue()` после каждого шага сценария |
 | 3.1.9 ✅ | Загрузка: `_load` (пакеты, жанры, настроение, лимиты пустых пакетов), `fill`, `keep_filled`, `prepare`, `_store_analysis`, `_cached_analysis` | 1272–1447 | поддельный бэкенд + кэш; состав пула и обращения к бэкенду |
 | 3.1.10 ✅ | Выбор: `_choose`, `_pick` (догрузка при плохой стоимости), `_replay_oldest`, `_mark_played`, `next_deck` (декодирование, поколение, отмена) | 1448–1581 | выбранная последовательность треков на сценарии |
@@ -142,6 +142,10 @@
 Три новых сценария (правка очереди с 8 видами отказов, жанры, перезапуск с плейлистом); всего 7 сценариев, 102 шага совпадают.
 Нашлось: Python сначала стирает файл сброшенного трека, потом проверяет `_reachable`, поэтому любой сброшенный трек
 убирается из `seen` (предлагается снова); Rust повторяет порядок.
+
+**Пакет C (3.1.7, `radio/settings.rs`):** `start_mood_arc`, `restore_settings`, `restore_state`, `set_allowed_moods`, `set_language`,
+`auth_info`. Пять новых сценариев (настроения, язык, бэкенд без управления станцией, «убитый» запуск, дуга настроений);
+всего 12 сценариев, 143 шага со снимками совпадают с Python. **3.1 целиком готова.**
 
 ## Порядок и зависимости
 
