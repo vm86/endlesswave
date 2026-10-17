@@ -56,18 +56,18 @@ impl Radio {
             if wanted {
                 continue;
             }
-            let reachable = self.reachable(&candidate);
             {
                 let mut state = self.st();
                 if let Some(at) = state.pool.iter().position(|c| *c == candidate) {
                     state.pool.remove(at);
                 }
-                let _ = std::fs::remove_file(&candidate.path);
-                if !reachable {
-                    if let Some(track) = &candidate.track {
-                        // Not heard: it may be offered again when it is back.
-                        state.seen.remove(&track.track_id);
-                    }
+            }
+            let _ = std::fs::remove_file(&candidate.path);
+            // As in the Python radio, the file is gone by now, so the track is never "reachable" here: whatever the reason it
+            // was dropped for, it is not counted as seen, and may be offered again.
+            if !self.reachable(&candidate) {
+                if let Some(track) = &candidate.track {
+                    self.st().seen.remove(&track.track_id);
                 }
             }
             self.save_playlist();

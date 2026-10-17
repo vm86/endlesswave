@@ -77,6 +77,10 @@ fn snapshot(radio: &Radio, backend: &FakeBackend, workdir: &std::path::Path, tak
     *taken = calls.len();
     let mut files: Vec<String> = fs::read_dir(workdir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
     files.sort();
+    let settings: serde_json::Map<String, Value> = ["playlist", "queue_order", "genres", "blocked_genres", "moods", "language", "station_settings"]
+        .into_iter()
+        .map(|key| (key.to_owned(), radio.setting(key).unwrap_or(Value::Null)))
+        .collect();
     json!({
         "queue": radio.queue(2, 15),
         "pool": radio.pool().iter().map(|c| c.title.clone()).collect::<Vec<_>>(),
@@ -86,6 +90,8 @@ fn snapshot(radio: &Radio, backend: &FakeBackend, workdir: &std::path::Path, tak
         "stats": radio.transition_stats()["session"],
         "key_pairs": radio.key_pair_stats()["session"],
         "blends": radio.recent_blends(),
+        "order": radio.order(),
+        "settings": settings,
     })
 }
 
@@ -136,20 +142,27 @@ async fn the_radio_looks_after_each_step_as_the_python_radio_does() {
         let workdir = scratch.join(format!("{name}-work"));
         fs::create_dir_all(&workdir).unwrap();
         let clock = Arc::new(ManualClock::new(1000.0));
-        let radio = Radio::new(
-            backend.clone() as Arc<dyn MusicBackend>,
-            workdir.clone(),
-            RadioConfig { pool_size: scenario["pool_size"].as_u64().unwrap_or(4) as usize, mood_arc: scenario["mood_arc"].as_bool().unwrap_or(false), ..RadioConfig::default() },
-            Some(TrackCache::open(&cache_path).unwrap()),
-            clock.clone(),
-        );
+        let make_radio = || {
+            Radio::new(
+                backend.clone() as Arc<dyn MusicBackend>,
+                workdir.clone(),
+                RadioConfig {
+                    pool_size: scenario["pool_size"].as_u64().unwrap_or(4) as usize,
+                    mood_arc: scenario["mood_arc"].as_bool().unwrap_or(false),
+                    keep_playlist: scenario["keep_playlist"].as_bool().unwrap_or(false),
+                    ..RadioConfig::default()
+                },
+                Some(TrackCache::open(&cache_path).unwrap()),
+                clock.clone(),
+            )
+        };
+        let mut radio = make_radio();
 
         let mut decks: HashMap<String, Deck> = HashMap::new();
         let mut taken = 0;
         let results = scenario["results"].as_array().unwrap();
         for (n, (step, want)) in scenario["steps"].as_array().unwrap().iter().zip(results).enumerate() {
             let mut got = json!({});
-            let mut failed = |error: &RadioError| got["error"] = error_name(error).into();
             match step["op"].as_str().unwrap() {
                 "fill" => radio.fill(step["size"].as_u64().map(|s| s as usize)).await.unwrap(),
                 "next_deck" => {
@@ -169,19 +182,41 @@ async fn the_radio_looks_after_each_step_as_the_python_radio_does() {
                     DeckSource::transition(&*radio, kind, &decks[step["current"].as_str().unwrap()], &decks[step["following"].as_str().unwrap()], effect, None);
                 }
                 "advance" => clock.advance(step["seconds"].as_f64().unwrap()),
+                "restart" => {
+                    // the program is stopped and started again: the files and the cache stay
+                    drop(radio);
+                    radio = make_radio();
+                    decks.clear();
+                }
                 "call" => {
                     let args = step["args"].as_array().cloned().unwrap_or_default();
-                    match step["method"].as_str().unwrap() {
-                        "pause" => radio.pause(),
-                        "resume" => radio.resume(),
-                        "hold" => DeckSource::hold(&*radio, args[0].as_bool().unwrap()),
-                        "request_skip" => {
-                            if let Err(error) = radio.request_skip() {
-                                failed(&error);
-                            }
+                    let text = |i: usize| args[i].as_str().unwrap().to_owned();
+                    let list = |i: usize| -> Vec<String> { args[i].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect() };
+                    let outcome: Result<(), RadioError> = match step["method"].as_str().unwrap() {
+                        "pause" => Ok(radio.pause()),
+                        "resume" => Ok(radio.resume()),
+                        "hold" => Ok(DeckSource::hold(&*radio, args[0].as_bool().unwrap())),
+                        "request_skip" => radio.request_skip(),
+                        "skip_taken" => Ok(DeckSource::skip_taken(&*radio)),
+                        "refresh_queue" => Ok(radio.refresh_queue()),
+                        "queue_order" => radio.queue_order(list(0)),
+                        "queue_move" => radio.queue_move(&text(0), args[1].as_i64().unwrap()),
+                        "queue_remove" => radio.queue_remove(&text(0)),
+                        "queue_play" => radio.queue_play(&text(0)),
+                        "set_wanted_genres" => Ok(radio.set_wanted_genres(list(0))),
+                        "set_blocked_genres" => Ok(radio.set_blocked_genres(list(0))),
+                        "genres_info" => {
+                            got["returned"] = radio.genres_info();
+                            Ok(())
                         }
-                        "skip_taken" => DeckSource::skip_taken(&*radio),
+                        "restore_playlist" => {
+                            got["returned"] = radio.restore_playlist().into();
+                            Ok(())
+                        }
                         other => panic!("the method {other} is not run yet"),
+                    };
+                    if let Err(error) = outcome {
+                        got["error"] = error_name(&error).into();
                     }
                 }
                 other => panic!("{other}"),

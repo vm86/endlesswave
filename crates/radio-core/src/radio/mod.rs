@@ -6,6 +6,7 @@
 
 mod load;
 mod pool;
+mod queue;
 mod report;
 mod types;
 

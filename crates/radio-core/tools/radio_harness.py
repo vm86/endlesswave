@@ -261,7 +261,10 @@ def _info(deck: object) -> dict[str, object]:
     }
 
 
-def _snapshot(radio: object, backend: FakeBackend, workdir: Path, taken: list[int]) -> dict[str, object]:
+SETTINGS = ("playlist", "queue_order", "genres", "blocked_genres", "moods", "language", "station_settings")
+
+
+def _snapshot(radio: object, backend: FakeBackend, workdir: Path, taken: list[int], cache: object) -> dict[str, object]:
     calls = backend.calls[taken[0] :]
     taken[0] = len(backend.calls)
     snapshot = {
@@ -273,6 +276,8 @@ def _snapshot(radio: object, backend: FakeBackend, workdir: Path, taken: list[in
         "stats": radio.transition_stats()["session"],
         "key_pairs": radio.key_pair_stats()["session"],
         "blends": radio.recent_blends(),
+        "order": list(radio._order),
+        "settings": {key: cache.get_setting(key) for key in SETTINGS},
     }
     return snapshot
 
@@ -298,7 +303,17 @@ async def run_scenario(
     cache = TrackCache(cache_path)
     workdir = scratch / f"{scenario['name']}-work"
     workdir.mkdir(parents=True)
-    radio = dj.Radio(backend, workdir, pool_size=scenario.get("pool_size", 4), cache=cache, mood_arc=scenario.get("mood_arc", False))
+    def make_radio() -> object:
+        return dj.Radio(
+            backend,
+            workdir,
+            pool_size=scenario.get("pool_size", 4),
+            cache=cache,
+            mood_arc=scenario.get("mood_arc", False),
+            keep_playlist=scenario.get("keep_playlist", False),
+        )
+
+    radio = make_radio()
     decks: dict[str, object] = {}
     taken = [0]
     results = []
@@ -322,6 +337,12 @@ async def run_scenario(
                 radio.transition(kind, decks[step["current"]], decks[step["following"]], effect)
             elif op == "advance":
                 clock.advance(step["seconds"])
+            elif op == "restart":
+                # the program is stopped and started again: the files and the cache stay
+                cache.close()
+                cache = TrackCache(cache_path)
+                radio = make_radio()
+                decks.clear()
             elif op == "call":
                 method = getattr(radio, step["method"])
                 args = step.get("args", [])
@@ -338,7 +359,7 @@ async def run_scenario(
         except (dj.SkipRefusedError, dj.QueueChangeRefusedError, dj.UnknownQueueTrackError, ValueError) as error:
             result["error"] = type(error).__name__
         await radio.wait_feedback()
-        result["snapshot"] = _snapshot(radio, backend, workdir, taken)
+        result["snapshot"] = _snapshot(radio, backend, workdir, taken, cache)
         results.append(result)
     cache.close()
     return results
