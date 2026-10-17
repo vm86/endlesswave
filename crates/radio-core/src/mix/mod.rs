@@ -4,6 +4,7 @@
 use serde::Deserialize;
 
 pub mod analysis;
+pub mod blend;
 pub mod choose;
 pub mod decode;
 pub mod key;

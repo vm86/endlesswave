@@ -1,0 +1,134 @@
+{
+ "cases": [
+  {
+   "name": "crossfade",
+   "function": "crossfade",
+   "frames": 132300
+  },
+  {
+   "name": "bass_swap_beat",
+   "function": "bass_swap",
+   "frames": 308700,
+   "beat_period": 22050.0
+  },
+  {
+   "name": "bass_swap_plain",
+   "function": "bass_swap",
+   "frames": 132300
+  },
+  {
+   "name": "bass_swap_at",
+   "function": "bass_swap",
+   "frames": 308700,
+   "swap": [
+    100000.0,
+    20000.0
+   ]
+  },
+  {
+   "name": "eq_blend_beat",
+   "function": "eq_blend",
+   "frames": 308700,
+   "beat_period": 20671.875
+  },
+  {
+   "name": "eq_blend_at",
+   "function": "eq_blend",
+   "frames": 132300,
+   "swap": [
+    60000.0,
+    11025.0
+   ]
+  },
+  {
+   "name": "filter_sweep_short",
+   "function": "filter_sweep",
+   "frames": 132300
+  },
+  {
+   "name": "filter_sweep_long",
+   "function": "filter_sweep",
+   "frames": 308700
+  }
+ ],
+ "swaps": [
+  {
+   "frames": 100000,
+   "beat_period": 0,
+   "grid": null,
+   "swap": [
+    50000.0,
+    11025.0
+   ]
+  },
+  {
+   "frames": 100000,
+   "beat_period": 22050.0,
+   "grid": null,
+   "swap": [
+    44100.0,
+    11025.0
+   ]
+  },
+  {
+   "frames": 131072,
+   "beat_period": 19999.5,
+   "grid": null,
+   "swap": [
+    59998.5,
+    9999.75
+   ]
+  },
+  {
+   "frames": 100000,
+   "beat_period": 22050.0,
+   "grid": [
+    1000.0,
+    23000.0,
+    45500.0,
+    68000.0,
+    90000.0
+   ],
+   "swap": [
+    45500.0,
+    11250.0
+   ]
+  },
+  {
+   "frames": 100000,
+   "beat_period": 22050.0,
+   "grid": [
+    1000.0,
+    23000.0
+   ],
+   "swap": [
+    1000.0,
+    11000.0
+   ]
+  },
+  {
+   "frames": 100000,
+   "beat_period": 22050.0,
+   "grid": [
+    51000.0
+   ],
+   "swap": [
+    44100.0,
+    11025.0
+   ]
+  },
+  {
+   "frames": 100000,
+   "beat_period": 22050.0,
+   "grid": [
+    49000.0,
+    51000.0,
+    99000.0
+   ],
+   "swap": [
+    49000.0,
+    1000.0
+   ]
+  }
+ ]
+}

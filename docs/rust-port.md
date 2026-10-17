@@ -67,7 +67,7 @@
     (ожидается 91% точных, 9% соседних, 0% ошибок).
   - **1.5.4** Fallback на Крумхансла за feature-флагом `essentia`.
 - **1.6** ✅ Планирование (`mix/plan.rs`: `plan_matched`, `plan_early`, `plan_blend`, `tempo_ratio`, `transition_speed`, `section_length`, `choose_transition`; 300 пар, 1800 запросов `plan_early` — те же числа, что у Python): `plan_matched`, `plan_early`, `plan_blend`, `tempo_ratio`, `transition_speed`.
-- **1.7** DSP переходов: `crossfade`, `bass_swap`, `eq_blend`, `filter_sweep`, `_lowpass`, `swap_point`.
+- **1.7** ✅ (`mix/blend.rs`, 8 блендов + `swap_point`; SNR к Python 137–151 дБ) DSP переходов: `crossfade`, `bass_swap`, `eq_blend`, `filter_sweep`, `_lowpass`, `swap_point`.
 - **1.8** `_wsola` и `tempo_glide` (растяжение по времени, поиск атак). Нужен эталон PCM и прослушивание.
 - **1.9** Эффекты (`riser`, `impact`, `echo_out`, `add_drop`) и look-ahead `limit`; ГСЧ с фиксированным сидом.
 - **1.10** ✅ (`mix/choose.rs`, `mix/key.rs`; 80 случайных пулов, все 784 пары тональностей, 150 пар треков — совпадает с Python) Подбор следующего: `energy`, `arc_target`, `mood_*`, `transition_cost`, `_best_path`, `choose_next`,

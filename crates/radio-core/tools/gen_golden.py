@@ -257,6 +257,68 @@ def logic() -> dict[str, object]:
     }
 
 
+def music(seed: int, low_hz: float, high_hz: float, seconds: float) -> np.ndarray:
+    """A stereo piece with a bass, a lead, kicks and noise, the two channels a little different."""
+    rng = np.random.default_rng(seed)
+    t = np.arange(int(SR * seconds)) / SR
+    bass = 0.35 * np.sin(2 * np.pi * low_hz * t)
+    lead = 0.15 * np.sin(2 * np.pi * high_hz * t) * (0.6 + 0.4 * np.sin(2 * np.pi * 0.7 * t))
+    kicks = np.zeros_like(t)
+    kick_t = np.arange(4000) / SR
+    kick = np.sin(2 * np.pi * 55 * kick_t) * np.exp(-kick_t * 25) * 0.5
+    for start in range(int(0.2 * SR), len(t) - 4000, SR // 2):
+        kicks[start : start + 4000] += kick
+    left = bass + lead + kicks + rng.normal(0, 0.03, len(t))
+    right = bass * 0.9 + lead * 1.1 + kicks + rng.normal(0, 0.03, len(t))
+    return np.stack([left, right], axis=1).astype(np.float32)
+
+
+def write_blends() -> None:
+    """Blends of two pieces, to compare by the signal to noise ratio (the FFTs round differently)."""
+    folder = OUT / "blend"
+    folder.mkdir(parents=True, exist_ok=True)
+    pieces = {
+        "short": (music(1, 55, 880, 3.0), music(2, 65, 1320, 3.0)),
+        "long": (music(3, 50, 600, 7.0), music(4, 70, 2000, 7.0)),
+    }
+    cases = [
+        ("crossfade", "short", "crossfade", {}),
+        ("bass_swap_beat", "long", "bass_swap", {"beat_period": SR * 0.5}),
+        ("bass_swap_plain", "short", "bass_swap", {}),
+        ("bass_swap_at", "long", "bass_swap", {"swap": (100000.0, 20000.0)}),
+        ("eq_blend_beat", "long", "eq_blend", {"beat_period": SR * 0.46875}),
+        ("eq_blend_at", "short", "eq_blend", {"swap": (60000.0, 11025.0)}),
+        ("filter_sweep_short", "short", "filter_sweep", {}),
+        ("filter_sweep_long", "long", "filter_sweep", {}),
+    ]
+    index = []
+    for name, source, function, arguments in cases:
+        out, inc = pieces[source]
+        want = getattr(dj_mix, function)(out, inc, **arguments)
+        for part, data in (("out", out), ("in", inc), ("want", want)):
+            (folder / f"{name}.{part}.f32").write_bytes(np.ascontiguousarray(data, "<f4").tobytes())
+        index.append({"name": name, "function": function, "frames": len(out), **{k: v for k, v in arguments.items()}})
+        print(f"blend/{name}")
+    swaps = [
+        {
+            "frames": int(frames),
+            "beat_period": period,
+            "grid": grid,
+            "swap": list(dj_mix.swap_point(int(frames), period, None if grid is None else np.array(grid))),
+        }
+        for frames, period, grid in [
+            (100000, 0, None),
+            (100000, 22050.0, None),
+            (131072, 19999.5, None),
+            (100000, 22050.0, [1000.0, 23000.0, 45500.0, 68000.0, 90000.0]),
+            (100000, 22050.0, [1000.0, 23000.0]),
+            (100000, 22050.0, [51000.0]),
+            (100000, 22050.0, [49000.0, 51000.0, 99000.0]),
+        ]
+    ]
+    (folder / "index.json").write_text(json.dumps({"cases": index, "swaps": swaps}, indent=1) + "\n")
+
+
 def write_logic() -> None:
     folder = OUT / "logic"
     folder.mkdir(parents=True, exist_ok=True)
@@ -267,3 +329,4 @@ def write_logic() -> None:
 if __name__ == "__main__":
     main()
     write_logic()
+    write_blends()

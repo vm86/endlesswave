@@ -1,3 +1,4 @@
 # The signals of the golden cases: big, made again by tools/gen_golden.py
 /tests/golden/*.f32
+/tests/golden/blend/*.f32
 /target/
