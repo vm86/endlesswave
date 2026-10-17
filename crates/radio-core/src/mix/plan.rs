@@ -109,7 +109,7 @@ const MIN_SOLO_SECONDS: f64 = 10.0;
 /// line of the outgoing track after it.
 const EARLY_LEAD_SECONDS: f64 = 2.0;
 /// Less room than this in either track and the request is let go.
-const MIN_EARLY_BLEND_SECONDS: f64 = 4.0;
+pub const MIN_EARLY_BLEND_SECONDS: f64 = 4.0;
 /// A bar is this many beats.
 const BEATS_PER_BAR: f64 = 4.0;
 

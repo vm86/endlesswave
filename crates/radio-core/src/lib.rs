@@ -6,5 +6,6 @@ pub mod backend;
 pub mod cache;
 pub mod clock;
 pub mod mix;
+pub mod pipeline;
 pub mod spectrum;
 pub mod stream;

@@ -132,11 +132,11 @@ def analysis_json(a: dj_mix.TrackAnalysis) -> dict[str, object]:
     }
 
 
-def random_analysis(rng: np.random.Generator) -> dj_mix.TrackAnalysis:
+def random_analysis(rng: np.random.Generator, seconds: tuple[float, float] = (150, 400)) -> dj_mix.TrackAnalysis:
     """A track as the analysis could find it: the tempo, the key or the sections may be unknown."""
     bpm = 0.0 if rng.random() < 0.1 else float(rng.choice([rng.uniform(70, 180), rng.uniform(118, 130)]))
     start = int(rng.integers(0, SR))
-    end = start + int(rng.uniform(150, 400) * SR)
+    end = start + int(rng.uniform(*seconds) * SR)
     sections = rng.random() > 0.2
     return dj_mix.TrackAnalysis(
         bpm=bpm,
@@ -578,7 +578,13 @@ def write_streams() -> None:
         except ValueError:
             return "error"
 
-    streams = {"mp3": encode(dj.MP3_ARGS), "flac": encode(dj.FLAC_ARGS), "ogg": encode(dj.OGG_ARGS)}
+    # A stream that is there is kept: the Ogg muxer picks a random serial number, so a new stream would change every
+    # hash in the golden files. Delete a .bin to have it made again.
+    def stream(name: str, output_args: tuple[str, ...]) -> bytes:
+        made = folder / f"{name}.bin"
+        return made.read_bytes() if made.exists() else encode(output_args)
+
+    streams = {"mp3": stream("mp3", dj.MP3_ARGS), "flac": stream("flac", dj.FLAC_ARGS), "ogg": stream("ogg", dj.OGG_ARGS)}
     report: dict[str, object] = {}
     for name, data in streams.items():
         (folder / f"{name}.bin").write_bytes(data)
@@ -769,6 +775,92 @@ def write_radio() -> None:
     print("radio: library of", len(library), "tracks; smoke:", [c["title"] for c in smoke["pool"]], smoke["queue"]["now"]["title"])
 
 
+def write_pipeline() -> None:
+    """The plans of a blend between two decks, as `_plan`, `_early_plan` and the rest of dj.py make them."""
+    import asyncio
+
+    from yamusic_radio import dj
+
+    class Frames:
+        """Stands in for the samples of a deck: the plans only ask how many there are."""
+
+        def __init__(self, length: int) -> None:
+            self._length = length
+
+        def __len__(self) -> int:
+            return self._length
+
+    class Radio:
+        def is_stale(self, deck: object) -> bool:
+            return False
+
+    rng = np.random.default_rng(77)
+    # long tracks, and short ones, which have no room for a blend on the beat
+    tracks = [random_analysis(rng) for _ in range(50)] + [random_analysis(rng, (8, 30)) for _ in range(14)]
+    cases = []
+
+    async def early(current: object, following: object, position: int) -> object:
+        task = asyncio.get_running_loop().create_future()
+        task.set_result(following)
+        return dj._early_plan(Radio(), current, task, position)
+
+    def deck(analysis: dj_mix.TrackAnalysis, matched: bool, speed: float) -> object:
+        # the decoded track may be a few samples shorter than its analysis says
+        length = analysis.end - int(rng.integers(0, 200)) if rng.random() < 0.7 else analysis.end + int(rng.integers(0, 5000))
+        return dj.Deck("t", Frames(length), analysis, matched, speed=speed)
+
+    def deck_json(d: object) -> dict[str, object]:
+        return {"analysis": analysis_json(d.analysis), "frames": len(d.pcm), "beat_matched": d.beat_matched, "speed": d.speed}
+
+    for _ in range(300):
+        a, b = rng.choice(len(tracks), 2)
+        current_analysis, following_analysis = tracks[a], tracks[b]
+        matched = bool(rng.random() < 0.7 and current_analysis.bpm and following_analysis.bpm)
+        speed = dj_mix.transition_speed(current_analysis.bpm, following_analysis) or float(rng.choice([1.0, 0.95, 1.04, 1.1]))
+        current = deck(current_analysis, True, 1.0)
+        following = deck(following_analysis, matched, speed)
+        before = deck_json(following)
+        position = int(rng.integers(current_analysis.start, current_analysis.end))
+        if rng.random() < 0.3:
+            position = int(rng.integers(0, current_analysis.end + 1000))
+        elif rng.random() < 0.15:
+            position = current_analysis.end + int(rng.integers(0, 60000))
+        elif rng.random() < 0.4:
+            # near the end: no room for a blend
+            position = int(rng.integers(current_analysis.end - 10 * SR, current_analysis.end + 1000))
+        # the plan changes beat_matched of the following deck: ask for the early one on a copy
+        copy = dj.Deck("t", following.pcm, following.analysis, following.beat_matched, speed=following.speed)
+        early_plan = asyncio.run(early(current, copy, position))
+        planned = dj._plan(current, following, position)
+        grid = rng.choice([0, 1, 2, 5])
+        beats = None if grid == 0 else np.cumsum(rng.uniform(20000, 24000, int(grid)))
+        period = dj._beat_period(current, following, beats)
+        cases.append(
+            {
+                "current": deck_json(current),
+                "following": before,
+                "position": position,
+                "plan": dataclasses_asdict(planned),
+                "matched_after": following.beat_matched,
+                "early": None if early_plan is None else dataclasses_asdict(early_plan),
+                "grid": None if beats is None else [float(g) for g in beats],
+                "beat_period": period,
+                "followed_until": dj._followed_until(planned, following),
+            }
+        )
+    pieces = [{"frames": n, "sizes": [len(p) for p, _ in dj._pieces(np.zeros((n, 2), np.float32), "x")]} for n in (0, 1, 11024, 11025, 11026, 22050, 30000, 100000)]
+    folder = OUT / "radio"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "pipeline.json").write_text(json.dumps({"cases": cases, "pieces": pieces}) + "\n")
+    print("pipeline:", len(cases), "plans,", sum(c["early"] is not None for c in cases), "early,", sum(c["plan"]["length"] == 0 for c in cases), "empty")
+
+
+def dataclasses_asdict(plan: object) -> dict[str, object]:
+    import dataclasses
+
+    return dataclasses.asdict(plan)
+
+
 def write_effects() -> None:
     """The effects, the limiter and blend(): the noise is recorded, and the Rust side replays it."""
     folder = OUT / "effects"
@@ -946,3 +1038,4 @@ if __name__ == "__main__":
     write_streams()
     write_spectrum()
     write_radio()
+    write_pipeline()

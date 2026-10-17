@@ -7,7 +7,7 @@ use super::{CHANNELS, SAMPLE_RATE};
 use std::f64::consts::PI;
 
 /// Below this the tempos are taken for equal and nothing is stretched.
-const NEGLIGIBLE_TEMPO_SHIFT: f64 = 0.002;
+pub const NEGLIGIBLE_TEMPO_SHIFT: f64 = 0.002;
 /// The tempo glide stretches the blend pieces by WSOLA: frames of `GLIDE_WINDOW` samples overlap by half, and
 /// each is moved up to a tolerance to continue the previous one without a jump. The search for the best place
 /// is done on a signal decimated by `GLIDE_DECIMATION`.
