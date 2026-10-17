@@ -6,6 +6,7 @@
 //! collection only has to provide the same few calls.
 
 pub mod fake;
+pub mod multi;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -143,6 +144,11 @@ pub trait MusicBackend: Send + Sync {
     async fn set_station_settings(&self, station_id: &str, mood_energy: &str, diversity: &str, language: &str) -> Result<(), BackendError>;
     /// Stop what the backend runs in the background.
     async fn aclose(&self);
+    /// The settings the page can show and change (the folder of `local`), with what they are called; `None` for a backend
+    /// that has none. The new values are given to `authorize`, which keeps them.
+    fn settings(&self) -> Option<(HashMap<String, String>, Vec<AuthField>)> {
+        None
+    }
     /// The ids of the backends that are off or can't be reached; the tracks of them that are only linked leave the
     /// queue. Only the multi-backend has any.
     fn unavailable(&self) -> Vec<String> {

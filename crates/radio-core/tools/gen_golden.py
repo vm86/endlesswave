@@ -745,7 +745,7 @@ def write_radio() -> None:
             try:
                 track = tracks.get(track_id) or dataclasses_track(library, track_id)
                 await backend.download(track, work / f"{track_id}.wav")
-            except RuntimeError:
+            except Exception:
                 ok = False
             size = (work / f"{track_id}.wav").stat().st_size if ok else None
             results.append({"op": "download", "id": track_id, "ok": ok, "size": size})
@@ -1610,6 +1610,147 @@ def write_http_streams() -> None:
     print("http streams:", [(s["name"], [[r["bytes"] for r in c["reads"]] for c in s["results"]]) for s in expected["scenarios"]])
 
 
+def write_multi() -> None:
+    """The MultiBackend of multi.py over fake backends: what it gives and answers after each step."""
+    import asyncio
+    import tempfile
+
+    import radio_harness as harness
+
+    folder = OUT / "radio"
+    library = json.loads((folder / "library.json").read_text())
+    trio = [
+        {"id": "alpha", "name": "Alpha", "tracks": ["t0", "t1", "t2"], "plain_ids": True, "configured": True},
+        {"id": "beta", "name": "Beta", "tracks": ["t3", "t4", "t5"], "supports_moods": True, "configured": True},
+        {"id": "gamma", "name": "Gamma", "tracks": ["t6", "t7"], "supports_moods": True, "authorized": False},
+    ]
+    scenarios = [
+        {
+            "name": "multi_turns_and_failures",
+            "backends": trio,
+            "stations": {"beta": "calm"},
+            "steps": [
+                {"op": "query"},
+                {"op": "batch"},
+                {"op": "batch"},
+                {"op": "batch"},
+                {"op": "batch", "exclude": ["t0", "t1", "beta:t3", "beta:t4", "gamma:t6"]},
+                {"op": "download", "track": "t0"},
+                {"op": "download", "track": "beta:t5"},
+                {"op": "feedback", "track": "beta:t3", "kind": "started", "seconds": 0.0},
+                {"op": "feedback", "track": "t2", "kind": "skipped", "seconds": 12.3456},
+                {"op": "settings"},
+                {"op": "set_settings", "mood": "calm", "diversity": "default", "language": "russian"},
+                {"op": "settings"},
+                {"op": "set", "backend": "beta", "failing": True},
+                {"op": "batch"},
+                {"op": "batch"},
+                {"op": "batch"},
+                {"op": "query"},
+                {"op": "download", "track": "beta:t5"},
+                {"op": "advance", "seconds": 29},
+                {"op": "batch"},
+                {"op": "advance", "seconds": 2},
+                {"op": "batch"},
+                {"op": "batch"},
+                {"op": "advance", "seconds": 61},
+                {"op": "set", "backend": "beta", "failing": False},
+                {"op": "batch"},
+                {"op": "batch"},
+                {"op": "query"},
+                {"op": "set", "backend": "alpha", "failing": True},
+                {"op": "set", "backend": "beta", "failing": True},
+                {"op": "batch"},
+                {"op": "batch"},
+                {"op": "batch"},
+                {"op": "query"},
+                {"op": "advance", "seconds": 40},
+                {"op": "batch"},
+                {"op": "batch"},
+                {"op": "advance", "seconds": 700},
+                {"op": "set", "backend": "alpha", "failing": False},
+                {"op": "set", "backend": "beta", "failing": False},
+                {"op": "batch"},
+                {"op": "set_settings", "mood": "fun", "diversity": "default", "language": "any"},
+                {"op": "persist"},
+            ],
+        },
+        {
+            "name": "multi_turning_on_and_off",
+            "backends": trio,
+            "enabled": ["gamma"],
+            "auto": False,
+            "steps": [
+                {"op": "query"},
+                {"op": "enable", "id": "alpha"},
+                {"op": "enable", "id": "alpha"},
+                {"op": "enable", "id": "nope"},
+                {"op": "enable", "id": "beta"},
+                {"op": "batch"},
+                {"op": "batch"},
+                {"op": "authorize", "values": {"token": "bad"}},
+                {"op": "authorize", "values": {"token": "good"}},
+                {"op": "authorize", "values": {"token": "good"}},
+                {"op": "authorize_backend", "id": "gamma", "values": {"token": "good"}},
+                {"op": "authorize_backend", "id": "zeta", "values": {}},
+                {"op": "batch"},
+                {"op": "batch"},
+                {"op": "batch"},
+                {"op": "disable", "id": "alpha"},
+                {"op": "disable", "id": "alpha"},
+                {"op": "disable", "id": "nope"},
+                {"op": "download", "track": "t0"},
+                {"op": "feedback", "track": "t1", "kind": "finished", "seconds": 3.0},
+                {"op": "batch", "exclude": ["gamma:t6"]},
+                {"op": "settings"},
+                {"op": "disable", "id": "beta"},
+                {"op": "disable", "id": "gamma"},
+                {"op": "query"},
+                {"op": "batch"},
+                {"op": "settings"},
+                {"op": "set_settings", "mood": "calm", "diversity": "default", "language": "any"},
+                {"op": "authorize", "values": {"token": "good"}},
+            ],
+        },
+        {
+            "name": "multi_waits_for_a_sign_in",
+            "backends": trio,
+            "enabled": ["gamma"],
+            "auto": False,
+            "steps": [
+                {"op": "wait_authorized"},
+                {"op": "start_auth"},
+                {"op": "set", "backend": "gamma", "authorized": True},
+                {"op": "wait_authorized"},
+                {"op": "set", "backend": "gamma", "authorized": False},
+                {"op": "wait_authorized"},
+                {"op": "enable", "id": "alpha"},
+                {"op": "wait_authorized"},
+            ],
+        },
+        {
+            "name": "multi_with_the_stations_asked_for",
+            "backends": trio,
+            "stations": {"alpha": "my-station", "gamma": ""},
+            "enabled": ["gamma", "beta"],
+            "auto": True,
+            "steps": [{"op": "query"}, {"op": "batch"}, {"op": "batch"}, {"op": "batch"}],
+        },
+    ]
+
+    async def run() -> list[dict[str, object]]:
+        out = []
+        with tempfile.TemporaryDirectory() as scratch:
+            for scenario in scenarios:
+                steps = await harness.run_multi_scenario(scenario, folder / "library", library, Path(scratch))
+                out.append({**scenario, "results": steps})
+        return out
+
+    results = asyncio.run(run())
+    (folder / "multi_scenarios.json").write_text(json.dumps(results, indent=1) + "\n")
+    print("multi scenarios:", {r["name"]: len(r["results"]) for r in results})
+
+
 def write_effects() -> None:
     """The effects, the limiter and blend(): the noise is recorded, and the Rust side replays it."""
     folder = OUT / "effects"
@@ -1791,4 +1932,5 @@ if __name__ == "__main__":
     write_pipeline()
     write_transitions()
     write_mix()
+    write_multi()
     write_radio_scenarios()

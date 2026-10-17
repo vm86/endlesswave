@@ -42650,9 +42650,15 @@
     "content_type": "application/json; charset=utf-8",
     "json": {
      "authorized": false,
-     "url": null,
-     "code": null,
-     "fields": []
+     "url": "https://example.test/login",
+     "code": "CODE-1234",
+     "fields": [
+      {
+       "name": "token",
+       "label": "Token",
+       "secret": true
+      }
+     ]
     },
     "snapshot": {
      "queue": {

@@ -100,8 +100,11 @@ class FakeBackend:
         settings: tuple[str, str, str] = ("all", "default", "any"),
         fail_downloads: frozenset[str] = frozenset(),
         authorized: bool = True,
+        only: tuple[str, ...] | None = None,
     ) -> None:
         from yamusic_radio.backend import Track
+
+        library = [e for e in library if only is None or e["track_id"] in only]
 
         fields = {f.name for f in dataclasses.fields(Track)}
         self._tracks = [
@@ -116,29 +119,54 @@ class FakeBackend:
         self._settings = settings
         self.calls: list[str] = []
         self.authorized = authorized
+        self.failing = False
+        import asyncio
+
+        self._signed_in = asyncio.Event()
+        if authorized:
+            self._signed_in.set()
+
+    def set_authorized(self, authorized: bool) -> None:
+        self.authorized = authorized
+        if authorized:
+            self._signed_in.set()
+        else:
+            self._signed_in.clear()
 
     @property
     def auth_prompt(self) -> object:
-        from yamusic_radio.backend import AuthPrompt
+        from yamusic_radio.backend import AuthField, AuthPrompt
 
-        return AuthPrompt()
+        if self.authorized:
+            return AuthPrompt()
+        return AuthPrompt("https://example.test/login", "CODE-1234", (AuthField("token", "Token", True),))
 
     @property
     def default_station(self) -> str:
         return self._default_station
 
     async def wait_authorized(self) -> None:
-        return None
+        await self._signed_in.wait()
 
     def start_auth(self) -> None:
-        return None
+        self.calls.append("start_auth")
 
     async def authorize(self, values: dict[str, str], /) -> None:
         from yamusic_radio.backend import AuthError
 
-        raise AuthError("the fake backend needs no sign-in")
+        if self.authorized:
+            raise AuthError("the fake backend needs no sign-in")
+        if values.get("token") == "good":
+            self.set_authorized(True)
+            return
+        raise AuthError("the token is wrong")
 
     async def station_batch(self, station_id: str, /, *, exclude_track_ids: set[str]) -> list[object]:
+        from yamusic_radio.backend import BackendError
+
+        if self.failing:
+            self.calls.append(f"batch {station_id} fails")
+            raise BackendError("the service is down")
         n = len(self._tracks)
         picked = []
         scanned = 0
@@ -158,10 +186,12 @@ class FakeBackend:
 
     async def download(self, track: object, path: Path, /) -> None:
         source = next((f for t, f in self._tracks if t.track_id == track.track_id), None)
-        ok = source is not None and track.track_id not in self._fail
+        from yamusic_radio.backend import BackendError
+
+        ok = source is not None and track.track_id not in self._fail and not self.failing
         self.calls.append(f"download {track.track_id} {'ok' if ok else 'fail'}")
         if not ok:
-            raise RuntimeError(f"cannot download {track.track_id}")
+            raise BackendError(f"cannot download {track.track_id}")
         shutil.copyfile(source, path)
 
     async def feedback_track(self, track: object, feedback: object, station_id: str, seconds: float, /) -> None:
@@ -452,3 +482,126 @@ async def prime_cache(folder: Path, library: list[dict[str, object]], cache_path
     radio = dj.Radio(backend, workdir, pool_size=len(library), cache=cache)
     await radio.fill(len(library))
     cache.close()
+
+
+# ---- Scenarios of the MultiBackend (docs/rust-port.md, task 5.1) ------------------------------------------------------
+
+
+async def run_multi_scenario(scenario: dict[str, object], folder: Path, library: list[dict[str, object]], scratch: Path) -> list[dict[str, object]]:
+    """Run the steps on the Python MultiBackend, over fake backends, and say what it looked like after each."""
+    import asyncio
+
+    from yamusic_radio.backend import AuthError, Feedback
+    from yamusic_radio.multi import BackendSpec, MultiBackend
+
+    clock = VirtualTime()
+    fakes: dict[str, FakeBackend] = {}
+    specs = []
+    for entry in scenario["backends"]:
+        fakes[entry["id"]] = FakeBackend(
+            folder,
+            library,
+            batch_size=2,
+            supports_moods=entry.get("supports_moods", False),
+            default_station=f"{entry['id']}-station",
+            authorized=entry.get("authorized", True),
+            only=tuple(entry["tracks"]),
+        )
+        specs.append(
+            BackendSpec(
+                entry["id"],
+                entry["name"],
+                (lambda i=entry["id"]: fakes[i]),
+                (lambda c=entry.get("configured", False): c),
+                entry.get("plain_ids", False),
+            )
+        )
+    changes: list[list[str]] = []
+    multi = MultiBackend(
+        specs,
+        enabled=scenario.get("enabled", []),
+        auto=scenario.get("auto", True),
+        stations=scenario.get("stations", {}),
+        on_change=lambda ids: changes.append(list(ids)),
+        clock=clock.monotonic,
+    )
+    tracks: dict[str, object] = {}
+    taken = {i: 0 for i in fakes}
+    reported = [0]
+    results = []
+
+    def query() -> dict[str, object]:
+        prompt = multi.auth_prompt
+        return {
+            "authorized": multi.authorized,
+            "prompt": {"url": prompt.url, "code": prompt.code, "fields": [dataclasses.asdict(f) for f in prompt.fields]},
+            "default_station": multi.default_station,
+            "supports_moods": multi.supports_moods,
+            "status": multi.status(),
+            "unavailable": sorted(multi.unavailable()),
+        }
+
+    for step in scenario["steps"]:
+        result: dict[str, object] = {}
+        op = step["op"]
+        try:
+            if op == "enable":
+                await multi.enable(step["id"])
+            elif op == "disable":
+                await multi.disable(step["id"])
+            elif op == "batch":
+                batch = await multi.station_batch("ignored", exclude_track_ids=set(step.get("exclude", [])))
+                result["tracks"] = [dataclasses.asdict(t) for t in batch]
+                tracks.update({t.track_id: t for t in batch})
+            elif op == "download":
+                await multi.download(tracks[step["track"]], scratch / f"{scenario['name']}-{step['track'].replace(':', '_')}.wav")
+            elif op == "feedback":
+                await multi.feedback_track(tracks[step["track"]], Feedback(step["kind"]), "ignored", step["seconds"])
+            elif op == "settings":
+                result["settings"] = list(await multi.station_settings("ignored"))
+            elif op == "set_settings":
+                await multi.set_station_settings("ignored", step["mood"], step["diversity"], step["language"])
+            elif op == "advance":
+                clock.advance(step["seconds"])
+            elif op == "set":
+                fake = fakes[step["backend"]]
+                if "failing" in step:
+                    fake.failing = step["failing"]
+                if "authorized" in step:
+                    fake.set_authorized(step["authorized"])
+            elif op == "authorize":
+                await multi.authorize(step["values"])
+            elif op == "authorize_backend":
+                await multi.authorize_backend(step["id"], step["values"])
+            elif op == "start_auth":
+                multi.start_auth()
+            elif op == "persist":
+                multi.persist()
+            elif op == "wait_authorized":
+                try:
+                    await asyncio.wait_for(multi.wait_authorized(), 0.3)
+                    result["waited"] = "returned"
+                except TimeoutError:
+                    result["waited"] = "blocked"
+            elif op == "query":
+                pass
+            else:
+                raise ValueError(op)
+        except (ValueError, AuthError, RuntimeError, OSError, KeyError) as error:
+            if op not in ("download", "feedback") or not isinstance(error, KeyError):
+                result["error"] = f"{type(error).__name__}: {error}"
+            else:
+                raise
+        except Exception as error:  # a BackendError of the backend that went through
+            result["error"] = f"{type(error).__name__}: {error}"
+        await asyncio.sleep(0)
+        snapshot = query()
+        snapshot["calls"] = {}
+        for i, fake in fakes.items():
+            snapshot["calls"][i] = fake.calls[taken[i] :]
+            taken[i] = len(fake.calls)
+        snapshot["changes"] = changes[reported[0] :]
+        reported[0] = len(changes)
+        result["snapshot"] = snapshot
+        results.append(result)
+    return results
