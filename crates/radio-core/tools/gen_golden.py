@@ -436,6 +436,124 @@ def write_cache() -> None:
     print("cache: python.db, prune.db, old.db")
 
 
+def broadcast_golden(streams: dict[str, bytes], rng: np.random.Generator) -> dict[str, object]:
+    """What the radio's Broadcaster does when it is fed these streams in chunks, and the ICY titles."""
+    import asyncio
+    import hashlib
+
+    from yamusic_radio import dj
+
+    def hub_for(name: str) -> dj.Broadcaster:
+        if name == "mp3":
+            return dj.Broadcaster()
+        if name == "flac":
+            return dj.Broadcaster(
+                bytes_per_second=dj.FLAC_BYTES_PER_SECOND,
+                frame_start=dj.flac_start,
+                header_length=dj.flac_header_length,
+                lag_seconds=dj.FLAC_LAG_SECONDS,
+            )
+        return dj.Broadcaster(
+            bytes_per_second=dj.FLAC_BYTES_PER_SECOND,
+            frame_start=dj.ogg_start,
+            header_length=dj.ogg_header_length,
+            lag_seconds=dj.OGG_LAG_SECONDS,
+        )
+
+    def drain(queue: asyncio.Queue) -> list[dict[str, object]]:
+        items = []
+        while not queue.empty():
+            data = queue.get_nowait()
+            items.append({"length": len(data), "sha1": hashlib.sha1(data).hexdigest()})
+        return items
+
+    async def scenario(name: str) -> dict[str, object]:
+        data = streams[name]
+        hub = hub_for(name)
+        header_length = {"flac": dj.flac_header_length, "ogg": dj.ogg_header_length}.get(name)
+        position = 0
+        if header_length is not None:
+            length = header_length(data)
+            hub.header = data[:length]
+            position = length
+        first_join = hub.subscribe_at()  # nothing published yet
+        first = {"items": drain(first_join[0]), "position": first_join[1]}
+        hub.unsubscribe(first_join[0])
+        sizes, fed_values, joins = [], [], []
+        checkpoints = {0, 1, 2, 5, 10, 30, 60, 120}
+        index = 0
+        fed = 0.0
+        while position < len(data):
+            size = int(rng.integers(1000, 6000))
+            chunk = data[position : position + size]
+            position += len(chunk)
+            fed += float(rng.choice([0.05, 0.1, 0.25]))
+            hub.fed = fed
+            hub.publish(chunk)
+            sizes.append(len(chunk))
+            fed_values.append(fed)
+            if index in checkpoints or position >= len(data):
+                queue, where = hub.subscribe_at()
+                joins.append(
+                    {
+                        "after": index,
+                        "items": drain(queue),
+                        "position": where,
+                        "buffered": hub.buffered_bytes,
+                        "positions": [hub.position_of(o) for o in (0, position // 2, position - 1, position, position + 10)],
+                    }
+                )
+                hub.unsubscribe(queue)
+            index += 1
+        hub.reset_position()
+        return {"sizes": sizes, "fed": fed_values, "first": first, "joins": joins, "after_reset": hub.position_of(0)}
+
+    async def overflow() -> dict[str, object]:
+        hub = dj.Broadcaster()
+        hub.header = b"HEADER"
+        queue = hub.subscribe()
+        kept = [chunk for chunk in (queue.get_nowait(),)]
+        for i in range(300):
+            hub.publish(bytes([i % 256]) * (i % 5 + 1))
+        items = [queue.get_nowait() for _ in range(queue.qsize())]
+        return {"header_first": kept[0].decode(), "length": len(items), "first": items[0].hex(), "last": items[-1].hex()}
+
+    def icy() -> dict[str, object]:
+        titles = ["", "Artist - Song", "It's here", "Привет ✓ мир", "x" * 5000, "a" * 239, "a" * 240, "a" * 241]
+        blocks = [dj.icy_block(t).hex() for t in titles]
+        audio = [bytes((i * 7 + k) % 251 for k in range(size)) for i, size in enumerate(rng.integers(500, 9000, 40))]
+        change_at = {0: "First - One", 5: "Second - Two", 6: "Second - Two", 12: "It's - Third", 20: "", 33: "Привет"}
+        pending = bytearray()
+        sent = None
+        title = ""
+        out = bytearray()
+        for i, chunk in enumerate(audio):
+            title = change_at.get(i, title)
+            pending += chunk
+            while len(pending) >= dj.ICY_METAINT:
+                block = b"\0"
+                if title != sent:
+                    sent = title
+                    block = dj.icy_block(sent)
+                out += bytes(pending[: dj.ICY_METAINT]) + block
+                del pending[: dj.ICY_METAINT]
+        return {
+            "titles": titles,
+            "blocks": blocks,
+            "audio_sizes": [len(a) for a in audio],
+            "change_at": {str(k): v for k, v in change_at.items()},
+            "output_length": len(out),
+            "output_sha1": hashlib.sha1(bytes(out)).hexdigest(),
+            "first_block_at": dj.ICY_METAINT,
+        }
+
+    return {
+        "streams": {name: asyncio.run(scenario(name)) for name in streams},
+        "overflow": asyncio.run(overflow()),
+        "icy": icy(),
+    }
+
+
 def write_streams() -> None:
     """Encoded streams (by the radio's own ffmpeg commands) and what the radio's frame readers say about cuts of them."""
     import subprocess
@@ -507,6 +625,7 @@ def write_streams() -> None:
             }
         )
     (folder / "frames.json").write_text(json.dumps({"streams": report, "random": randoms}, indent=1) + "\n")
+    (folder / "broadcast.json").write_text(json.dumps(broadcast_golden(streams, rng), indent=1) + "\n")
     print("stream: mp3", len(streams["mp3"]), "flac", len(streams["flac"]), "ogg", len(streams["ogg"]))
 
 

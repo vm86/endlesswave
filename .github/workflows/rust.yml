@@ -35,6 +35,10 @@ jobs:
           python-version: "3.12"
       - name: Python radio (the golden answers come from it, with Essentia)
         run: pip install numpy essentia aiohttp yandex-music
+      # the encoder tests run ffmpeg with libmp3lame
+      - name: ffmpeg
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then sudo apt-get update && sudo apt-get install -y ffmpeg; else brew install ffmpeg; fi
       - name: Rust
         run: rustup toolchain install stable --profile minimal && rustup default stable
       - uses: actions/cache@v4
