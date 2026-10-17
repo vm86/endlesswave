@@ -4,8 +4,11 @@
 use serde::Deserialize;
 
 pub mod analysis;
+pub mod choose;
 pub mod decode;
+pub mod key;
 pub mod loudness;
+pub mod plan;
 
 pub const SAMPLE_RATE: u32 = 44100;
 pub const CHANNELS: usize = 2;

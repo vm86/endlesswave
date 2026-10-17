@@ -107,5 +107,134 @@ def main() -> None:
         print(f"{name}: bpm {result.bpm:.2f}, key {result.key} ({result.camelot}), {result.loudness_db:.2f} LUFS")
 
 
+def analysis_json(a: dj_mix.TrackAnalysis) -> dict[str, object]:
+    return {
+        "bpm": a.bpm,
+        "head_beat": a.head_beat,
+        "tail_beat": a.tail_beat,
+        "start": a.start,
+        "end": a.end,
+        "loudness_db": a.loudness_db,
+        "intro_end": a.intro_end,
+        "outro_start": a.outro_start,
+        "key": a.key,
+    }
+
+
+def random_analysis(rng: np.random.Generator) -> dj_mix.TrackAnalysis:
+    """A track as the analysis could find it: the tempo, the key or the sections may be unknown."""
+    bpm = 0.0 if rng.random() < 0.1 else float(rng.choice([rng.uniform(70, 180), rng.uniform(118, 130)]))
+    start = int(rng.integers(0, SR))
+    end = start + int(rng.uniform(150, 400) * SR)
+    sections = rng.random() > 0.2
+    return dj_mix.TrackAnalysis(
+        bpm=bpm,
+        head_beat=float(start + rng.integers(0, SR)),
+        tail_beat=float(end - rng.integers(0, SR)),
+        start=start,
+        end=end,
+        loudness_db=float(rng.uniform(-22, -6)),
+        intro_end=start + int(rng.uniform(1, 40) * SR) if sections else -1,
+        outro_start=end - int(rng.uniform(1, 40) * SR) if sections else -1,
+        key=-1 if rng.random() < 0.15 else int(rng.integers(0, 24)),
+    )
+
+
+def logic() -> dict[str, object]:
+    """The choice of the next track: keys, moods, costs, and the picks of choose_next on random pools."""
+    rng = np.random.default_rng(2026)
+    keys = list(range(-2, 26))
+    relations = [
+        {
+            "from": a,
+            "to": b,
+            "relation": dj_mix.key_relation(a, b),
+            "quality": dj_mix.key_quality(dj_mix.key_relation(a, b)),
+            "cost": dj_mix.key_cost(a, b),
+        }
+        for a in keys
+        for b in keys
+    ]
+    tracks = [random_analysis(rng) for _ in range(40)]
+    samples = [
+        {
+            "analysis": analysis_json(t),
+            "energy": dj_mix.energy(t),
+            "mood": dj_mix.mood_of(t),
+        }
+        for t in tracks
+    ]
+    pairs = []
+    for _ in range(150):
+        a, b = rng.choice(len(tracks), 2)
+        current, following = tracks[a], tracks[b]
+        speed = dj_mix.transition_speed(current.bpm, following)
+        pairs.append(
+            {
+                "current": analysis_json(current),
+                "following": analysis_json(following),
+                "speed": speed,
+                "section": dj_mix.section_length(current, following),
+                "cost": dj_mix.transition_cost(current, following)[0],
+                "tempo_ratio": dj_mix.tempo_ratio(current.bpm, following.bpm) if current.bpm and following.bpm else None,
+                "kind": {
+                    str(matched): dj_mix.choose_transition(current, following, beat_matched=matched).value
+                    for matched in (True, False)
+                },
+            }
+        )
+    artists = [f"artist {i}" for i in range(8)]
+    scenarios = []
+    for number in range(80):
+        size = int(rng.integers(1, 13))
+        pool = [
+            dj_mix.Entry(
+                analysis=random_analysis(rng),
+                artists=frozenset(rng.choice(artists, int(rng.integers(0, 3)), replace=False).tolist()),
+                mood=str(rng.choice(["", "sad", "calm", "fun", "active"])),
+            )
+            for _ in range(size)
+        ]
+        current = None if number % 7 == 0 else random_analysis(rng)
+        history = tuple(
+            frozenset(rng.choice(artists, int(rng.integers(0, 3)), replace=False).tolist())
+            for _ in range(int(rng.integers(0, 7)))
+        )
+        position = int(rng.integers(0, 25))
+        depth = min(len(dj_mix.LOOKAHEAD_WEIGHTS), len(pool))
+        cost, _ = dj_mix._best_path(current, pool, history, position, depth)
+        scenarios.append(
+            {
+                "current": None if current is None else analysis_json(current),
+                "pool": [
+                    {"analysis": analysis_json(e.analysis), "artists": sorted(e.artists), "mood": e.mood} for e in pool
+                ],
+                "history": [sorted(h) for h in history],
+                "position": position,
+                "index": dj_mix.choose_next(current, pool, history, position),
+                "cost": cost,
+                "steps": [dj_mix.step_cost(current, e, history, position)[0] for e in pool],
+            }
+        )
+    return {
+        "keys": [{"key": k, "camelot": dj_mix.camelot_code(k), "name": dj_mix.key_name(k)} for k in keys],
+        "relations": relations,
+        "tracks": samples,
+        "arc": [
+            {"position": n, "target": dj_mix.arc_target(n), "mood": dj_mix.mood_for(n)} for n in range(-3, 40)
+        ],
+        "pairs": pairs,
+        "scenarios": scenarios,
+    }
+
+
+def write_logic() -> None:
+    folder = OUT / "logic"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "choose.json").write_text(json.dumps(logic(), separators=(",", ":")) + "\n")
+    print("logic/choose.json")
+
+
 if __name__ == "__main__":
     main()
+    write_logic()
