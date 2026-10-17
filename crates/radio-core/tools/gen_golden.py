@@ -183,6 +183,34 @@ def logic() -> dict[str, object]:
                 },
             }
         )
+    plans = []
+    for _ in range(300):
+        a, b = rng.choice(len(tracks), 2)
+        current, following = tracks[a], tracks[b]
+        speed = dj_mix.transition_speed(current.bpm, following) or 1.0
+        both = bool(current.bpm and following.bpm)
+        plan = {
+            "current": analysis_json(current),
+            "following": analysis_json(following),
+            "speed": speed,
+            "matched": dj_mix.plan_matched(current, following, speed) if both else None,
+            "blend": {
+                str(matched): dj_mix.plan_blend(current, following, beat_matched=matched, speed=speed)
+                for matched in (True, False)
+            },
+            "early": [],
+        }
+        for _ in range(3):
+            position = int(rng.integers(current.start, current.end))
+            for matched in (True, False):
+                plan["early"].append(
+                    {
+                        "position": position,
+                        "beat_matched": matched,
+                        "plan": dj_mix.plan_early(current, following, position, beat_matched=matched, speed=speed),
+                    }
+                )
+        plans.append(plan)
     artists = [f"artist {i}" for i in range(8)]
     scenarios = []
     for number in range(80):
@@ -224,6 +252,7 @@ def logic() -> dict[str, object]:
             {"position": n, "target": dj_mix.arc_target(n), "mood": dj_mix.mood_for(n)} for n in range(-3, 40)
         ],
         "pairs": pairs,
+        "plans": plans,
         "scenarios": scenarios,
     }
 

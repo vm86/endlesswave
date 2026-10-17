@@ -66,7 +66,7 @@
   - **1.5.3** `estimate_key(mono: &[f32], sr: u32) -> Option<Key>`; сверка на 240 синтетических треках
     (ожидается 91% точных, 9% соседних, 0% ошибок).
   - **1.5.4** Fallback на Крумхансла за feature-флагом `essentia`.
-- **1.6** Планирование (сделано частично в `mix/plan.rs`: `tempo_ratio`, `transition_speed`, `section_length`, `choose_transition`; остались `plan_matched`, `plan_early`, `plan_blend`, `_blend_beats`, `_first_beat`): `plan_matched`, `plan_early`, `plan_blend`, `tempo_ratio`, `transition_speed`.
+- **1.6** ✅ Планирование (`mix/plan.rs`: `plan_matched`, `plan_early`, `plan_blend`, `tempo_ratio`, `transition_speed`, `section_length`, `choose_transition`; 300 пар, 1800 запросов `plan_early` — те же числа, что у Python): `plan_matched`, `plan_early`, `plan_blend`, `tempo_ratio`, `transition_speed`.
 - **1.7** DSP переходов: `crossfade`, `bass_swap`, `eq_blend`, `filter_sweep`, `_lowpass`, `swap_point`.
 - **1.8** `_wsola` и `tempo_glide` (растяжение по времени, поиск атак). Нужен эталон PCM и прослушивание.
 - **1.9** Эффекты (`riser`, `impact`, `echo_out`, `add_drop`) и look-ahead `limit`; ГСЧ с фиксированным сидом.

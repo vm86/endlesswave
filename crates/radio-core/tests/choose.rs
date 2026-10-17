@@ -5,7 +5,7 @@ use radio_core::mix::{
     TrackAnalysis,
     choose::{self, Entry},
     key,
-    plan::{self, Transition},
+    plan::{self, Plan, Transition},
 };
 use serde::Deserialize;
 use std::{collections::HashSet, fs};
@@ -63,7 +63,23 @@ struct Scenario {
     steps: Vec<f64>,
 }
 #[derive(Deserialize)]
+struct Early {
+    position: i64,
+    beat_matched: bool,
+    plan: Option<(i64, i64, i64)>,
+}
+#[derive(Deserialize)]
+struct Planned {
+    current: TrackAnalysis,
+    following: TrackAnalysis,
+    speed: f64,
+    matched: Option<(i64, i64, i64)>,
+    blend: std::collections::HashMap<String, (i64, i64, i64)>,
+    early: Vec<Early>,
+}
+#[derive(Deserialize)]
 struct Golden {
+    plans: Vec<Planned>,
     keys: Vec<Key>,
     relations: Vec<Relation>,
     tracks: Vec<Sample>,
@@ -179,4 +195,34 @@ fn choose_next_picks_what_python_picks() {
         close(choose::best_queue_cost(s.current.as_ref(), &pool, &history, s.position), s.cost, &what);
         assert_eq!(choose::choose_next(s.current.as_ref(), &pool, &history, s.position), s.index, "{what}");
     }
+}
+
+fn plan((start, following_start, length): (i64, i64, i64)) -> Plan {
+    Plan { start, following_start, length }
+}
+
+#[test]
+fn blends_are_planned_where_python_plans_them() {
+    let plans = golden().plans;
+    let (mut matched, mut early, mut refused) = (0, 0, 0);
+    for (n, p) in plans.iter().enumerate() {
+        let what = format!("plan {n}");
+        if p.current.bpm != 0.0 && p.following.bpm != 0.0 {
+            let got = plan::plan_matched(&p.current, &p.following, p.speed);
+            assert_eq!(got, p.matched.map(plan), "matched, {what}");
+            matched += got.is_some() as usize;
+        }
+        for beat_matched in [true, false] {
+            let got = plan::plan_blend(&p.current, &p.following, beat_matched, p.speed);
+            assert_eq!(got, plan(p.blend[if beat_matched { "True" } else { "False" }]), "blend, {what}, matched {beat_matched}");
+        }
+        for e in &p.early {
+            let got = plan::plan_early(&p.current, &p.following, e.position, e.beat_matched, p.speed);
+            assert_eq!(got, e.plan.map(plan), "early at {}, {what}, matched {}", e.position, e.beat_matched);
+            early += got.is_some() as usize;
+            refused += got.is_none() as usize;
+        }
+    }
+    // The cases must be of both kinds, or the test says little.
+    assert!(matched > 50 && early > 500 && refused > 5, "{matched} {early} {refused}");
 }
