@@ -242,12 +242,14 @@ with PyInstaller) and a static LGPL ffmpeg.
 
 ## License
 
-The player is released under the [MIT License](LICENSE).
+The player is released under the [GNU Affero General Public License, version 3 or later](LICENSE). The source
+is this repository; the radio service it starts is [vm86/yamusic-radio](https://github.com/vm86/yamusic-radio).
+Versions up to 0.1.0 were released under the MIT License.
 
 ### Third-party parts
 
 - **ffmpeg 9.0.2** (LGPL-2.1+) and **LAME 4.0** (LGPL): built without any GPL parts; the license text is
   next to the binary in the package.
 - **Essentia** (AGPL-3.0): part of the `yamusic-dj` service, finds the keys of the tracks (see its
-  [README](https://github.com/vm86/yamusic-radio#readme)). Keep this in mind when you distribute the
-  packages.
+  [README](https://github.com/vm86/yamusic-radio#readme)). The packages that hold it can only be passed on
+  under the AGPL-3.0, which is why the player has this license.

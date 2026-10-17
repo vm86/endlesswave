@@ -3,7 +3,7 @@ name = "endlesswave"
 version = "0.1.0"
 description = "Tray player for the yamusic-radio DJ radio"
 authors = ["vm86"]
-license = "MIT"
+license = "AGPL-3.0-or-later"
 edition = "2024"
 
 [lib]

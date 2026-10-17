@@ -66,7 +66,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "license": "MIT",
+    "license": "AGPL-3.0-or-later",
     "category": "Music",
     "shortDescription": "Tray player for the yamusic-radio DJ radio",
     "longDescription": "Plays the endless, beat-matched DJ mix of yamusic-radio (Yandex Music or a local folder) and controls it: queue, mood, genres, sources. The radio service and ffmpeg are inside.",
