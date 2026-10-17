@@ -5,7 +5,9 @@
 pub mod backend;
 pub mod cache;
 pub mod clock;
+pub mod encode;
 pub mod mix;
 pub mod pipeline;
 pub mod spectrum;
 pub mod stream;
+pub mod testing;

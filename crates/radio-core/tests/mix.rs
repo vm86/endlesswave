@@ -10,8 +10,9 @@
 use async_trait::async_trait;
 use radio_core::{
     clock::ManualClock,
-    mix::{TrackAnalysis, decode, effects::Effect, effects::NoiseSource, plan, plan::Transition},
-    pipeline::{BlendReport, Closed, Deck, DeckError, DeckSource, Piece, PieceSink, SharedNoise, mix},
+    mix::{TrackAnalysis, decode, effects::NoiseSource},
+    pipeline::{Closed, Piece, PieceSink, SharedNoise, mix},
+    testing::ScriptedRadio,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -21,7 +22,7 @@ use std::{
     path::PathBuf,
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicUsize, Ordering},
     },
 };
 
@@ -49,72 +50,9 @@ fn dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden/radio")
 }
 
-/// A radio with decks in a fixed order and the flags the mix looks at.
-struct Script {
-    decks: Vec<(String, Arc<[f32]>, TrackAnalysis)>,
-    order: Vec<usize>,
-    cursor: AtomicUsize,
-    generation: AtomicU64,
-    skip: AtomicBool,
-    log: Mutex<Vec<Value>>,
-}
-
-impl Script {
-    fn event(&self, text: String) {
-        self.log.lock().unwrap().push(json!(["event", text]));
-    }
-}
-
-#[async_trait]
-impl DeckSource for Script {
-    fn skip_requested(&self) -> bool {
-        self.skip.load(Ordering::SeqCst)
-    }
-    async fn next_deck(&self, current: Option<&TrackAnalysis>) -> Result<Deck, DeckError> {
-        let index = self.order[self.cursor.fetch_add(1, Ordering::SeqCst) % self.order.len()];
-        let (title, pcm, analysis) = &self.decks[index];
-        let speed = current.map_or(0.0, |c| plan::transition_speed(c.bpm, analysis));
-        let generation = self.generation.load(Ordering::SeqCst);
-        let after = current.map_or_else(|| "none".to_owned(), |c| format!("{:.3}", c.bpm));
-        self.event(format!("next_deck after {after} -> {title} gen={generation}"));
-        Ok(Deck {
-            title: title.as_str().into(),
-            pcm: pcm.clone(),
-            analysis: analysis.clone(),
-            beat_matched: speed != 0.0,
-            track: None,
-            mood: String::new(),
-            speed: if speed != 0.0 { speed } else { 1.0 },
-            generation,
-        })
-    }
-    fn is_stale(&self, deck: &Deck) -> bool {
-        deck.generation != self.generation.load(Ordering::SeqCst)
-    }
-    fn skip_taken(&self) {
-        self.skip.store(false, Ordering::SeqCst);
-        self.event("skip_taken".to_owned());
-    }
-    fn transition(&self, kind: Transition, current: &Deck, following: &Deck, effect: Effect, _report: Option<BlendReport>) {
-        self.skip.store(false, Ordering::SeqCst);
-        self.event(format!("transition {} {} {} -> {}", kind.name(), effect.name(), current.title, following.title));
-    }
-    fn started(&self, deck: &Deck) {
-        self.event(format!("started {}", deck.title));
-    }
-    fn finished(&self, deck: &Deck) {
-        self.event(format!("finished {}", deck.title));
-    }
-    fn user_paused(&self) -> bool {
-        false
-    }
-    fn hold(&self, _held: bool) {}
-    async fn wait_resumed(&self) {}
-}
-
 /// Takes the pieces one at a time, does what the scenario says after the n-th, and gives the tasks a turn.
 struct Driver {
-    script: Arc<Script>,
+    script: Arc<ScriptedRadio>,
     actions: HashMap<usize, Vec<String>>,
     limit: usize,
     count: AtomicUsize,
@@ -189,14 +127,7 @@ async fn the_mix_plays_and_tells_what_python_does() {
 
     for scenario in &golden.scenarios {
         let name = &scenario.name;
-        let script = Arc::new(Script {
-            decks: decks.clone(),
-            order: scenario.order.clone(),
-            cursor: AtomicUsize::new(0),
-            generation: AtomicU64::new(0),
-            skip: AtomicBool::new(false),
-            log: Mutex::new(Vec::new()),
-        });
+        let script = ScriptedRadio::new(decks.clone(), scenario.order.clone());
         let driver = Driver {
             script: script.clone(),
             actions: scenario.actions.iter().map(|(k, v)| (k.parse().unwrap(), v.clone())).collect(),
