@@ -1,6 +1,5 @@
 //! A backend for tests: it hands out a fixed list of tracks and keeps a log of what it was asked. Task 3.0.2 of
-//! docs/rust-port-radio.md. `tools/radio_harness.py` has the same backend for the Python radio, and the two do the same
-//! on the same calls, so a scenario can be run by both and the results compared.
+//! docs/rust-port-radio.md. The original Python radio had the same backend for its tests.
 //!
 //! How it behaves:
 //! * `station_batch` goes round the list of tracks from where it left off and takes the next `batch_size` that are not

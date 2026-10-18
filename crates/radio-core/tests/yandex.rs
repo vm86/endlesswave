@@ -1,5 +1,5 @@
-//! The Yandex backend against the Python one (`tools/gen_golden.py`, `tests/golden/yandex/expected.json`). Task 5.3 of
-//! docs/rust-port.md.
+//! The Yandex backend against the original Python one (its answers are kept in `tests/golden/yandex/expected.json`). Task
+//! 5.3 of docs/rust-port.md.
 //!
 //! The service is a mock that answers as the scenario says, and writes down what it is asked: the Python backend was run
 //! against it, and the Rust one must send the same requests (the method, the path, the query, the headers that matter, the
@@ -228,14 +228,7 @@ fn settle(requests: Vec<Value>) -> Vec<Value> {
 #[tokio::test]
 async fn the_yandex_backend_sends_and_reads_as_the_python_one_does() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden/yandex/expected.json");
-    let Ok(text) = fs::read_to_string(&path) else {
-        assert!(
-            std::env::var_os("GOLDEN_REQUIRED").is_none(),
-            "no golden file, run tools/gen_golden.py"
-        );
-        eprintln!("no golden file: skipped");
-        return;
-    };
+    let text = fs::read_to_string(&path).unwrap();
     let scenarios: Vec<Value> = serde_json::from_str(&text).unwrap();
     let scratch = std::env::temp_dir().join(format!("radio-core-yandex-{}", std::process::id()));
     fs::create_dir_all(&scratch).unwrap();

@@ -1,11 +1,9 @@
-//! The Broadcaster and the ICY titles against the Python radio's (`tools/gen_golden.py`,
-//! `tests/golden/stream/broadcast.json`), fed with the streams it made. Task 3.3 of docs/rust-port.md.
-//! Without the streams (`*.bin`, not in git) the tests are skipped, unless `GOLDEN_REQUIRED` is set.
+//! The Broadcaster and the ICY titles, with the answers of the original Python radio kept in
+//! `tests/golden/stream/broadcast.json`. Task 3.3 of docs/rust-port.md.
 
 use bytes::Bytes;
 use radio_core::stream::{
-    broadcaster::{Broadcaster, Config, Listener},
-    frames,
+    broadcaster::{Broadcaster, Config},
     icy::{ICY_METAINT, IcyMux, icy_block},
 };
 use serde_json::Value;
@@ -20,18 +18,6 @@ fn golden() -> Value {
     serde_json::from_str(&fs::read_to_string(dir().join("broadcast.json")).unwrap()).unwrap()
 }
 
-fn stream(name: &str) -> Option<Vec<u8>> {
-    let Ok(data) = fs::read(dir().join(format!("{name}.bin"))) else {
-        assert!(
-            std::env::var_os("GOLDEN_REQUIRED").is_none(),
-            "{name}: run tools/gen_golden.py"
-        );
-        eprintln!("{name}: no stream, skipped");
-        return None;
-    };
-    Some(data)
-}
-
 fn u(value: &Value) -> usize {
     value.as_u64().expect("a number") as usize
 }
@@ -41,106 +27,6 @@ fn sha1(data: &[u8]) -> String {
         .iter()
         .map(|b| format!("{b:02x}"))
         .collect()
-}
-
-/// What is waiting for a listener, as `{length, sha1}` like the golden file.
-fn drained(listener: &Listener) -> Vec<(usize, String)> {
-    std::iter::from_fn(|| listener.try_recv())
-        .map(|chunk| (chunk.len(), sha1(&chunk)))
-        .collect()
-}
-
-fn items(value: &Value) -> Vec<(usize, String)> {
-    value
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|i| (u(&i["length"]), i["sha1"].as_str().unwrap().to_owned()))
-        .collect()
-}
-
-fn near(got: Option<f64>, want: &Value, what: &str) {
-    match (got, want.as_f64()) {
-        (None, None) => {}
-        (Some(g), Some(w)) => assert!((g - w).abs() < 1e-9, "{what}: {g} against {w}"),
-        (g, w) => panic!("{what}: {g:?} against {w:?}"),
-    }
-}
-
-#[tokio::test]
-async fn the_listeners_are_started_as_the_python_radio_starts_them() {
-    let golden = golden();
-    type HeaderLength = fn(&[u8]) -> Result<Option<usize>, frames::NotThisStream>;
-    let streams: [(&str, Config, Option<HeaderLength>); 3] = [
-        ("mp3", Config::mp3(), None),
-        ("flac", Config::flac(), Some(frames::flac_header_length)),
-        ("ogg", Config::ogg(), Some(frames::ogg_header_length)),
-    ];
-    for (name, config, header_length) in streams {
-        let Some(data) = stream(name) else { continue };
-        let want = &golden["streams"][name];
-        let hub = Broadcaster::new(config);
-        let mut position = 0;
-        if let Some(header_length) = header_length {
-            let length = header_length(&data).unwrap().unwrap();
-            hub.set_header(data[..length].to_vec());
-            position = length;
-        }
-        let (first, where_) = hub.subscribe_at();
-        assert_eq!(
-            drained(&first),
-            items(&want["first"]["items"]),
-            "{name}: the first listener"
-        );
-        near(
-            where_,
-            &want["first"]["position"],
-            &format!("{name}: first position"),
-        );
-        drop(first);
-        assert!(!hub.has_listeners());
-
-        let sizes = want["sizes"].as_array().unwrap();
-        let joins = want["joins"].as_array().unwrap();
-        for (index, size) in sizes.iter().enumerate() {
-            let chunk = &data[position..position + u(size)];
-            position += chunk.len();
-            hub.set_fed(want["fed"][index].as_f64().unwrap());
-            hub.publish(Bytes::copy_from_slice(chunk));
-            if let Some(join) = joins.iter().find(|j| u(&j["after"]) == index) {
-                let what = format!("{name}: join after chunk {index}");
-                let (listener, where_) = hub.subscribe_at();
-                assert_eq!(drained(&listener), items(&join["items"]), "{what}");
-                near(where_, &join["position"], &format!("{what}: position"));
-                assert_eq!(
-                    hub.buffered_bytes(),
-                    u(&join["buffered"]),
-                    "{what}: buffered"
-                );
-                for (offset, want) in [0, position / 2, position - 1, position, position + 10]
-                    .iter()
-                    .zip(join["positions"].as_array().unwrap())
-                {
-                    near(
-                        hub.position_of(*offset),
-                        want,
-                        &format!("{what}: position of byte {offset}"),
-                    );
-                }
-            }
-        }
-        assert_eq!(position, data.len());
-        assert!(
-            !hub.has_listeners(),
-            "{name}: the listeners that joined are gone"
-        );
-        hub.reset_position();
-        near(
-            hub.position_of(0),
-            &want["after_reset"],
-            &format!("{name}: after a reset"),
-        );
-    }
 }
 
 #[tokio::test]

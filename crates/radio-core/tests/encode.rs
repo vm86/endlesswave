@@ -2,7 +2,7 @@
 //! and for the end of a pause, keeping a little ahead of the listeners, telling the streams where the mix is, and
 //! starting again after a failure. Tasks 3.4.1 to 3.4.3 of docs/rust-port-radio.md. (What the Python radio does here
 //! depends on real time, so these tests are of the rules the Python code states, not of recorded answers.)
-//! The last one runs real ffmpeg on the library's tracks, and is skipped without them, unless `GOLDEN_REQUIRED` is set.
+//! The last one runs real ffmpeg on tracks made by the test, and is skipped without ffmpeg.
 
 use bytes::Bytes;
 use radio_core::{
@@ -21,7 +21,6 @@ use radio_core::{
 };
 use std::{
     io,
-    path::PathBuf,
     sync::{
         Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
@@ -428,26 +427,21 @@ async fn a_deck_that_cannot_be_made_ends_the_mix_and_stops_the_encoders() {
 /// With real ffmpeg and the library's tracks: the listener of each stream gets a stream that its own reader recognizes.
 #[tokio::test]
 async fn real_encoders_give_streams_a_listener_can_join() {
-    let library = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden/radio/library");
-    let skip = |why: &str| {
-        assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "{why}");
-        eprintln!("{why}: skipped");
-    };
     if !std::process::Command::new("ffmpeg")
         .arg("-version")
         .output()
         .is_ok_and(|o| o.status.success())
     {
-        return skip("no ffmpeg");
+        eprintln!("no ffmpeg: skipped");
+        return;
     }
+    let dir = std::env::temp_dir().join(format!("radio-core-encode-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
     let mut decks = Vec::new();
-    for i in 0..2 {
-        let Ok(pcm) = decode::decode_with_ffmpeg(
-            std::path::Path::new("ffmpeg"),
-            &library.join(format!("t{i}.wav")),
-        ) else {
-            return skip("no library");
-        };
+    for i in 0..2u32 {
+        let file = dir.join(format!("t{i}.wav"));
+        radio_core::testing::write_music_wav(&file, 118.0 + f64::from(i) * 6.0, 50.0, i).unwrap();
+        let pcm = decode::decode_with_ffmpeg(std::path::Path::new("ffmpeg"), &file).unwrap();
         let analysis: TrackAnalysis = radio_core::mix::analyze(&pcm);
         decks.push((format!("Track {i}"), Arc::<[f32]>::from(pcm), analysis));
     }

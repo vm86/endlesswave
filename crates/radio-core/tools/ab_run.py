@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Stage 7.1: run one engine on a folder of music and record what it streams.
+"""Stage 7.1: run the radio on a folder of music and record what it streams.
 
-  ab_run.py python|rust MUSIC_DIR OUT_DIR [SECONDS]
+  ab_run.py [BINARY] MUSIC_DIR OUT_DIR [SECONDS]      (BINARY: the endlesswave-radio to run; default: target/release's)
 
 Writes OUT_DIR/stream.flac (the lossless stream), OUT_DIR/rss.csv (memory and CPU time of the process every 5 s),
 OUT_DIR/stats.json, transitions.json (what the API says at the end) and log.txt. Compare with ab_analyze.py.
@@ -17,8 +17,7 @@ import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-PYTHON_BIN = Path("~/devel/endlesswave-radio/.venv/bin/yamusic-dj").expanduser()
-RUST_BIN = HERE.parent / "target/release/endlesswave-radio"
+DEFAULT_BIN = HERE.parent / "target/release/endlesswave-radio"
 
 
 def get(port: int, path: str):
@@ -27,15 +26,13 @@ def get(port: int, path: str):
 
 
 def main() -> None:
-    engine, music, out = sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3])
-    seconds = float(sys.argv[4]) if len(sys.argv) > 4 else 900
+    args = sys.argv[1:]
+    binary = Path(args.pop(0)) if args and not Path(args[0]).is_dir() else DEFAULT_BIN
+    music, out = Path(args[0]), Path(args[1])
+    seconds = float(args[2]) if len(args) > 2 else 900
     out.mkdir(parents=True, exist_ok=True)
-    port = 18101 if engine == "python" else 18102
-    common = ["--host", "127.0.0.1", "--port", str(port), "--backend", "local", "--local-dir", str(music), "--no-cache"]
-    if engine == "python":
-        command = [str(PYTHON_BIN), "--foreground", "--config", str(out / "config.json"), *common]
-    else:
-        command = [str(RUST_BIN), *common]
+    port = 18102
+    command = [str(binary), "--host", "127.0.0.1", "--port", str(port), "--backend", "local", "--local-dir", str(music), "--no-cache"]
     log = (out / "log.txt").open("w")
     process = subprocess.Popen(command, stdout=log, stderr=log, stdin=subprocess.DEVNULL)
     started = time.time()
@@ -49,7 +46,7 @@ def main() -> None:
                 pass
             time.sleep(1)
         ready = time.time() - started
-        print(f"{engine}: first track after {ready:.0f} s", flush=True)
+        print(f"first track after {ready:.0f} s", flush=True)
 
         stop = threading.Event()
 

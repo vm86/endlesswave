@@ -1,6 +1,5 @@
-# Tests of the Rust core (crates/radio-core). The answers of the original Python radio are committed
-# (crates/radio-core/tests/golden/**/*.json). The big signals they were made from are not in git and are not made here
-# (the Python radio is not used any more): the tests that need them say so and are skipped.
+# Tests of the Rust core (crates/radio-core). The answers of the original Python radio that some of them compare with
+# are committed (crates/radio-core/tests/golden/**/*.json); nothing needs the Python radio.
 name: radio-core
 
 on:

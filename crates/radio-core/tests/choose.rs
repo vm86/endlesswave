@@ -1,5 +1,5 @@
-//! The choice of the next track, the keys and the costs against the answers of the Python radio
-//! (`tools/gen_golden.py`, `tests/golden/logic/choose.json`). Task 1.10 of docs/rust-port.md.
+//! The choice of the next track, the keys and the costs against the answers of the original Python radio kept in
+//! `tests/golden/logic/choose.json`. Task 1.10 of docs/rust-port.md.
 
 use radio_core::mix::{
     TrackAnalysis,

@@ -1,10 +1,5 @@
-//! What a listener of the streams and of the spectrum receives from the server, against the Python radio's
-//! (`tools/gen_golden.py`, `tests/golden/stream/http_streams.json`). Task 4.4 of docs/rust-port.md.
+//! What a listener of the streams and of the spectrum receives from the server. Task 4.4 of docs/rust-port.md.
 //!
-//! The server of Python is run by aiohttp and asked for the streams (made by the radio's own ffmpeg commands, as in the
-//! tests of the Broadcaster); here the router is asked without a socket. The headers, the number of bytes and their sha1
-//! must be the same. The streams (`*.bin`) are not in git; without them the tests are skipped, unless `GOLDEN_REQUIRED`
-//! is set.
 
 use axum::{Router, body::Body, http::Request};
 use bytes::Bytes;
@@ -19,14 +14,10 @@ use radio_core::{
     encode::Streams,
     radio::{Radio, RadioConfig},
     spectrum::{Frame, SpectrumFeed, StartPositions},
-    stream::{
-        broadcaster::{Broadcaster, Config},
-        frames,
-    },
+    stream::broadcaster::{Broadcaster, Config},
 };
 use serde_json::Value;
-use sha1::{Digest, Sha1};
-use std::{collections::HashMap, fs, path::PathBuf, sync::Arc, time::Duration};
+use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 use tower::ServiceExt as _;
 
 fn dir() -> PathBuf {
@@ -35,17 +26,6 @@ fn dir() -> PathBuf {
 
 fn golden() -> Value {
     serde_json::from_str(&fs::read_to_string(dir().join("http_streams.json")).unwrap()).unwrap()
-}
-
-fn sha1(data: &[u8]) -> String {
-    Sha1::digest(data)
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
-}
-
-fn u(value: &Value) -> usize {
-    value.as_u64().unwrap() as usize
 }
 
 /// A radio with nothing to play: the routes of the streams do not need one.
@@ -74,14 +54,13 @@ fn frames_of(first: usize, count: usize) -> Vec<Frame> {
 }
 
 struct World {
-    data: HashMap<&'static str, Vec<u8>>,
     streams: Streams,
     feed: Arc<SpectrumFeed>,
     app: Router,
 }
 
 impl World {
-    fn new(data: HashMap<&'static str, Vec<u8>>) -> Self {
+    fn new() -> Self {
         let streams = Streams {
             mp3: Broadcaster::new(Config::mp3()),
             flac: Some(Broadcaster::new(Config::flac())),
@@ -95,45 +74,7 @@ impl World {
             spectrum: Some(feed.clone()),
             starts: Arc::new(StartPositions::new()),
         });
-        Self {
-            data,
-            streams,
-            feed,
-            app,
-        }
-    }
-
-    fn hub(&self, name: &str) -> &Arc<Broadcaster> {
-        match name {
-            "mp3" => &self.streams.mp3,
-            "flac" => self.streams.flac.as_ref().unwrap(),
-            _ => self.streams.ogg.as_ref().unwrap(),
-        }
-    }
-
-    /// `publish` of the script: chunks of the stream, with the position of the mix going on by a step for each.
-    fn publish(&self, op: &Value) {
-        let name = op["stream"].as_str().unwrap();
-        let (hub, data) = (self.hub(name), &self.data[name]);
-        let mut start = u(&op["from"]);
-        if start == 0 && name != "mp3" {
-            let length = if name == "flac" {
-                frames::flac_header_length(data)
-            } else {
-                frames::ogg_header_length(data)
-            }
-            .unwrap()
-            .unwrap();
-            hub.set_header(data[..length].to_vec());
-            start = length;
-        }
-        let (to, chunk) = (u(&op["to"]), u(&op["chunk"]));
-        let mut fed = op["fed"].as_f64().unwrap_or(0.0);
-        for at in (start..to).step_by(chunk) {
-            fed += op["fed_step"].as_f64().unwrap();
-            hub.set_fed(fed);
-            hub.publish(Bytes::copy_from_slice(&data[at..(at + chunk).min(to)]));
-        }
+        Self { streams, feed, app }
     }
 }
 
@@ -151,110 +92,6 @@ async fn read(body: &mut Body, wanted: usize) -> Vec<u8> {
         }
     }
     got
-}
-
-#[tokio::test]
-async fn the_listener_of_a_stream_gets_what_python_serves() {
-    let mut data = HashMap::new();
-    for name in ["mp3", "flac", "ogg"] {
-        match fs::read(dir().join(format!("{name}.bin"))) {
-            Ok(bytes) => data.insert(name, bytes),
-            Err(_) => {
-                assert!(
-                    std::env::var_os("GOLDEN_REQUIRED").is_none(),
-                    "{name}: run tools/gen_golden.py"
-                );
-                eprintln!("{name}: no stream, skipped");
-                return;
-            }
-        };
-    }
-    for scenario in golden()["scenarios"].as_array().unwrap() {
-        let name = scenario["name"].as_str().unwrap();
-        let world = World::new(data.clone());
-        world
-            .streams
-            .mp3
-            .set_title(scenario["title"].as_str().unwrap_or(""));
-        for op in scenario["setup"].as_array().unwrap() {
-            world.publish(op);
-        }
-        if let Some(count) = scenario["spectrum"].as_u64() {
-            for first in (0..count as usize).step_by(10) {
-                world.feed.publish(frames_of(first, 10));
-            }
-        }
-        for call in scenario["results"].as_array().unwrap() {
-            let what = format!("{name}: {}", call["path"].as_str().unwrap());
-            let mut request = Request::builder().uri(call["path"].as_str().unwrap());
-            for (key, value) in call["headers"].as_object().into_iter().flatten() {
-                request = request.header(key, value.as_str().unwrap());
-            }
-            let response = world
-                .app
-                .clone()
-                .oneshot(request.body(Body::empty()).unwrap())
-                .await
-                .unwrap();
-            assert_eq!(
-                u64::from(response.status().as_u16()),
-                call["status"].as_u64().unwrap(),
-                "{what}: status"
-            );
-            // the headers that Python sent, with its values, and no others of the kind
-            let wanted = call["response_headers"].as_object().unwrap();
-            for (key, want) in wanted {
-                let got = response.headers().get(key).and_then(|v| v.to_str().ok());
-                assert_eq!(got, want.as_str(), "{what}: the header {key}");
-            }
-            for key in [
-                "content-type",
-                "cache-control",
-                "icy-name",
-                "icy-metaint",
-                "access-control-allow-origin",
-                "x-accel-buffering",
-            ] {
-                assert_eq!(
-                    response.headers().contains_key(key),
-                    wanted.contains_key(key),
-                    "{what}: the header {key} is there or not"
-                );
-            }
-            let mut body = response.into_body();
-            let reads = call["reads"].as_array().unwrap();
-            let mut steps: Vec<Option<&Value>> = vec![None];
-            steps.extend(call["then"].as_array().into_iter().flatten().map(Some));
-            if call["then_frames"].is_array() {
-                steps.push(Some(&call["then_frames"]));
-            }
-            for (n, (step, read_result)) in steps.iter().zip(reads).enumerate() {
-                match step {
-                    Some(op) if op.is_array() => {
-                        world.feed.publish(frames_of(u(&op[0]), u(&op[1])))
-                    }
-                    Some(op) => world.publish(op),
-                    None => {}
-                }
-                let want_bytes = u(&read_result["bytes"]);
-                let got = read(&mut body, want_bytes).await;
-                assert_eq!(got.len(), want_bytes, "{what}: read {n}: bytes");
-                assert_eq!(
-                    sha1(&got),
-                    read_result["sha1"].as_str().unwrap(),
-                    "{what}: read {n}: sha1"
-                );
-                if let Some(text) = read_result["text"].as_str() {
-                    assert_eq!(
-                        String::from_utf8(got).unwrap(),
-                        text,
-                        "{what}: read {n}: the events"
-                    );
-                }
-            }
-        }
-        println!("{name}: the same");
-    }
 }
 
 #[tokio::test]
@@ -308,7 +145,7 @@ async fn what_is_not_served_is_not_found_as_in_python() {
 /// asked after fifteen.
 #[tokio::test(start_paused = true)]
 async fn the_spectrum_waits_for_the_page_and_keeps_the_connection_alive() {
-    let world = World::new(HashMap::new());
+    let world = World::new();
     world.feed.publish(frames_of(0, 10));
 
     // a page that never connects its stream: five seconds, then "position": null

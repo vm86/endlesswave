@@ -1,6 +1,5 @@
 //! The whole daemon: the radio, the API and the streams over a fake backend, with the real ffmpeg. Task 3.4.4 of
-//! docs/rust-port-radio.md. Needs ffmpeg and the library of `tests/golden/radio/library/` (not in git); without them the
-//! test is skipped, unless `GOLDEN_REQUIRED` is set.
+//! docs/rust-port-radio.md. Needs ffmpeg (without it the test is skipped); the tracks are made by the test.
 
 use radio_core::{
     backend::{
@@ -8,48 +7,32 @@ use radio_core::{
         fake::{FakeBackend, FakeOptions, FakeTrack},
     },
     serve::{ServeOptions, serve_with},
+    testing::write_music_wav,
 };
 use serde_json::Value;
-use std::{fs, path::PathBuf, sync::Arc, time::Duration};
-
-fn dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden/radio")
-}
+use std::{fs, sync::Arc, time::Duration};
 
 #[tokio::test(flavor = "multi_thread")]
 async fn the_daemon_streams_a_mix_and_answers_the_api() {
-    let library_dir = dir().join("library");
-    let have_ffmpeg = std::process::Command::new("ffmpeg")
+    if std::process::Command::new("ffmpeg")
         .arg("-version")
         .output()
-        .is_ok();
-    if !library_dir.join("t0.wav").exists() || !have_ffmpeg {
-        assert!(
-            std::env::var_os("GOLDEN_REQUIRED").is_none(),
-            "no library or no ffmpeg"
-        );
-        eprintln!("no library or no ffmpeg: skipped");
+        .is_err()
+    {
+        eprintln!("no ffmpeg: skipped");
         return;
     }
-    let library: Vec<Value> =
-        serde_json::from_str(&fs::read_to_string(dir().join("library.json")).unwrap()).unwrap();
-    let tracks: Vec<FakeTrack> = library
-        .iter()
-        .map(|entry| {
-            let mut asdict = entry.clone();
-            let file = library_dir.join(
-                asdict
-                    .as_object_mut()
-                    .unwrap()
-                    .remove("file")
-                    .unwrap()
-                    .as_str()
-                    .unwrap(),
-            );
-            FakeTrack {
-                track: serde_json::from_value(asdict).unwrap(),
-                file,
-            }
+    let dir = std::env::temp_dir().join(format!("radio-core-daemon-{}", std::process::id()));
+    fs::create_dir_all(&dir).unwrap();
+    let tracks: Vec<FakeTrack> = (0..4u32)
+        .map(|i| {
+            let file = dir.join(format!("t{i}.wav"));
+            write_music_wav(&file, 110.0 + f64::from(i) * 6.0, 40.0, i).unwrap();
+            let track = serde_json::from_value(serde_json::json!({
+                "track_id": format!("t{i}"), "title": format!("Track {i}"), "artists": ["Test"], "codec": "wav",
+            }))
+            .unwrap();
+            FakeTrack { track, file }
         })
         .collect();
     let backend = Arc::new(FakeBackend::new(

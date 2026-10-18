@@ -1,5 +1,5 @@
-//! The plans of a blend between two decks against the Python radio's (`tools/gen_golden.py`,
-//! `tests/golden/radio/pipeline.json`). Task 3.2.1 of docs/rust-port-radio.md.
+//! The plans of a blend between two decks against the answers of the original Python radio kept in
+//! `tests/golden/radio/pipeline.json`. Task 3.2.1 of docs/rust-port-radio.md.
 
 use radio_core::{
     mix::TrackAnalysis,

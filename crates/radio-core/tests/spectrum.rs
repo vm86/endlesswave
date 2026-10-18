@@ -1,10 +1,7 @@
-//! The spectrum against the Python radio's (`tools/gen_golden.py`, `tests/golden/spectrum/`). Task 3.5 of
-//! docs/rust-port.md. The mix (`mix.f32`) is not in git; without it the analyzer test is skipped, unless
-//! `GOLDEN_REQUIRED` is set.
+//! The spectrum feed and its text, with the answers of the original Python radio kept in `tests/golden/spectrum/`.
+//! Task 3.5 of docs/rust-port.md.
 
-use radio_core::spectrum::{
-    Frame, SpectrumAnalyzer, SpectrumFeed, StartPositions, sse_frames, sse_start,
-};
+use radio_core::spectrum::{Frame, SpectrumFeed, StartPositions, sse_frames, sse_start};
 use serde_json::Value;
 use std::{fs, path::PathBuf, time::Duration};
 
@@ -23,73 +20,6 @@ fn f(value: &Value) -> f64 {
 fn bands(value: &Value) -> [f64; 12] {
     let list: Vec<f64> = value.as_array().unwrap().iter().map(f).collect();
     list.try_into().expect("twelve bands")
-}
-
-#[test]
-fn the_analyzer_gives_the_bands_python_gives() {
-    let Ok(bytes) = fs::read(dir().join("mix.f32")) else {
-        assert!(
-            std::env::var_os("GOLDEN_REQUIRED").is_none(),
-            "no mix, run tools/gen_golden.py"
-        );
-        eprintln!("no mix: skipped");
-        return;
-    };
-    let mix: Vec<f32> = bytes
-        .chunks_exact(4)
-        .map(|b| f32::from_le_bytes(b.try_into().unwrap()))
-        .collect();
-    let golden = golden();
-    let mut analyzer = SpectrumAnalyzer::new();
-    let (mut place, mut compared, mut worst_band, mut flips) = (0, 0, 0.0f64, 0);
-    for (n, feed) in golden["feeds"].as_array().unwrap().iter().enumerate() {
-        let size = feed["size"].as_u64().unwrap() as usize;
-        let frames = analyzer.feed(&mix[place * 2..(place + size) * 2]);
-        place += size;
-        assert_eq!(
-            analyzer.position(),
-            f(&feed["position"]),
-            "feed {n}: position"
-        );
-        let want = feed["frames"].as_array().unwrap();
-        assert_eq!(frames.len(), want.len(), "feed {n}: number of frames");
-        for (got, want) in frames.iter().zip(want) {
-            assert_eq!(got.t, f(&want["t"]), "feed {n}: t");
-            for (g, w) in got.bands.iter().zip(bands(&want["b"])) {
-                worst_band = worst_band.max((g - w).abs());
-            }
-            // The text has the bands to 3 places: of the same numbers the same text, but for the rare one that
-            // lies on the edge between two roundings.
-            let (got_json, want_json) = (got.to_json(), want["json"].as_str().unwrap());
-            if got_json != want_json {
-                flips += 1;
-                let (a, b): (Value, Value) = (
-                    serde_json::from_str(&got_json).unwrap(),
-                    serde_json::from_str(want_json).unwrap(),
-                );
-                assert_eq!(a["t"], b["t"]);
-                for (x, y) in a["b"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .zip(b["b"].as_array().unwrap())
-                {
-                    assert!(
-                        (f(x) - f(y)).abs() < 0.0011,
-                        "feed {n}: {got_json} against {want_json}"
-                    );
-                }
-            }
-            compared += 1;
-        }
-    }
-    assert_eq!(place * 2, mix.len());
-    assert!(compared > 150, "{compared} frames");
-    println!(
-        "{compared} frames, the bands differ by {worst_band:e} at most, {flips} texts on a rounding edge"
-    );
-    assert!(worst_band < 1e-4, "the bands differ by {worst_band}");
-    assert!(flips <= 2, "{flips} texts differ");
 }
 
 #[test]

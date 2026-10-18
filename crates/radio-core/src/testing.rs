@@ -17,7 +17,7 @@ use std::sync::{
 use tokio::sync::Notify;
 
 /// A radio with decks in a fixed order and the flags the mix looks at, which a test sets. What the mix tells it is
-/// written to `log` the way `Scripted` of `tools/gen_golden.py` writes it.
+/// written to `log`.
 pub struct ScriptedRadio {
     pub decks: Vec<(String, Arc<[f32]>, TrackAnalysis)>,
     pub order: Vec<usize>,
@@ -182,4 +182,51 @@ pub fn tone_deck(title: &str, seconds: f64, bpm: f64) -> (String, Arc<[f32]>, Tr
         key: 0,
     };
     (title.to_owned(), Arc::from(pcm), analysis)
+}
+
+/// Write a WAV file (mono, 22.05 kHz, 16 bit) of something a beat can be found in: a kick on every beat of `bpm` over a
+/// chord that depends on `seed`, with a little noise. For tests that need real files.
+pub fn write_music_wav(
+    path: &std::path::Path,
+    bpm: f64,
+    seconds: f64,
+    seed: u32,
+) -> std::io::Result<()> {
+    const RATE: u32 = 22050;
+    let frames = (seconds * f64::from(RATE)) as usize;
+    let period = f64::from(RATE) * 60.0 / bpm;
+    let root = 110.0 * 2f64.powf(f64::from(seed % 12) / 12.0);
+    let mut noise = seed.wrapping_mul(2_654_435_761) | 1;
+    let mut samples = Vec::with_capacity(frames * 2);
+    for n in 0..frames {
+        let t = n as f64 / f64::from(RATE);
+        let since_beat = (n as f64 % period) / f64::from(RATE);
+        let kick =
+            (std::f64::consts::TAU * 60.0 * since_beat).sin() * (-since_beat * 30.0).exp() * 0.6;
+        let chord: f64 = [1.0, 1.26, 1.5]
+            .iter()
+            .map(|r| (std::f64::consts::TAU * root * r * t).sin() * 0.12)
+            .sum();
+        noise ^= noise << 13;
+        noise ^= noise >> 17;
+        noise ^= noise << 5;
+        let hiss = (f64::from(noise >> 8) / f64::from(1u32 << 24) - 0.5) * 0.02;
+        let value = ((kick + chord + hiss).clamp(-1.0, 1.0) * 32767.0) as i16;
+        samples.extend_from_slice(&value.to_le_bytes());
+    }
+    let mut out = Vec::with_capacity(44 + samples.len());
+    out.extend_from_slice(b"RIFF");
+    out.extend_from_slice(&(36 + samples.len() as u32).to_le_bytes());
+    out.extend_from_slice(b"WAVEfmt ");
+    out.extend_from_slice(&16u32.to_le_bytes());
+    out.extend_from_slice(&1u16.to_le_bytes()); // PCM
+    out.extend_from_slice(&1u16.to_le_bytes()); // mono
+    out.extend_from_slice(&RATE.to_le_bytes());
+    out.extend_from_slice(&(RATE * 2).to_le_bytes());
+    out.extend_from_slice(&2u16.to_le_bytes());
+    out.extend_from_slice(&16u16.to_le_bytes());
+    out.extend_from_slice(b"data");
+    out.extend_from_slice(&(samples.len() as u32).to_le_bytes());
+    out.extend_from_slice(&samples);
+    std::fs::write(path, out)
 }

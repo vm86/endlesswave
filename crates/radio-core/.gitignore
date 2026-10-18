@@ -1,16 +1,2 @@
-# The signals of the golden cases: big, made again by tools/gen_golden.py
-/tests/golden/*.f32
-/tests/golden/blend/*.f32
 /target/
-/tests/golden/effects/*.f32
-/tests/golden/effects/*.f64
 /vendor/
-/tests/golden/cache/*.db
-/tests/golden/stream/*.bin
-/tests/golden/stream/*.f32
-/tests/golden/spectrum/*.f32
-/tests/golden/radio/library/
-/tests/golden/radio/*.f32
-/tests/golden/radio/*.f64
-/tests/golden/radio/*.db
-/tests/golden/local/music/
