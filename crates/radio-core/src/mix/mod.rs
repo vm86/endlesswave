@@ -78,12 +78,12 @@ pub fn estimate_key(mono: &[f32]) -> i32 {
 ///
 /// The key is found by Essentia (feature `essentia`), and by the profiles where it has no answer or is not built in.
 pub fn analyze(pcm: &[f32]) -> TrackAnalysis {
-    let rhythm = analysis::rhythm(pcm);
-    let body = &pcm[rhythm.start * CHANNELS..rhythm.end * CHANNELS];
-    let mono: Vec<f32> = body
-        .chunks_exact(CHANNELS)
-        .map(|f| (f[0] + f[1]) / 2.0)
-        .collect();
+    // The loudness first: its meter makes a copy of the stereo signal, and the copy is gone before the mono one (half as big)
+    // and the one Essentia makes of that are made. Freed memory is reused by what is allocated next; all together there are
+    // never more than two copies of the track.
+    let (start, end) = analysis::audible_range(pcm);
+    let loudness_db = loudness::measure_loudness(&pcm[start * CHANNELS..end * CHANNELS]);
+    let (rhythm, mono) = analysis::rhythm_and_mono(pcm);
     let key = estimate_key(&mono);
     TrackAnalysis {
         bpm: rhythm.bpm,
@@ -91,7 +91,7 @@ pub fn analyze(pcm: &[f32]) -> TrackAnalysis {
         tail_beat: rhythm.tail_beat,
         start: rhythm.start as i64,
         end: rhythm.end as i64,
-        loudness_db: loudness::measure_loudness(body),
+        loudness_db,
         intro_end: rhythm.intro_end,
         outro_start: rhythm.outro_start,
         key,

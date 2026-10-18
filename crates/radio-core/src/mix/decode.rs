@@ -150,6 +150,7 @@ pub fn decode_native(path: &Path) -> Result<Vec<f32>, NativeError> {
         .default_track(TrackType::Audio)
         .ok_or_else(|| NativeError::Unsupported("no audio track".into()))?;
     let track_id = track.id;
+    let expected_frames = track.num_frames;
     let params = track
         .codec_params
         .as_ref()
@@ -179,6 +180,11 @@ pub fn decode_native(path: &Path) -> Result<Vec<f32>, NativeError> {
                 let (count, hz) = (spec.channels().count(), spec.rate());
                 if channels == 0 {
                     (channels, rate) = (count, hz);
+                    // The length is known (most formats say it): one allocation of the size of the track, and not a vector that
+                    // doubles and holds up to twice as much.
+                    if let Some(frames) = expected_frames.filter(|&f| f < (1 << 31)) {
+                        samples.reserve_exact(frames as usize * count);
+                    }
                 } else if (count, hz) != (channels, rate) {
                     return Err(NativeError::Unsupported(
                         "the format changes in the middle".into(),
@@ -192,6 +198,10 @@ pub fn decode_native(path: &Path) -> Result<Vec<f32>, NativeError> {
             Err(Error::IoError(_) | Error::DecodeError(_)) => {}
             Err(error) => return Err(unsupported(error)),
         }
+    }
+    // A length that was not said, or said wrong: do not keep what is not used.
+    if samples.capacity() > samples.len() + samples.len() / 16 {
+        samples.shrink_to_fit();
     }
     if channels == 0 || samples.is_empty() {
         return Err(NativeError::Failed("nothing decoded".into()));

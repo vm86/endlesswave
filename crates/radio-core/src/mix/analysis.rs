@@ -274,6 +274,12 @@ pub struct Rhythm {
 /// The rhythm and the structure of a stereo, interleaved track (the part of `analyze` of `dj_mix.py`
 /// that does not need the key or the loudness).
 pub fn rhythm(pcm: &[f32]) -> Rhythm {
+    rhythm_and_mono(pcm).0
+}
+
+/// The same, with the mono signal of the audible part that it was made from (the key is found in it: it is not made twice,
+/// which on a long track is hundreds of megabytes).
+pub fn rhythm_and_mono(pcm: &[f32]) -> (Rhythm, Vec<f32>) {
     let (start, end) = audible_range(pcm);
     let mono: Vec<f32> = pcm[start * CHANNELS..end * CHANNELS]
         .chunks_exact(CHANNELS)
@@ -319,13 +325,16 @@ pub fn rhythm(pcm: &[f32]) -> Rhythm {
             outro_start = -1;
         }
     }
-    Rhythm {
-        bpm,
-        head_beat,
-        tail_beat,
-        start,
-        end,
-        intro_end,
-        outro_start,
-    }
+    (
+        Rhythm {
+            bpm,
+            head_beat,
+            tail_beat,
+            start,
+            end,
+            intro_end,
+            outro_start,
+        },
+        mono,
+    )
 }

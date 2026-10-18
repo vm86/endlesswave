@@ -19,13 +19,21 @@ fn mean_square(pcm: &[f32]) -> f64 {
     pcm.iter().map(|&s| f64::from(s).powi(2)).sum::<f64>() / pcm.len() as f64
 }
 
+/// Longest body (in samples, both channels) whose loudness is measured by Essentia: six minutes.
+#[cfg(feature = "essentia")]
+const ESSENTIA_LOUDNESS_MAX_SAMPLES: usize = 6 * 60 * 44100 * 2;
+
 /// The integrated loudness of the audible part of a stereo, interleaved track in LUFS. For a piece shorter
 /// than a gating block it is the RMS brought to the same scale.
 pub fn measure_loudness(body: &[f32]) -> f64 {
     if body.len() as f64 >= MIN_LUFS_SECONDS * f64::from(SAMPLE_RATE) * CHANNELS as f64 {
         // Essentia, where it is built in, gives the very numbers of the Python radio.
+        // (Essentia makes a copy of the signal, and works in more of its own; on a long track that is the biggest piece of
+        // memory the radio ever uses, so there the streaming meter below, which differs by about 0.001 dB, is used.)
         #[cfg(feature = "essentia")]
-        if let Some(integrated) = super::essentia::essentia_loudness(body).filter(|l| l.is_finite())
+        if body.len() <= ESSENTIA_LOUDNESS_MAX_SAMPLES
+            && let Some(integrated) =
+                super::essentia::essentia_loudness(body).filter(|l| l.is_finite())
         {
             return integrated;
         }
