@@ -26,7 +26,14 @@ rusqlite = { version = "0.37", features = ["bundled"] }
 rodio = { version = "0.23", default-features = false, features = ["playback"] }
 symphonia = { version = "0.6", features = ["mp3", "flac", "ogg", "vorbis"] }
 ureq = "3"
+# The radio itself (ENDLESSWAVE_ENGINE=rust); the key and the loudness as the Python radio finds them need the feature
+# `essentia` (vendor/essentia, see crates/radio-core/tools/fetch-vendor.sh).
+radio-core = { path = "../crates/radio-core" }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
 souvlaki = { version = "0.8", default-features = false, features = ["use_zbus"] }
+
+[features]
+essentia = ["radio-core/essentia"]
 
 [profile.release]
 codegen-units = 1

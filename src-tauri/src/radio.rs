@@ -11,6 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+use crate::engine::Engine;
 use tauri::{AppHandle, Emitter, Manager};
 
 pub const HOST: &str = "127.0.0.1";
@@ -19,6 +20,8 @@ pub const DEFAULT_PORT: u16 = 18000;
 #[derive(Default)]
 pub struct Radio {
     child: Mutex<Option<Child>>,
+    /// The radio inside the app (ENDLESSWAVE_ENGINE=rust), instead of the child.
+    engine: Mutex<Option<Engine>>,
     /// Set when the app is leaving: a service that ends then is not a crash.
     stopping: AtomicBool,
     watching: AtomicBool,
@@ -36,6 +39,11 @@ const MAX_CRASHES: u32 = 5;
 fn env(name: &str) -> Option<std::ffi::OsString> {
     let old = if name == "DJ_BIN" { "YAMUSIC_DJ_BIN".to_string() } else { format!("YAMUSIC_RADIO_{name}") };
     std::env::var_os(format!("ENDLESSWAVE_{name}")).or_else(|| std::env::var_os(old))
+}
+
+/// ENDLESSWAVE_ENGINE=rust: the radio runs inside the app (`radio-core`), not as the Python daemon.
+fn rust_engine() -> bool {
+    env("ENGINE").is_some_and(|value| value == "rust")
 }
 
 pub fn port() -> u16 {
@@ -268,13 +276,20 @@ fn watch(app: &AppHandle) {
         if radio.paused.load(Ordering::SeqCst) {
             continue;
         }
-        let died = match radio.child.lock().unwrap().as_mut() {
+        let mut died = match radio.child.lock().unwrap().as_mut() {
             Some(child) => match child.try_wait() {
                 Ok(Some(status)) => Some(status.to_string()),
                 _ => None,
             },
             None => None, // someone else's service, or not started
         };
+        if died.is_none() {
+            let mut engine = radio.engine.lock().unwrap();
+            if engine.as_ref().is_some_and(Engine::is_finished) {
+                let mut ended = engine.take().expect("checked above");
+                died = Some(ended.join().err().unwrap_or_else(|| "it ended".into()));
+            }
+        }
         let Some(status) = died else { continue };
         radio.child.lock().unwrap().take();
         if launched.elapsed() >= STABLE {
@@ -317,6 +332,9 @@ impl Radio {
 
     fn launch(&self, resources: Option<&Path>) -> Result<(), String> {
         let port = port();
+        if rust_engine() {
+            return self.launch_engine(resources);
+        }
         let mut guard = self.child.lock().unwrap();
         if guard.is_some() {
             return Ok(());
@@ -357,6 +375,30 @@ impl Radio {
         Ok(())
     }
 
+    /// Start `radio-core` on a thread of the app, unless something answers on the port already.
+    fn launch_engine(&self, resources: Option<&Path>) -> Result<(), String> {
+        let port = port();
+        let mut guard = self.engine.lock().unwrap();
+        if guard.is_some() || is_up(port) {
+            return Ok(());
+        }
+        // An app started from the Finder has a short PATH: ffprobe and the rest are looked for by it.
+        // Safety: set before the engine starts its threads, from the one that starts it.
+        unsafe { std::env::set_var("PATH", path_with_ffmpeg_places(resources)) };
+        let mut args: Vec<String> = ["--host", HOST, "--port"].map(String::from).to_vec();
+        args.push(port.to_string());
+        if let Some(extra) = env("ARGS").and_then(|value| value.into_string().ok()) {
+            args.extend(extra.split_whitespace().map(String::from));
+        }
+        if env("DEBUG").is_some() {
+            args.push("--debug".into());
+        }
+        let bundled = resources.map(|dir| dir.join("ffmpeg").join("ffmpeg")).filter(|path| path.is_file());
+        let log = (env("LOG").is_some() || env("DEBUG").is_some()).then(log_path).flatten();
+        *guard = Some(Engine::start(&args, bundled, log.as_deref())?);
+        Ok(())
+    }
+
     pub fn stop(&self) {
         self.stopping.store(true, Ordering::SeqCst);
         self.stop_child(40);
@@ -369,7 +411,7 @@ impl Radio {
     /// The service has to stop first: it writes its state when it ends. One the app did not start
     /// (it was there before) is not ours to stop.
     pub fn reset(&self, resources: Option<&Path>) -> Result<(), String> {
-        if self.child.lock().unwrap().is_none() && is_up(port()) {
+        if self.child.lock().unwrap().is_none() && self.engine.lock().unwrap().is_none() && is_up(port()) {
             return Err("The radio service was not started by this app: stop it, then reset".into());
         }
         self.paused.store(true, Ordering::SeqCst);
@@ -381,6 +423,9 @@ impl Radio {
     }
 
     fn stop_child(&self, tenths_of_second: u32) {
+        if let Some(engine) = self.engine.lock().unwrap().take() {
+            engine.stop(tenths_of_second);
+        }
         if let Some(mut child) = self.child.lock().unwrap().take() {
             forget_pid();
             // SIGTERM first: the daemon puts the station's settings back and
