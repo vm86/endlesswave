@@ -627,7 +627,7 @@ def build_music(root: Path) -> None:
     make("sub/c.ogg", {}, "-c:a", "flac", "-f", "ogg")
     make("sub/deep/d.wav", {"title": "Rock = Roll; #1 \\ back", "artist": "Ünï Çode ✓"})
     make("sub/h.m4a", {"title": "Hotel", "artist": "Dub"})
-    make("Other Folder/e.opus", {"title": "  Spaced  ", "genre": ""}, "-c:a", "flac", "-f", "ogg")
+    make("Other Folder/e.opus", {"title": "   ", "genre": ""}, "-c:a", "flac", "-f", "ogg")
     make(".hidden/f.mp3", {"title": "Hidden folder"})
     make("._g.mp3", {"title": "Mac leftover"})
     (root / "notes.txt").write_text("not music")

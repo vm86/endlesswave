@@ -132,7 +132,7 @@ async fn blends_are_made_and_told_as_python_does() {
     let pcm: Vec<Arc<[f32]>> = golden
         .tracks
         .iter()
-        .map(|t| match decode::decode_file(&library.join(&t.file)) {
+        .map(|t| match decode::decode_with_ffmpeg(std::path::Path::new("ffmpeg"), &library.join(&t.file)) {
             Ok(pcm) => Arc::from(pcm),
             Err(error) => {
                 assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "{error}");

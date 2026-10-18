@@ -115,7 +115,7 @@ async fn the_mix_plays_and_tells_what_python_does() {
     }
     let mut decks = Vec::new();
     for track in &golden.tracks {
-        match decode::decode_file(&library.join(&track.file)) {
+        match decode::decode_with_ffmpeg(std::path::Path::new("ffmpeg"), &library.join(&track.file)) {
             Ok(pcm) => decks.push((track.title.clone(), Arc::<[f32]>::from(pcm), track.analysis.clone())),
             Err(error) => {
                 assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "{error}");

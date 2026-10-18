@@ -279,7 +279,7 @@ async fn real_encoders_give_streams_a_listener_can_join() {
     }
     let mut decks = Vec::new();
     for i in 0..2 {
-        let Ok(pcm) = decode::decode_file(&library.join(format!("t{i}.wav"))) else { return skip("no library") };
+        let Ok(pcm) = decode::decode_with_ffmpeg(std::path::Path::new("ffmpeg"), &library.join(format!("t{i}.wav"))) else { return skip("no library") };
         let analysis: TrackAnalysis = radio_core::mix::analyze(&pcm);
         decks.push((format!("Track {i}"), Arc::<[f32]>::from(pcm), analysis));
     }

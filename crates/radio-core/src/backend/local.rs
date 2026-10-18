@@ -219,6 +219,15 @@ impl LocalBackend {
 
     async fn tags(&self, path: &Path) -> std::io::Result<HashMap<String, String>> {
         let _turn = self.probes.acquire().await.expect("the semaphore is never closed");
+        let native = {
+            let path = path.to_owned();
+            tokio::task::spawn_blocking(move || tags_native(&path)).await.map_err(std::io::Error::other)?
+        };
+        // A file without tags that symphonia knows (a WAV with a RIFF INFO list, say) is asked of ffmpeg, if there is one.
+        let native = match native {
+            Some(tags) if !tags.is_empty() => return Ok(tags),
+            other => other,
+        };
         let output = tokio::process::Command::new(&self.ffmpeg)
             .args(["-nostdin", "-v", "error", "-i"])
             .arg(path)
@@ -227,8 +236,13 @@ impl LocalBackend {
             .stderr(Stdio::null())
             .kill_on_drop(true)
             .output()
-            .await?;
-        Ok(parse_tags(&String::from_utf8_lossy(&output.stdout)))
+            .await;
+        match output {
+            Ok(output) => Ok(parse_tags(&String::from_utf8_lossy(&output.stdout))),
+            // No ffmpeg: what symphonia found (nothing) is all there is.
+            Err(_) if native.is_some() => Ok(HashMap::new()),
+            Err(error) => Err(error),
+        }
     }
 
     async fn track(&self, root: &Path, file_id: &str, path: &Path) -> std::io::Result<Track> {
@@ -254,6 +268,41 @@ impl LocalBackend {
             native_id: String::new(),
         })
     }
+}
+
+/// The tags the radio uses (`artist`, `album_artist`, `title`, `genre`, as ffmpeg names them), read by `symphonia`; `None` if
+/// it can't read the file (ffmpeg is asked then).
+pub fn tags_native(path: &Path) -> Option<HashMap<String, String>> {
+    use symphonia::core::{
+        formats::{FormatOptions, probe::Hint},
+        io::MediaSourceStream,
+        meta::{MetadataOptions, StandardTag},
+    };
+    let file = std::fs::File::open(path).ok()?;
+    let mut hint = Hint::new();
+    if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
+        hint.with_extension(extension);
+    }
+    let mut format = symphonia::default::get_probe()
+        .probe(&hint, MediaSourceStream::new(Box::new(file), Default::default()), FormatOptions::default(), MetadataOptions::default())
+        .ok()?;
+    let mut metadata = format.metadata();
+    while !metadata.is_latest() {
+        metadata.pop();
+    }
+    let mut tags = HashMap::new();
+    for tag in metadata.current().into_iter().flat_map(|revision| revision.media.tags.iter()) {
+        let (key, value) = match &tag.std {
+            Some(StandardTag::Artist(v)) => ("artist", v),
+            Some(StandardTag::AlbumArtist(v)) => ("album_artist", v),
+            Some(StandardTag::TrackTitle(v)) => ("title", v),
+            Some(StandardTag::Genre(v)) => ("genre", v),
+            _ => continue,
+        };
+        // (the last one of a key wins, and the value is trimmed, as in `parse_tags`)
+        tags.insert(key.to_owned(), value.trim().to_owned());
+    }
+    Some(tags)
 }
 
 #[async_trait]
