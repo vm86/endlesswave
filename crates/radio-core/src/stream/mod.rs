@@ -5,3 +5,4 @@ pub mod broadcaster;
 pub mod encoder;
 pub mod frames;
 pub mod icy;
+pub mod native;

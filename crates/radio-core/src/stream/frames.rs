@@ -163,7 +163,7 @@ fn ogg_crc_table() -> [u32; 256] {
     table
 }
 
-fn ogg_crc(data: &[u8]) -> u32 {
+pub(crate) fn ogg_crc(data: &[u8]) -> u32 {
     static TABLE: std::sync::OnceLock<[u32; 256]> = std::sync::OnceLock::new();
     let table = TABLE.get_or_init(ogg_crc_table);
     data.iter().fold(0u32, |crc, &byte| (crc << 8) ^ table[((crc >> 24) as u8 ^ byte) as usize])

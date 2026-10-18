@@ -33,6 +33,8 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 symphonia = { version = "0.6.1", features = ["aac", "alac", "flac", "mp3", "vorbis", "pcm", "isomp4", "ogg", "wav"] }
 rubato = "5.0.1"
 audioadapter-buffers = "5.2.0"
+mp3lame-encoder = "0.2.5"
+flacenc = "0.5.1"
 
 [dev-dependencies]
 http-body-util = "0.1.5"

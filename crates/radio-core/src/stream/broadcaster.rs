@@ -166,8 +166,22 @@ impl Broadcaster {
         self.state().header.clone()
     }
 
+    /// Set the header that listeners get first. A listener that joined before it was there (the first one comes while the
+    /// first tracks are being prepared) and has had nothing yet gets it now: without it the stream can't be played.
+    /// (The Python radio leaves such a listener without the header.)
     pub fn set_header(&self, header: Vec<u8>) {
-        self.state().header = header;
+        let mut state = self.state();
+        if state.total == 0 && !header.is_empty() {
+            for client in &state.clients {
+                let mut queue = client.queue.lock().expect("not poisoned");
+                if queue.is_empty() {
+                    queue.push_back(Bytes::copy_from_slice(&header));
+                    drop(queue);
+                    client.ready.notify_one();
+                }
+            }
+        }
+        state.header = header;
     }
 
     /// The seconds of the mix that were fed to the encoder.

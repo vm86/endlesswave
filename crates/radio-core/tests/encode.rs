@@ -320,8 +320,8 @@ async fn real_encoders_give_streams_a_listener_can_join() {
     let first = late.try_recv().expect("the latest audio at once");
     assert_eq!(frames::mp3_start(&first), 0, "it starts on a frame");
     assert!(position.is_some_and(|p| p > 0.0), "{position:?}");
-    // The header of FLAC and of Ogg is kept apart, and sent first to who joins after it is known (not to who was
-    // there before: this listener got the audio only).
+    // The header of FLAC and of Ogg is kept apart, and sent first to who joins after it is known. Who was there before
+    // gets it as soon as it is known (the Python radio sends such a listener the audio only).
     for (hub, marker) in [(streams.flac.as_ref().unwrap(), &b"fLaC"[..]), (streams.ogg.as_ref().unwrap(), &b"OggS"[..])] {
         let header = hub.header();
         assert_eq!(&header[..4], marker);
@@ -337,7 +337,10 @@ async fn real_encoders_give_streams_a_listener_can_join() {
         place += size;
     }
     assert_eq!(place, ogg_header.len());
-    assert_eq!(frames::flac_start(&received[1]), 0, "the FLAC audio starts on a frame");
-    assert_eq!(&received[2][..4], b"OggS", "the Ogg audio starts on a page");
+    let flac_header = streams.flac.as_ref().unwrap().header();
+    assert!(received[1].starts_with(&flac_header), "the early FLAC listener has the header first");
+    assert_eq!(frames::flac_start(&received[1][flac_header.len()..]), 0, "the FLAC audio starts on a frame");
+    assert!(received[2].starts_with(&ogg_header), "the early Ogg listener has the header first");
+    assert_eq!(&received[2][ogg_header.len()..][..4], b"OggS", "the Ogg audio starts on a page");
     assert_eq!(streams.mp3.title(), "Track 0");
 }

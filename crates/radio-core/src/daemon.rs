@@ -96,6 +96,9 @@ pub struct Options {
     /// Don't keep anything on disk between runs
     #[arg(long)]
     pub no_cache: bool,
+    /// Encode the streams with ffmpeg processes instead of the encoders built into the program
+    #[arg(long)]
+    pub ffmpeg_encoders: bool,
     /// The ffmpeg to run
     #[arg(long, default_value = "ffmpeg")]
     pub ffmpeg: PathBuf,
@@ -187,8 +190,10 @@ where
 
 /// Log to a file or to stderr; a second call (a logger is already there) does nothing.
 pub fn init_logging(debug: bool, file: Option<&Path>) {
-    let level = if debug { "debug" } else { "info" };
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| level.into());
+    // (symphonia warns of every m4a it probes: the 4 bytes before "ftyp")
+    let quiet = "symphonia_core=error,symphonia_format_isomp4=error,symphonia_bundle_mp3=error,symphonia_bundle_flac=error,symphonia_format_ogg=error,symphonia_format_riff=error,symphonia_metadata=error,symphonia_codec_aac=error";
+    let level = format!("{},{quiet}", if debug { "debug" } else { "info" });
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| level.as_str().into());
     let builder = tracing_subscriber::fmt().with_env_filter(filter);
     let file = file.and_then(|path| std::fs::OpenOptions::new().create(true).append(true).open(path).ok());
     let _ = match file {
@@ -239,6 +244,7 @@ pub async fn run(
             mood_arc: options.mood_arc,
             tracks_dir: tracks_dir(&options),
             ffmpeg: options.ffmpeg.clone(),
+            ffmpeg_encoders: options.ffmpeg_encoders,
         },
         radio_cache,
         ready,

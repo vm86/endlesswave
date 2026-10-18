@@ -43,11 +43,12 @@ async fn encode(format: Format, pcm: &[f32]) -> Vec<u8> {
         encoder.write(piece).await.unwrap();
     }
     encoder.finish().await.unwrap();
-    let mut stream = hub.header();
+    let mut stream = Vec::new();
     while let Some(chunk) = listener.try_recv() {
         stream.extend_from_slice(&chunk);
     }
-    stream
+    // (a listener who was there before the header was known has it first now)
+    if stream.starts_with(&hub.header()) { stream } else { [hub.header(), stream].concat() }
 }
 
 #[tokio::test]

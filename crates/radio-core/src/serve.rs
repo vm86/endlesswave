@@ -14,6 +14,7 @@ use crate::{
     stream::{
         broadcaster::{Broadcaster, Config},
         encoder::{Format, FfmpegEncoder},
+        native::{AnyEncoder, NativeEncoder},
     },
 };
 use std::{
@@ -49,6 +50,8 @@ pub struct ServeOptions {
     /// goes with the run.
     pub tracks_dir: Option<PathBuf>,
     pub ffmpeg: PathBuf,
+    /// Encode with ffmpeg processes instead of the encoders built in.
+    pub ffmpeg_encoders: bool,
 }
 
 impl Default for ServeOptions {
@@ -62,6 +65,7 @@ impl Default for ServeOptions {
             mood_arc: false,
             tracks_dir: None,
             ffmpeg: PathBuf::from("ffmpeg"),
+            ffmpeg_encoders: false,
         }
     }
 }
@@ -152,6 +156,7 @@ pub async fn serve_with(
         let radio = radio.clone();
         let backend = backend.clone();
         let ffmpeg = options.ffmpeg.clone();
+        let ffmpeg_encoders = options.ffmpeg_encoders;
         async move {
             // Waiting for the user to authorize the app.
             backend.wait_authorized().await;
@@ -179,7 +184,9 @@ pub async fn serve_with(
                 noise,
                 streams,
                 Some(spectrum),
-                move |format: Format, hub: Arc<Broadcaster>| FfmpegEncoder::start(&ffmpeg, format, hub),
+                move |format: Format, hub: Arc<Broadcaster>| {
+                    if ffmpeg_encoders { FfmpegEncoder::start(&ffmpeg, format, hub).map(AnyEncoder::Ffmpeg) } else { NativeEncoder::start(format, hub).map(AnyEncoder::Native) }
+                },
                 Options::default(),
             )
             .await;

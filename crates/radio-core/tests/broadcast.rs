@@ -168,3 +168,17 @@ async fn a_listener_waits_for_the_stream_and_the_mix_waits_for_a_listener() {
     drop(listener);
     assert!(!other.has_listeners());
 }
+
+#[tokio::test]
+async fn a_listener_who_joined_before_the_header_gets_it_when_it_is_set() {
+    use radio_core::stream::broadcaster::{Broadcaster, Config};
+    let hub = Broadcaster::new(Config::flac());
+    let early = hub.subscribe();
+    hub.set_header(b"HEADER".to_vec());
+    hub.publish(bytes::Bytes::from_static(b"frame"));
+    assert_eq!(&early.recv().await[..], b"HEADER");
+    assert_eq!(&early.recv().await[..], b"frame");
+    // one who comes later gets it as before, and not twice
+    let late = hub.subscribe();
+    assert_eq!(&late.recv().await[..], b"HEADER");
+}
