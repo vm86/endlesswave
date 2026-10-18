@@ -24,6 +24,8 @@ impl Engine {
         }
         let options = parse_args(argv)?;
         init_logging(options.debug, log);
+        // A panic is told in the log (and ends the thread, which the app finds out and starts the radio again).
+        std::panic::set_hook(Box::new(|info| eprintln!("the radio panicked: {info}")));
         let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
         let (ready, listening) = std::sync::mpsc::channel::<std::net::SocketAddr>();
         let thread = std::thread::Builder::new()
@@ -107,6 +109,16 @@ mod tests {
         assert!(body.starts_with('{'), "{body}");
         engine.stop(100);
         assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_err(), "the port is free again");
+    }
+
+    #[test]
+    fn a_panic_ends_the_engine_and_is_told() {
+        let thread = std::thread::spawn(|| -> Result<(), String> { panic!("on purpose") });
+        let mut engine = Engine { stop: None, thread: Some(thread) };
+        while !engine.is_finished() {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(engine.join(), Err("the radio panicked".to_owned()));
     }
 
     #[test]

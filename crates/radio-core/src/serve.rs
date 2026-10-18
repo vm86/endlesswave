@@ -177,7 +177,8 @@ pub async fn serve_with(
                 async move { radio.keep_filled().await }
             });
             let noise: SharedNoise = Arc::new(Mutex::new(RandomNoise::from_entropy()));
-            encode_forever(
+            let mut refill = refill;
+            let mix = encode_forever(
                 radio.clone() as Arc<dyn DeckSource>,
                 clock,
                 options.effects,
@@ -188,14 +189,19 @@ pub async fn serve_with(
                     if ffmpeg_encoders { FfmpegEncoder::start(&ffmpeg, format, hub).map(AnyEncoder::Ffmpeg) } else { NativeEncoder::start(format, hub).map(AnyEncoder::Native) }
                 },
                 Options::default(),
-            )
-            .await;
+            );
+            // A task that ends (it panicked) leaves the radio half dead: end it all, whoever runs it starts it again.
+            tokio::select! {
+                () = mix => {}
+                ended = &mut refill => tracing::error!("The refill of the pool ended: {ended:?}"),
+            }
             refill.abort();
         }
     };
     tokio::select! {
         () = work => {}
         () = shutdown => tracing::info!("Shutting down..."),
+        ended = &mut server => tracing::error!("The server ended: {ended:?}"),
     }
     // The mood is a setting of the account: leave it as it was.
     if let Err(error) = radio.restore_settings().await {
