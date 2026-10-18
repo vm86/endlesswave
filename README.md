@@ -76,7 +76,7 @@ If you have not signed in yet, a card "Sign in to Yandex Music" shows at the top
 1. Press **Copy code** (the code goes to the clipboard) and **Open**: the Yandex page opens.
 2. Paste the code and confirm the sign-in.
 
-The token is kept in `~/.config/yamusic-radio.json` (mode `0600`), so you sign in once.
+The token is kept in `~/.config/endlesswave.json` (mode `0600`), so you sign in once.
 
 ### Music from a folder
 
@@ -172,24 +172,24 @@ The app reads the stream itself, decodes it (MP3, FLAC) and plays it through the
 the window only controls it.
 Everything else (the queue, the moods, the spectrum) comes from the API of the radio. The radio runs inside the app (`crates/radio-core`); if something already answers on port `18000`, the app connects to it.
 
-Files of the radio:
+Files of the radio (versions before 0.2 kept them as `~/.config/yamusic-radio.json`, `~/.cache/yamusic-radio.db` and so on; the first start moves the token and the database to the new names and removes the old files, the loaded tracks and the log):
 
 | What | Where |
 |---|---|
-| The Yandex Music token | `~/.config/yamusic-radio.json` |
-| The cache of the analysis, the settings | `~/.cache/yamusic-radio.db` |
-| The loaded tracks that wait for their turn | `~/.cache/yamusic-radio-tracks/` |
-| The log (only with `ENDLESSWAVE_LOG=1`) | `~/.cache/yamusic_radio.log` |
+| The Yandex Music token | `~/.config/endlesswave.json` |
+| The cache of the analysis, the settings | `~/.cache/endlesswave.db` |
+| The loaded tracks that wait for their turn | `~/.cache/endlesswave-tracks/` |
+| The log (only with `ENDLESSWAVE_LOG=1`) | `~/.cache/endlesswave.log` |
 
 Environment: `ENDLESSWAVE_PORT` (the port, 18000 by default), `ENDLESSWAVE_ARGS` (any more flags of
-the radio, e.g. `--no-keep-tracks`; `yamusic-radio --help` in `crates/radio-core` lists them), `ENDLESSWAVE_LOG=1` (write the log to a file; it is not written otherwise), `ENDLESSWAVE_DEBUG=1` (a detailed log, to the file too).
+the radio, e.g. `--no-keep-tracks`; `endlesswave-radio --help` in `crates/radio-core` lists them), `ENDLESSWAVE_LOG=1` (write the log to a file; it is not written otherwise), `ENDLESSWAVE_DEBUG=1` (a detailed log, to the file too).
 
 ## Troubleshooting
 
 - **No sound, the queue is empty.** The service is waiting for tracks. The log is not written by default.
   Start the app with the log on, then read it: on macOS
   `open -n --env ENDLESSWAVE_LOG=1 -a "EndlessWave"`, on Linux
-  `ENDLESSWAVE_LOG=1 endlesswave`, and `tail -f ~/.cache/yamusic_radio.log`.
+  `ENDLESSWAVE_LOG=1 endlesswave`, and `tail -f ~/.cache/endlesswave.log`.
   `Unknown HTTPError` in it means Yandex Music does not answer or limits the requests.
 - **No tray icon on Linux.** AppIndicator is needed (in GNOME, the *AppIndicator and
   KStatusNotifierItem Support* extension). The tray menu still works, a click on the icon does not open

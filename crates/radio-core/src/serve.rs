@@ -110,7 +110,7 @@ pub async fn serve_with(
     let keep = cache.is_some() && options.tracks_dir.is_some();
     let (workdir, temporary) = match (&options.tracks_dir, keep) {
         (Some(dir), true) => (dir.clone(), false),
-        _ => (std::env::temp_dir().join(format!("yamusic-dj-{}", uuid::Uuid::new_v4())), true),
+        _ => (std::env::temp_dir().join(format!("endlesswave-{}", uuid::Uuid::new_v4())), true),
     };
     tokio::fs::create_dir_all(&workdir).await?;
 

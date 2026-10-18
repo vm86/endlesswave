@@ -52,12 +52,12 @@ fn is_up(port: u16) -> bool {
     TcpStream::connect_timeout(&addr, Duration::from_millis(300)).is_ok()
 }
 
-/// The file of the log: the one the daemon uses itself when it runs alone.
+/// The file of the log, `~/.cache/endlesswave.log`.
 fn log_path() -> Option<PathBuf> {
-    let home = std::env::var_os("HOME")?;
-    let dir = PathBuf::from(home).join(".cache");
-    fs::create_dir_all(&dir).ok()?;
-    Some(dir.join("yamusic_radio.log"))
+    std::env::var_os("HOME")?;
+    let path = radio_core::paths::log_file();
+    fs::create_dir_all(path.parent()?).ok()?;
+    Some(path)
 }
 
 /// The ffmpeg bundled with the app first, then PATH, then where ffmpeg usually
@@ -89,7 +89,7 @@ fn cache_dir() -> Option<PathBuf> {
 /// wait for their turn. The analysis of the tracks stays, so does the token.
 fn clean_state() -> Result<(), String> {
     let cache = cache_dir().ok_or("no home directory")?;
-    let db = cache.join("yamusic-radio.db");
+    let db = cache.join(radio_core::paths::CACHE_NAME);
     if db.exists() {
         let mut conn = rusqlite::Connection::open(&db).map_err(|error| format!("cannot open the database: {error}"))?;
         conn.busy_timeout(Duration::from_secs(5)).map_err(|error| error.to_string())?;
@@ -98,7 +98,7 @@ fn clean_state() -> Result<(), String> {
             .map_err(|error| format!("cannot clear the database: {error}"))?;
         tx.commit().map_err(|error| error.to_string())?;
     }
-    if let Ok(entries) = fs::read_dir(cache.join("yamusic-radio-tracks")) {
+    if let Ok(entries) = fs::read_dir(radio_core::paths::tracks_dir_of(&db)) {
         for entry in entries.flatten() {
             let path = entry.path();
             let _ = if path.is_dir() { fs::remove_dir_all(&path) } else { fs::remove_file(&path) };
@@ -234,12 +234,12 @@ mod tests {
     fn reset_clears_the_state_and_keeps_the_analysis() {
         let home = std::env::temp_dir().join(format!("endlesswave-test-{}", std::process::id()));
         let cache = home.join(".cache");
-        fs::create_dir_all(cache.join("yamusic-radio-tracks")).unwrap();
-        fs::write(cache.join("yamusic-radio-tracks").join("a.aac"), b"x").unwrap();
+        fs::create_dir_all(cache.join("endlesswave-tracks")).unwrap();
+        fs::write(cache.join("endlesswave-tracks").join("a.aac"), b"x").unwrap();
         // Safety: the only test that touches the environment.
         unsafe { std::env::set_var("HOME", &home) };
 
-        let conn = rusqlite::Connection::open(cache.join("yamusic-radio.db")).unwrap();
+        let conn = rusqlite::Connection::open(cache.join("endlesswave.db")).unwrap();
         conn.execute_batch(
             "CREATE TABLE tracks (track_id TEXT, analysis TEXT, played_at REAL);
              CREATE TABLE transitions (at REAL);
@@ -253,14 +253,14 @@ mod tests {
 
         clean_state().unwrap();
 
-        let conn = rusqlite::Connection::open(cache.join("yamusic-radio.db")).unwrap();
+        let conn = rusqlite::Connection::open(cache.join("endlesswave.db")).unwrap();
         let count = |sql: &str| conn.query_row(sql, [], |row| row.get::<_, i64>(0)).unwrap();
         assert_eq!(count("SELECT COUNT(*) FROM settings"), 0);
         assert_eq!(count("SELECT COUNT(*) FROM transitions"), 0);
         assert_eq!(count("SELECT COUNT(*) FROM tracks"), 1, "the analysis stays");
         assert_eq!(count("SELECT COUNT(*) FROM tracks WHERE played_at IS NULL"), 1, "the history goes");
         assert_eq!(count("SELECT COUNT(*) FROM tracks WHERE analysis LIKE '%120%'"), 1);
-        assert_eq!(fs::read_dir(cache.join("yamusic-radio-tracks")).unwrap().count(), 0);
+        assert_eq!(fs::read_dir(cache.join("endlesswave-tracks")).unwrap().count(), 0);
         let _ = fs::remove_dir_all(&home);
     }
 }

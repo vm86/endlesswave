@@ -52,7 +52,7 @@ pub struct Options {
     #[arg(long)]
     pub debug: bool,
     /// Settings file with the Yandex OAuth token (Yandex backend)
-    #[arg(long, default_value_os_t = home().join(".config/yamusic-radio.json"))]
+    #[arg(long, default_value_os_t = crate::paths::config_file())]
     pub config: PathBuf,
     /// Turn a music backend on (repeat for several). The tracks of all that are on are mixed. The ones of the last run and
     /// the ones that are signed in are on too; the API turns them on and off
@@ -84,7 +84,7 @@ pub struct Options {
     pub mood_arc: bool,
     /// Database of track analyses and play times (no audio is stored): a restart doesn't repeat tracks or analyze them
     /// again
-    #[arg(long, default_value_os_t = home().join(".cache/yamusic-radio.db"))]
+    #[arg(long, default_value_os_t = crate::paths::cache_file())]
     pub cache: PathBuf,
     /// Where the tracks that are loaded and wait for their turn are kept, so that a restart plays them and doesn't
     /// download them again (default: next to the cache, as <cache name>-tracks)
@@ -173,10 +173,7 @@ pub fn tracks_dir(options: &Options) -> Option<PathBuf> {
     if options.no_cache || options.no_keep_tracks {
         return None;
     }
-    Some(options.tracks_dir.clone().unwrap_or_else(|| {
-        let stem = options.cache.file_stem().map_or_else(String::new, |s| s.to_string_lossy().into_owned());
-        options.cache.with_file_name(format!("{stem}-tracks"))
-    }))
+    Some(options.tracks_dir.clone().unwrap_or_else(|| crate::paths::tracks_dir_of(&options.cache)))
 }
 
 /// The options of the command line, from the given arguments (the first is the name of the program).
@@ -208,6 +205,11 @@ pub async fn run(
     ready: Option<tokio::sync::oneshot::Sender<std::net::SocketAddr>>,
     shutdown: impl std::future::Future<Output = ()> + Send + 'static,
 ) -> std::io::Result<()> {
+    // Files of the earlier names (yamusic-radio) move to the app's own before anything is opened.
+    match crate::paths::migrate_legacy(&crate::paths::home()) {
+        Ok(done) => done.iter().for_each(|line| tracing::info!("Migration: {line}")),
+        Err(error) => tracing::error!("Migration of the files of the earlier version failed: {error}"),
+    }
     let clock: Arc<dyn Clock> = Arc::new(SystemClock::new());
     // Two connections to one file: the radio owns one, the settings of the backends use the other.
     let open = || TrackCache::open(&options.cache).map_err(std::io::Error::other);

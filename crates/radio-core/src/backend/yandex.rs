@@ -3,7 +3,7 @@
 //! the link to a file.
 //!
 //! Signing in is a code on Yandex's page: the radio asks for the code, shows it (`auth_prompt`), and polls until it is
-//! entered; the token is kept in `~/.config/yamusic-radio.json`, for the owner only.
+//! entered; the token is kept in `~/.config/endlesswave.json`, for the owner only.
 
 use super::{AuthError, AuthPrompt, BackendError, Feedback, MusicBackend, Track};
 use crate::clock::Clock;
@@ -64,9 +64,9 @@ impl Default for YandexOptions {
 
 // ---- The settings file --------------------------------------------------------------------------------------------------
 
-/// `~/.config/yamusic-radio.json`
+/// `~/.config/endlesswave.json`
 pub fn default_settings_path() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config/yamusic-radio.json"))
+    std::env::var_os("HOME").map(|_| crate::paths::config_file())
 }
 
 /// Whether the settings file already holds an OAuth token.

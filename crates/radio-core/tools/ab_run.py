@@ -17,8 +17,8 @@ import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-PYTHON_BIN = Path("~/devel/yamusic-radio/.venv/bin/yamusic-dj").expanduser()
-RUST_BIN = HERE.parent / "target/release/yamusic-radio"
+PYTHON_BIN = Path("~/devel/endlesswave-radio/.venv/bin/yamusic-dj").expanduser()
+RUST_BIN = HERE.parent / "target/release/endlesswave-radio"
 
 
 def get(port: int, path: str):

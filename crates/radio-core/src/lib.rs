@@ -9,6 +9,7 @@ pub mod clock;
 pub mod daemon;
 pub mod encode;
 pub mod mix;
+pub mod paths;
 pub mod pipeline;
 pub mod radio;
 pub mod serve;

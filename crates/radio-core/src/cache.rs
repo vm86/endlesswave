@@ -1,7 +1,7 @@
 //! Disk cache of what the radio has learned about tracks: the analyses, the genres, when a track was played, the
 //! settings, the blends there were. Stage 2 of docs/rust-port.md, ported from `cache.py`.
 //!
-//! It is the very SQLite file of the Python radio (`~/.cache/yamusic-radio.db`): the tables, the columns and the
+//! It is the very SQLite file of the Python radio (the same tables and columns; it was `~/.cache/yamusic-radio.db`): the tables, the columns and the
 //! JSON in them are the same, so a cache made by one program is read by the other and nothing that was learned is
 //! lost on the way over. Only metadata is stored, never audio.
 
@@ -15,9 +15,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-/// `~/.cache/yamusic-radio.db`
+/// `~/.cache/endlesswave.db`
 pub fn default_cache() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache/yamusic-radio.db"))
+    std::env::var_os("HOME").map(|_| crate::paths::cache_file())
 }
 
 /// Rows kept; the ones not used for the longest time go first.

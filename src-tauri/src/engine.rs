@@ -15,7 +15,7 @@ pub struct Engine {
 impl Engine {
     /// Start the radio with the options of the command line (the program name not included) and wait until it listens.
     pub fn start(args: &[String], ffmpeg: Option<PathBuf>, log: Option<&Path>) -> Result<Self, String> {
-        let mut argv = vec!["yamusic-radio".to_owned()];
+        let mut argv = vec!["endlesswave-radio".to_owned()];
         argv.extend(args.iter().cloned());
         if let Some(ffmpeg) = ffmpeg {
             argv.push("--ffmpeg".into());
@@ -99,8 +99,20 @@ impl Engine {
 mod tests {
     use super::*;
 
+    /// The radio moves the files of the earlier names in the home folder: a test must not do that to the real one.
+    fn isolated_home() {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
+            let home = std::env::temp_dir().join(format!("endlesswave-engine-test-{}", std::process::id()));
+            std::fs::create_dir_all(&home).unwrap();
+            // Safety: before the test starts anything else, and the other tests that set it set it before they start.
+            unsafe { std::env::set_var("HOME", home) };
+        });
+    }
+
     #[test]
     fn the_radio_listens_inside_the_app_and_stops() {
+        isolated_home();
         let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
         let args: Vec<String> = ["--host", "127.0.0.1", "--port", &port.to_string(), "--no-cache"].map(String::from).to_vec();
         let engine = Engine::start(&args, None, None).expect("starts");
@@ -122,6 +134,7 @@ mod tests {
 
     #[test]
     fn a_taken_port_is_told() {
+        isolated_home();
         let taken = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let port = taken.local_addr().unwrap().port();
         let args: Vec<String> = ["--host", "127.0.0.1", "--port", &port.to_string(), "--no-cache"].map(String::from).to_vec();
