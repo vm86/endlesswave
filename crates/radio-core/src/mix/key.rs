@@ -7,7 +7,9 @@
 
 const PITCH_CLASSES: i32 = 12;
 const KEYS: i32 = 2 * PITCH_CLASSES;
-const NOTES: [&str; 12] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const NOTES: [&str; 12] = [
+    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+];
 
 /// Harmonic mixing on the Camelot Wheel, see `key_cost`.
 const KEY_COST_SCALE: f64 = 0.7;
@@ -26,18 +28,26 @@ fn camelot(key: i32) -> Option<(i32, bool)> {
     let minor = key >= PITCH_CLASSES;
     // The relative major of a minor key is a minor third above its tonic; going up a fifth moves one step
     // round the wheel, C major being 8B.
-    let major_tonic = if minor { (key + 3) % PITCH_CLASSES } else { key };
+    let major_tonic = if minor {
+        (key + 3) % PITCH_CLASSES
+    } else {
+        key
+    };
     Some(((major_tonic * 7 + 7) % PITCH_CLASSES + 1, minor))
 }
 
 /// The Camelot code of a key (`8B`, `5A`, ...), "" when unknown.
 pub fn camelot_code(key: i32) -> String {
-    camelot(key).map_or_else(String::new, |(number, minor)| format!("{number}{}", if minor { 'A' } else { 'B' }))
+    camelot(key).map_or_else(String::new, |(number, minor)| {
+        format!("{number}{}", if minor { 'A' } else { 'B' })
+    })
 }
 
 /// The key of a Camelot code, -1 if none.
 pub fn camelot_key(code: &str) -> i32 {
-    (0..KEYS).find(|&key| camelot_code(key) == code).unwrap_or(-1)
+    (0..KEYS)
+        .find(|&key| camelot_code(key) == code)
+        .unwrap_or(-1)
 }
 
 /// The key as musicians write it (`C major`, `F# minor`), "" when unknown.
@@ -45,7 +55,11 @@ pub fn key_name(key: i32) -> String {
     if !(0..KEYS).contains(&key) {
         return String::new();
     }
-    let mode = if key >= PITCH_CLASSES { "minor" } else { "major" };
+    let mode = if key >= PITCH_CLASSES {
+        "minor"
+    } else {
+        "major"
+    };
     format!("{} {mode}", NOTES[(key % PITCH_CLASSES) as usize])
 }
 
@@ -80,7 +94,8 @@ impl KeyRelation {
 
 /// Name the key change.
 pub fn key_relation(current: i32, following: i32) -> KeyRelation {
-    let (Some((now, now_minor)), Some((then, then_minor))) = (camelot(current), camelot(following)) else {
+    let (Some((now, now_minor)), Some((then, then_minor))) = (camelot(current), camelot(following))
+    else {
         return KeyRelation::Unknown;
     };
     let steps = (then - now).rem_euclid(12);
@@ -114,7 +129,9 @@ pub enum KeyQuality {
 pub fn key_quality(relation: KeyRelation) -> KeyQuality {
     match relation {
         KeyRelation::Same | KeyRelation::Neighbour => KeyQuality::Good,
-        KeyRelation::Boost | KeyRelation::Semitone | KeyRelation::Down | KeyRelation::Diagonal => KeyQuality::Fair,
+        KeyRelation::Boost | KeyRelation::Semitone | KeyRelation::Down | KeyRelation::Diagonal => {
+            KeyQuality::Fair
+        }
         KeyRelation::Clash => KeyQuality::Poor,
         KeyRelation::Unknown => KeyQuality::Unknown,
     }

@@ -69,7 +69,18 @@ impl FakeBackend {
     pub fn new(tracks: Vec<FakeTrack>, options: FakeOptions) -> Self {
         let settings = options.settings.clone();
         let authorized = options.authorized;
-        Self { tracks, options, state: Mutex::new(State { cursor: 0, calls: Vec::new(), settings, authorized, failing: false }), signed_in: tokio::sync::Notify::new() }
+        Self {
+            tracks,
+            options,
+            state: Mutex::new(State {
+                cursor: 0,
+                calls: Vec::new(),
+                settings,
+                authorized,
+                failing: false,
+            }),
+            signed_in: tokio::sync::Notify::new(),
+        }
     }
 
     /// What the backend was asked, in order, one line each:
@@ -110,7 +121,11 @@ impl MusicBackend for FakeBackend {
         AuthPrompt {
             url: Some("https://example.test/login".to_owned()),
             code: Some("CODE-1234".to_owned()),
-            fields: vec![super::AuthField { name: "token".to_owned(), label: "Token".to_owned(), secret: true }],
+            fields: vec![super::AuthField {
+                name: "token".to_owned(),
+                label: "Token".to_owned(),
+                secret: true,
+            }],
         }
     }
 
@@ -131,7 +146,11 @@ impl MusicBackend for FakeBackend {
     }
 
     fn start_auth(&self) {
-        self.state.lock().expect("not poisoned").calls.push("start_auth".to_owned());
+        self.state
+            .lock()
+            .expect("not poisoned")
+            .calls
+            .push("start_auth".to_owned());
     }
 
     async fn authorize(&self, values: &HashMap<String, String>) -> Result<(), AuthError> {
@@ -149,7 +168,11 @@ impl MusicBackend for FakeBackend {
         self.options.supports_moods
     }
 
-    async fn station_batch(&self, station_id: &str, exclude_track_ids: &HashSet<String>) -> Result<Vec<Track>, BackendError> {
+    async fn station_batch(
+        &self,
+        station_id: &str,
+        exclude_track_ids: &HashSet<String>,
+    ) -> Result<Vec<Track>, BackendError> {
         let n = self.tracks.len();
         let mut state = self.state.lock().expect("not poisoned");
         if state.failing {
@@ -175,39 +198,79 @@ impl MusicBackend for FakeBackend {
         let mut excluded: Vec<&str> = exclude_track_ids.iter().map(String::as_str).collect();
         excluded.sort_unstable();
         let ids: Vec<&str> = picked.iter().map(|t| t.track_id.as_str()).collect();
-        state.calls.push(format!("batch {station_id} exclude={} -> {}", excluded.join(","), ids.join(",")));
+        state.calls.push(format!(
+            "batch {station_id} exclude={} -> {}",
+            excluded.join(","),
+            ids.join(",")
+        ));
         Ok(picked)
     }
 
     async fn download(&self, track: &Track, path: &Path) -> Result<(), BackendError> {
-        let file = self.tracks.iter().find(|t| t.track.track_id == track.track_id).map(|t| t.file.clone());
+        let file = self
+            .tracks
+            .iter()
+            .find(|t| t.track.track_id == track.track_id)
+            .map(|t| t.file.clone());
         let failing = self.state.lock().expect("not poisoned").failing;
         let result = match file {
             Some(file) if !failing && !self.options.fail_downloads.contains(&track.track_id) => {
                 // A blocking copy, like Python's: the order in which downloads finish is then the order they were started in.
-                std::fs::copy(&file, path).map(|_| ()).map_err(|e| BackendError(e.to_string()))
+                std::fs::copy(&file, path)
+                    .map(|_| ())
+                    .map_err(|e| BackendError(e.to_string()))
             }
             _ => Err(BackendError(format!("cannot download {}", track.track_id))),
         };
-        self.log(format!("download {} {}", track.track_id, if result.is_ok() { "ok" } else { "fail" }));
+        self.log(format!(
+            "download {} {}",
+            track.track_id,
+            if result.is_ok() { "ok" } else { "fail" }
+        ));
         result
     }
 
-    async fn feedback_track(&self, track: &Track, feedback: Feedback, _station_id: &str, total_played_seconds: f64) -> Result<(), BackendError> {
-        self.log(format!("feedback {} {} {:.3}", track.track_id, feedback.as_str(), total_played_seconds));
+    async fn feedback_track(
+        &self,
+        track: &Track,
+        feedback: Feedback,
+        _station_id: &str,
+        total_played_seconds: f64,
+    ) -> Result<(), BackendError> {
+        self.log(format!(
+            "feedback {} {} {:.3}",
+            track.track_id,
+            feedback.as_str(),
+            total_played_seconds
+        ));
         Ok(())
     }
 
-    async fn station_settings(&self, station_id: &str) -> Result<(String, String, String), BackendError> {
+    async fn station_settings(
+        &self,
+        station_id: &str,
+    ) -> Result<(String, String, String), BackendError> {
         let mut state = self.state.lock().expect("not poisoned");
         state.calls.push(format!("settings {station_id}"));
         Ok(state.settings.clone())
     }
 
-    async fn set_station_settings(&self, station_id: &str, mood_energy: &str, diversity: &str, language: &str) -> Result<(), BackendError> {
+    async fn set_station_settings(
+        &self,
+        station_id: &str,
+        mood_energy: &str,
+        diversity: &str,
+        language: &str,
+    ) -> Result<(), BackendError> {
         let mut state = self.state.lock().expect("not poisoned");
-        state.calls.push(format!("set_settings {station_id} {mood_energy} {diversity} {language}"));
-        state.settings = (mood_energy.to_owned(), diversity.to_owned(), language.to_owned());
+        state.calls.push(format!(
+            "set_settings {station_id} {mood_energy} {diversity} {language}"
+        ));
+        state.settings = (
+            mood_energy.to_owned(),
+            diversity.to_owned(),
+            language.to_owned(),
+        );
         Ok(())
     }
 

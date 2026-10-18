@@ -56,7 +56,8 @@ fn flac_stream_header() -> Vec<u8> {
     info.extend_from_slice(&(BLOCK as u16).to_be_bytes());
     info.extend_from_slice(&(BLOCK as u16).to_be_bytes());
     info.extend_from_slice(&[0; 6]); // frame sizes: not known
-    let packed: u64 = (u64::from(SAMPLE_RATE as u32) << 44) | (((CHANNELS - 1) as u64) << 41) | (15 << 36);
+    let packed: u64 =
+        (u64::from(SAMPLE_RATE as u32) << 44) | (((CHANNELS - 1) as u64) << 41) | (15 << 36);
     info.extend_from_slice(&packed.to_be_bytes());
     info.extend_from_slice(&[0; 16]);
     let mut out = b"fLaC".to_vec();
@@ -68,8 +69,17 @@ fn flac_stream_header() -> Vec<u8> {
 
 enum Kind {
     Mp3(mp3lame_encoder::Encoder),
-    Flac { frames: u64 },
-    Ogg { frames: u64, serial: u32, sequence: u32, samples: u64, page: Vec<Vec<u8>>, page_samples: u64 },
+    Flac {
+        frames: u64,
+    },
+    Ogg {
+        frames: u64,
+        serial: u32,
+        sequence: u32,
+        samples: u64,
+        page: Vec<Vec<u8>>,
+        page_samples: u64,
+    },
 }
 
 /// An encoder inside the program.
@@ -112,14 +122,19 @@ fn ogg_page(serial: u32, sequence: u32, granule: i64, first: bool, packets: &[Ve
 impl NativeEncoder {
     pub fn start(format: Format, hub: Arc<Broadcaster>) -> io::Result<Self> {
         let flac = |_: ()| -> io::Result<(Verified<config::Encoder>, StreamInfo)> {
-            let config = config::Encoder::default().into_verified().map_err(|(_, e)| io::Error::other(format!("{e:?}")))?;
-            let info = StreamInfo::new(SAMPLE_RATE as usize, CHANNELS, 16).map_err(|e| io::Error::other(format!("{e:?}")))?;
+            let config = config::Encoder::default()
+                .into_verified()
+                .map_err(|(_, e)| io::Error::other(format!("{e:?}")))?;
+            let info = StreamInfo::new(SAMPLE_RATE as usize, CHANNELS, 16)
+                .map_err(|e| io::Error::other(format!("{e:?}")))?;
             Ok((config, info))
         };
         let (kind, flac) = match format {
             Format::Mp3 => {
-                let build = |e: mp3lame_encoder::BuildError| io::Error::other(format!("lame: {e:?}"));
-                let mut builder = Builder::new().ok_or_else(|| io::Error::other("lame could not start"))?;
+                let build =
+                    |e: mp3lame_encoder::BuildError| io::Error::other(format!("lame: {e:?}"));
+                let mut builder =
+                    Builder::new().ok_or_else(|| io::Error::other("lame could not start"))?;
                 builder.set_num_channels(CHANNELS as u8).map_err(build)?;
                 builder.set_sample_rate(SAMPLE_RATE as u32).map_err(build)?;
                 builder.set_brate(MP3_KBPS).map_err(build)?;
@@ -153,10 +168,26 @@ impl NativeEncoder {
                 let mut header = ogg_page(serial, 0, 0, true, &[id]);
                 header.extend_from_slice(&ogg_page(serial, 1, 0, false, &[comments]));
                 hub.set_header(header);
-                (Kind::Ogg { frames: 0, serial, sequence: 2, samples: 0, page: Vec::new(), page_samples: 0 }, Some(flac(())?))
+                (
+                    Kind::Ogg {
+                        frames: 0,
+                        serial,
+                        sequence: 2,
+                        samples: 0,
+                        page: Vec::new(),
+                        page_samples: 0,
+                    },
+                    Some(flac(())?),
+                )
             }
         };
-        Ok(Self { hub, kind, dither: Dither::new(), pending: Vec::new(), flac })
+        Ok(Self {
+            hub,
+            kind,
+            dither: Dither::new(),
+            pending: Vec::new(),
+            flac,
+        })
     }
 
     fn flac_frame(&mut self, block: &[f32]) -> io::Result<Vec<u8>> {
@@ -167,21 +198,31 @@ impl NativeEncoder {
             Kind::Flac { frames } | Kind::Ogg { frames, .. } => frames,
             Kind::Mp3(_) => unreachable!("an MP3 has no FLAC frames"),
         };
-        let mut buffer = FrameBuf::with_size(CHANNELS, block.len() / CHANNELS).map_err(|e| io::Error::other(format!("{e:?}")))?;
+        let mut buffer = FrameBuf::with_size(CHANNELS, block.len() / CHANNELS)
+            .map_err(|e| io::Error::other(format!("{e:?}")))?;
         let mut source = MemSource::from_samples(&ints, CHANNELS, 16, SAMPLE_RATE as usize);
-        source.read_samples(block.len() / CHANNELS, &mut buffer).map_err(|e| io::Error::other(format!("{e:?}")))?;
-        let frame = flacenc::encode_fixed_size_frame(config, &buffer, *frames as usize, info).map_err(|e| io::Error::other(format!("{e:?}")))?;
+        source
+            .read_samples(block.len() / CHANNELS, &mut buffer)
+            .map_err(|e| io::Error::other(format!("{e:?}")))?;
+        let frame = flacenc::encode_fixed_size_frame(config, &buffer, *frames as usize, info)
+            .map_err(|e| io::Error::other(format!("{e:?}")))?;
         *frames += 1;
         let mut sink = ByteSink::new();
-        frame.write(&mut sink).map_err(|e| io::Error::other(format!("{e:?}")))?;
+        frame
+            .write(&mut sink)
+            .map_err(|e| io::Error::other(format!("{e:?}")))?;
         Ok(sink.as_slice().to_vec())
     }
 
     /// Encode one block of whole frames of the interleaved samples.
     fn encode_block(&mut self, block: &[f32]) -> io::Result<()> {
         if let Kind::Mp3(encoder) = &mut self.kind {
-            let mut out = Vec::with_capacity(mp3lame_encoder::max_required_buffer_size(block.len() / CHANNELS));
-            encoder.encode_to_vec(InterleavedPcm(block), &mut out).map_err(|e| io::Error::other(format!("lame: {e:?}")))?;
+            let mut out = Vec::with_capacity(mp3lame_encoder::max_required_buffer_size(
+                block.len() / CHANNELS,
+            ));
+            encoder
+                .encode_to_vec(InterleavedPcm(block), &mut out)
+                .map_err(|e| io::Error::other(format!("lame: {e:?}")))?;
             if !out.is_empty() {
                 self.hub.publish(Bytes::from(out));
             }
@@ -191,12 +232,21 @@ impl NativeEncoder {
         let in_block = (block.len() / CHANNELS) as u64;
         match &mut self.kind {
             Kind::Flac { .. } => self.hub.publish(Bytes::from(packet)),
-            Kind::Ogg { serial, sequence, samples, page, page_samples, .. } => {
+            Kind::Ogg {
+                serial,
+                sequence,
+                samples,
+                page,
+                page_samples,
+                ..
+            } => {
                 *samples += in_block;
                 *page_samples += in_block;
                 page.push(packet);
                 // (a page is written when another block would take it over 100 ms: with 93 ms blocks, one for every page)
-                if *page_samples + BLOCK as u64 > PAGE_SAMPLES || page.iter().map(Vec::len).sum::<usize>() > 60_000 {
+                if *page_samples + BLOCK as u64 > PAGE_SAMPLES
+                    || page.iter().map(Vec::len).sum::<usize>() > 60_000
+                {
                     let bytes = ogg_page(*serial, *sequence, *samples as i64, false, page);
                     *sequence += 1;
                     page.clear();
@@ -217,7 +267,9 @@ impl NativeEncoder {
         }
         if let Kind::Mp3(encoder) = &mut self.kind {
             let mut out = Vec::with_capacity(7200);
-            encoder.flush_to_vec::<FlushNoGap>(&mut out).map_err(|e| io::Error::other(format!("lame: {e:?}")))?;
+            encoder
+                .flush_to_vec::<FlushNoGap>(&mut out)
+                .map_err(|e| io::Error::other(format!("lame: {e:?}")))?;
             if !out.is_empty() {
                 self.hub.publish(Bytes::from(out));
             }

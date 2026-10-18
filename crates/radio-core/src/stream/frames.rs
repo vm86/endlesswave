@@ -4,7 +4,9 @@
 //! `ogg_start`.
 
 // MPEG-1 Layer III, which is what ffmpeg's libmp3lame makes of 44.1 kHz audio.
-const MP3_BITRATES_KBPS: [usize; 15] = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320];
+const MP3_BITRATES_KBPS: [usize; 15] = [
+    0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320,
+];
 const MP3_SAMPLE_RATES: [usize; 3] = [44100, 48000, 32000];
 const MP3_HEADER_SIZE: usize = 4;
 const MP3_SYNC: u8 = 0xFF;
@@ -22,7 +24,10 @@ fn find(data: &[u8], needle: &[u8], from: usize) -> Option<usize> {
     if from > data.len() {
         return None;
     }
-    data[from..].windows(needle.len()).position(|w| w == needle).map(|p| p + from)
+    data[from..]
+        .windows(needle.len())
+        .position(|w| w == needle)
+        .map(|p| p + from)
 }
 
 /// The length of the MP3 frame that starts like this, 0 if none. Only MPEG-1 Layer III, the kind this radio makes.
@@ -34,7 +39,11 @@ pub fn mp3_frame_length(header: &[u8]) -> usize {
     if header[1] & MP3_PROTECTION_BIT != MP3_MPEG1_LAYER3 {
         return 0;
     }
-    let (index, rate, padding) = (usize::from(header[2] >> 4), usize::from((header[2] >> 2) & 3), usize::from((header[2] >> 1) & 1));
+    let (index, rate, padding) = (
+        usize::from(header[2] >> 4),
+        usize::from((header[2] >> 2) & 3),
+        usize::from((header[2] >> 1) & 1),
+    );
     // Bitrate index 0 is "free" and 15 is invalid.
     if index == 0 || index >= MP3_BITRATES_KBPS.len() || rate >= MP3_SAMPLE_RATES.len() {
         return 0;
@@ -54,7 +63,9 @@ pub fn mp3_start(data: &[u8]) -> usize {
         let length = mp3_frame_length(header_at(data, at));
         if length != 0 {
             let following = at + length;
-            if following + MP3_HEADER_SIZE > data.len() || mp3_frame_length(header_at(data, following)) != 0 {
+            if following + MP3_HEADER_SIZE > data.len()
+                || mp3_frame_length(header_at(data, following)) != 0
+            {
                 return at;
             }
         }
@@ -75,13 +86,17 @@ const FLAC_CRC8_POLYNOMIAL: u8 = 0x07;
 /// How long the header (marker and metadata) of a FLAC stream is. `Ok(None)` if `data` doesn't hold the whole of it
 /// yet; an error if it is not a FLAC stream.
 pub fn flac_header_length(data: &[u8]) -> Result<Option<usize>, NotThisStream> {
-    if !FLAC_MARKER.starts_with(&data[..data.len().min(FLAC_MARKER.len())]) || (data.len() > FLAC_MARKER.len() && !data.starts_with(FLAC_MARKER)) {
+    if !FLAC_MARKER.starts_with(&data[..data.len().min(FLAC_MARKER.len())])
+        || (data.len() > FLAC_MARKER.len() && !data.starts_with(FLAC_MARKER))
+    {
         return Err(NotThisStream);
     }
     let mut place = FLAC_MARKER.len();
     while place + FLAC_BLOCK_HEADER_SIZE <= data.len() {
         let last = data[place] & FLAC_LAST_BLOCK != 0;
-        let size = usize::from(data[place + 1]) << 16 | usize::from(data[place + 2]) << 8 | usize::from(data[place + 3]);
+        let size = usize::from(data[place + 1]) << 16
+            | usize::from(data[place + 2]) << 8
+            | usize::from(data[place + 3]);
         place += FLAC_BLOCK_HEADER_SIZE + size;
         if last {
             return Ok((place <= data.len()).then_some(place));
@@ -95,7 +110,11 @@ fn crc8(data: &[u8]) -> u8 {
     for &byte in data {
         crc ^= byte;
         for _ in 0..8 {
-            crc = if crc & 0x80 != 0 { (crc << 1) ^ FLAC_CRC8_POLYNOMIAL } else { crc << 1 };
+            crc = if crc & 0x80 != 0 {
+                (crc << 1) ^ FLAC_CRC8_POLYNOMIAL
+            } else {
+                crc << 1
+            };
         }
     }
     crc
@@ -156,7 +175,11 @@ fn ogg_crc_table() -> [u32; 256] {
     for (byte, slot) in table.iter_mut().enumerate() {
         let mut crc = (byte as u32) << 24;
         for _ in 0..8 {
-            crc = if crc & 0x8000_0000 != 0 { (crc << 1) ^ OGG_CRC_POLYNOMIAL } else { crc << 1 };
+            crc = if crc & 0x8000_0000 != 0 {
+                (crc << 1) ^ OGG_CRC_POLYNOMIAL
+            } else {
+                crc << 1
+            };
         }
         *slot = crc;
     }
@@ -166,7 +189,9 @@ fn ogg_crc_table() -> [u32; 256] {
 pub(crate) fn ogg_crc(data: &[u8]) -> u32 {
     static TABLE: std::sync::OnceLock<[u32; 256]> = std::sync::OnceLock::new();
     let table = TABLE.get_or_init(ogg_crc_table);
-    data.iter().fold(0u32, |crc, &byte| (crc << 8) ^ table[((crc >> 24) as u8 ^ byte) as usize])
+    data.iter().fold(0u32, |crc, &byte| {
+        (crc << 8) ^ table[((crc >> 24) as u8 ^ byte) as usize]
+    })
 }
 
 /// What there is at a place of an Ogg stream.
@@ -186,7 +211,11 @@ pub fn ogg_page_length(data: &[u8], place: usize) -> OggPage {
     // place is beyond the data.
     let wanted = {
         let n = data.len() as i64 - place as i64;
-        let end = if n >= 0 { (n as usize).min(4) } else { (4 + n).max(0) as usize };
+        let end = if n >= 0 {
+            (n as usize).min(4)
+        } else {
+            (4 + n).max(0) as usize
+        };
         &OGG_MARKER[..end]
     };
     if data.get(place..(place + 4).min(data.len())).unwrap_or(&[]) != wanted {
@@ -204,14 +233,19 @@ pub fn ogg_page_length(data: &[u8], place: usize) -> OggPage {
         return OggPage::Incomplete;
     }
     let table = &data[place + OGG_PAGE_HEADER_SIZE..place + 27 + segments];
-    let size = OGG_PAGE_HEADER_SIZE + segments + table.iter().map(|&s| usize::from(s)).sum::<usize>();
+    let size =
+        OGG_PAGE_HEADER_SIZE + segments + table.iter().map(|&s| usize::from(s)).sum::<usize>();
     if data.len() < place + size {
         return OggPage::Incomplete;
     }
     let mut page = data[place..place + size].to_vec();
     let stored = u32::from_le_bytes([page[22], page[23], page[24], page[25]]);
     page[22..26].fill(0);
-    if ogg_crc(&page) == stored { OggPage::Complete(size) } else { OggPage::Invalid }
+    if ogg_crc(&page) == stored {
+        OggPage::Complete(size)
+    } else {
+        OggPage::Invalid
+    }
 }
 
 fn ogg_granule(data: &[u8], place: usize) -> i64 {

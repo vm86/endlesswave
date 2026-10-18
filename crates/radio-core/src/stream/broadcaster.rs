@@ -131,14 +131,18 @@ impl Listener {
 
 impl Drop for Listener {
     fn drop(&mut self) {
-        self.hub.state().clients.retain(|c| !Arc::ptr_eq(c, &self.client));
+        self.hub
+            .state()
+            .clients
+            .retain(|c| !Arc::ptr_eq(c, &self.client));
     }
 }
 
 impl Broadcaster {
     pub fn new(config: Config) -> Arc<Self> {
         Arc::new(Self {
-            preroll: (config.preroll_seconds * config.bytes_per_second as f64).round_ties_even() as usize,
+            preroll: (config.preroll_seconds * config.bytes_per_second as f64).round_ties_even()
+                as usize,
             config,
             state: Mutex::new(State::default()),
             first_listener: Notify::new(),
@@ -224,9 +228,14 @@ impl Broadcaster {
 
     /// Wait until this stream or any of the others has a listener.
     pub async fn wait_for_a_listener(&self, others: &[&Broadcaster]) {
-        let hubs: Vec<&Broadcaster> = std::iter::once(self).chain(others.iter().copied()).collect();
+        let hubs: Vec<&Broadcaster> = std::iter::once(self)
+            .chain(others.iter().copied())
+            .collect();
         while !hubs.iter().any(|hub| hub.has_listeners()) {
-            let waits: Vec<_> = hubs.iter().map(|hub| Box::pin(hub.wait_for_listeners())).collect();
+            let waits: Vec<_> = hubs
+                .iter()
+                .map(|hub| Box::pin(hub.wait_for_listeners()))
+                .collect();
             futures_util::future::select_all(waits).await;
         }
     }
@@ -257,7 +266,10 @@ impl Broadcaster {
 
     /// Join the stream, and say where in the mix it starts for you.
     pub fn subscribe_at(self: &Arc<Self>) -> (Listener, Option<f64>) {
-        let client = Arc::new(Client { queue: Mutex::new(VecDeque::new()), ready: Notify::new() });
+        let client = Arc::new(Client {
+            queue: Mutex::new(VecDeque::new()),
+            ready: Notify::new(),
+        });
         let mut state = self.state();
         {
             let mut queue = client.queue.lock().expect("not poisoned");
@@ -269,16 +281,30 @@ impl Broadcaster {
         // of the mix.
         let mut position = (state.total == 0).then_some(0.0);
         if !state.recent.is_empty() {
-            let joined: Vec<u8> = state.recent.iter().flat_map(|chunk| chunk.iter().copied()).collect();
+            let joined: Vec<u8> = state
+                .recent
+                .iter()
+                .flat_map(|chunk| chunk.iter().copied())
+                .collect();
             let data = &joined[joined.len().saturating_sub(self.preroll)..];
             let sent = &data[(self.config.frame_start)(data)..];
-            client.queue.lock().expect("not poisoned").push_back(Bytes::copy_from_slice(sent));
+            client
+                .queue
+                .lock()
+                .expect("not poisoned")
+                .push_back(Bytes::copy_from_slice(sent));
             position = self.position_in(&state, state.total - sent.len());
         }
         state.clients.push(Arc::clone(&client));
         drop(state);
         self.first_listener.notify_waiters();
-        (Listener { client, hub: Arc::clone(self) }, position)
+        (
+            Listener {
+                client,
+                hub: Arc::clone(self),
+            },
+            position,
+        )
     }
 
     /// Send a chunk of the stream to every listener, and keep it for those who join.

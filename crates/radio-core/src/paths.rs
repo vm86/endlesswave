@@ -26,7 +26,9 @@ pub fn cache_file() -> PathBuf {
 
 /// `~/.cache/endlesswave-tracks`: the loaded tracks that wait for their turn; it goes with the cache's name.
 pub fn tracks_dir_of(cache: &Path) -> PathBuf {
-    let stem = cache.file_stem().map_or_else(String::new, |s| s.to_string_lossy().into_owned());
+    let stem = cache
+        .file_stem()
+        .map_or_else(String::new, |s| s.to_string_lossy().into_owned());
     cache.with_file_name(format!("{stem}-tracks"))
 }
 
@@ -46,21 +48,34 @@ pub fn migrate_legacy(home: &Path) -> io::Result<Vec<String>> {
     let (config, cache) = (home.join(".config"), home.join(".cache"));
     let mut done = Vec::new();
 
-    let mut take = |old: PathBuf, new: PathBuf, done: &mut Vec<String>| -> io::Result<()> {
+    let take = |old: PathBuf, new: PathBuf, done: &mut Vec<String>| -> io::Result<()> {
         if !old.exists() {
             return Ok(());
         }
         if new.exists() {
             std::fs::remove_file(&old)?;
-            done.push(format!("removed {} ({} is there)", old.display(), new.display()));
+            done.push(format!(
+                "removed {} ({} is there)",
+                old.display(),
+                new.display()
+            ));
         } else {
             std::fs::rename(&old, &new)?;
             done.push(format!("moved {} to {}", old.display(), new.display()));
         }
         Ok(())
     };
-    take(config.join("yamusic-radio.json"), config.join(CONFIG_NAME), &mut done)?;
-    take(config.join("yamusic-radio.json.tmp"), config.join(format!("{CONFIG_NAME}.tmp")), &mut done).ok();
+    take(
+        config.join("yamusic-radio.json"),
+        config.join(CONFIG_NAME),
+        &mut done,
+    )?;
+    take(
+        config.join("yamusic-radio.json.tmp"),
+        config.join(format!("{CONFIG_NAME}.tmp")),
+        &mut done,
+    )
+    .ok();
 
     // The database goes with its sidecars, or not at all: a write-ahead log without its database is lost, and one beside
     // another database is wrong.
@@ -68,7 +83,10 @@ pub fn migrate_legacy(home: &Path) -> io::Result<Vec<String>> {
     if old_db.exists() {
         let keep_new = new_db.exists();
         for suffix in ["", "-wal", "-shm", "-journal"] {
-            let (old, new) = (PathBuf::from(format!("{}{suffix}", old_db.display())), PathBuf::from(format!("{}{suffix}", new_db.display())));
+            let (old, new) = (
+                PathBuf::from(format!("{}{suffix}", old_db.display())),
+                PathBuf::from(format!("{}{suffix}", new_db.display())),
+            );
             if keep_new {
                 if old.exists() {
                     std::fs::remove_file(&old)?;
@@ -77,7 +95,15 @@ pub fn migrate_legacy(home: &Path) -> io::Result<Vec<String>> {
                 std::fs::rename(&old, &new)?;
             }
         }
-        done.push(if keep_new { format!("removed {} ({} is there)", old_db.display(), new_db.display()) } else { format!("moved {} to {}", old_db.display(), new_db.display()) });
+        done.push(if keep_new {
+            format!(
+                "removed {} ({} is there)",
+                old_db.display(),
+                new_db.display()
+            )
+        } else {
+            format!("moved {} to {}", old_db.display(), new_db.display())
+        });
     }
 
     let tracks = cache.join("yamusic-radio-tracks");
@@ -113,9 +139,18 @@ mod tests {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(home.join(".config/yamusic-radio.json"), fs::Permissions::from_mode(0o600)).unwrap();
+            fs::set_permissions(
+                home.join(".config/yamusic-radio.json"),
+                fs::Permissions::from_mode(0o600),
+            )
+            .unwrap();
         }
-        for (name, text) in [("yamusic-radio.db", "db"), ("yamusic-radio.db-wal", "wal"), ("yamusic-radio.db-shm", "shm"), ("yamusic_radio.log", "log")] {
+        for (name, text) in [
+            ("yamusic-radio.db", "db"),
+            ("yamusic-radio.db-wal", "wal"),
+            ("yamusic-radio.db-shm", "shm"),
+            ("yamusic_radio.log", "log"),
+        ] {
             fs::write(home.join(".cache").join(name), text).unwrap();
         }
         fs::create_dir_all(home.join(".cache/yamusic-radio-tracks")).unwrap();
@@ -123,16 +158,38 @@ mod tests {
 
         let done = migrate_legacy(&home).unwrap();
         assert!(done.len() >= 4, "{done:?}");
-        assert_eq!(fs::read(home.join(".config/endlesswave.json")).unwrap(), b"token");
+        assert_eq!(
+            fs::read(home.join(".config/endlesswave.json")).unwrap(),
+            b"token"
+        );
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            assert_eq!(fs::metadata(home.join(".config/endlesswave.json")).unwrap().permissions().mode() & 0o777, 0o600);
+            assert_eq!(
+                fs::metadata(home.join(".config/endlesswave.json"))
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o600
+            );
         }
         assert_eq!(fs::read(home.join(".cache/endlesswave.db")).unwrap(), b"db");
-        assert_eq!(fs::read(home.join(".cache/endlesswave.db-wal")).unwrap(), b"wal");
-        assert_eq!(fs::read(home.join(".cache/endlesswave.db-shm")).unwrap(), b"shm");
-        for gone in [".config/yamusic-radio.json", ".cache/yamusic-radio.db", ".cache/yamusic-radio.db-wal", ".cache/yamusic-radio-tracks", ".cache/yamusic_radio.log"] {
+        assert_eq!(
+            fs::read(home.join(".cache/endlesswave.db-wal")).unwrap(),
+            b"wal"
+        );
+        assert_eq!(
+            fs::read(home.join(".cache/endlesswave.db-shm")).unwrap(),
+            b"shm"
+        );
+        for gone in [
+            ".config/yamusic-radio.json",
+            ".cache/yamusic-radio.db",
+            ".cache/yamusic-radio.db-wal",
+            ".cache/yamusic-radio-tracks",
+            ".cache/yamusic_radio.log",
+        ] {
             assert!(!home.join(gone).exists(), "{gone} is still there");
         }
         // a second start has nothing to do
@@ -149,11 +206,23 @@ mod tests {
         fs::write(home.join(".cache/yamusic-radio.db-wal"), b"old").unwrap();
         fs::write(home.join(".cache/endlesswave.db"), b"new").unwrap();
         migrate_legacy(&home).unwrap();
-        assert_eq!(fs::read(home.join(".config/endlesswave.json")).unwrap(), b"new");
-        assert_eq!(fs::read(home.join(".cache/endlesswave.db")).unwrap(), b"new");
+        assert_eq!(
+            fs::read(home.join(".config/endlesswave.json")).unwrap(),
+            b"new"
+        );
+        assert_eq!(
+            fs::read(home.join(".cache/endlesswave.db")).unwrap(),
+            b"new"
+        );
         assert!(!home.join(".config/yamusic-radio.json").exists());
-        assert!(!home.join(".cache/yamusic-radio.db").exists() && !home.join(".cache/yamusic-radio.db-wal").exists());
-        assert!(!home.join(".cache/endlesswave.db-wal").exists(), "the old log is not taken for the new database's");
+        assert!(
+            !home.join(".cache/yamusic-radio.db").exists()
+                && !home.join(".cache/yamusic-radio.db-wal").exists()
+        );
+        assert!(
+            !home.join(".cache/endlesswave.db-wal").exists(),
+            "the old log is not taken for the new database's"
+        );
         let _ = fs::remove_dir_all(&home);
     }
 
@@ -161,7 +230,10 @@ mod tests {
     fn nothing_old_nothing_done() {
         let home = scratch("none");
         assert!(migrate_legacy(&home).unwrap().is_empty());
-        assert_eq!(tracks_dir_of(Path::new("/c/endlesswave.db")), PathBuf::from("/c/endlesswave-tracks"));
+        assert_eq!(
+            tracks_dir_of(Path::new("/c/endlesswave.db")),
+            PathBuf::from("/c/endlesswave-tracks")
+        );
         let _ = fs::remove_dir_all(&home);
     }
 }

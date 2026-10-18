@@ -3,11 +3,11 @@
 //! If something already answers on the port it is used as it is; otherwise the radio is started on a thread of its
 //! own and stopped with the player.
 
-use std::net::{SocketAddr, TcpStream};
 use std::fs;
+use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::engine::Engine;
@@ -61,8 +61,15 @@ fn log_path() -> Option<PathBuf> {
 }
 
 /// The ffmpeg bundled with the app first, then PATH, then where ffmpeg usually
-/// is (Homebrew on Apple Silicon and Intel, MacPorts).
-fn path_with_ffmpeg_places(resources: Option<&Path>) -> std::ffi::OsString {
+/// is (Homebrew on Apple Silicon and Intel, MacPorts). An app started from the Finder has a short PATH.
+fn find_ffmpeg(resources: Option<&Path>) -> Option<PathBuf> {
+    let places = ffmpeg_places(resources);
+    std::env::split_paths(&places)
+        .map(|dir| dir.join("ffmpeg"))
+        .find(|path| path.is_file())
+}
+
+fn ffmpeg_places(resources: Option<&Path>) -> std::ffi::OsString {
     let mut paths: Vec<PathBuf> = resources
         .map(|dir| vec![dir.join("ffmpeg")])
         .unwrap_or_default();
@@ -71,7 +78,12 @@ fn path_with_ffmpeg_places(resources: Option<&Path>) -> std::ffi::OsString {
             .map(|value| std::env::split_paths(&value).collect::<Vec<_>>())
             .unwrap_or_default(),
     );
-    for extra in ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin", "/usr/bin"] {
+    for extra in [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        "/opt/local/bin",
+        "/usr/bin",
+    ] {
         let extra = PathBuf::from(extra);
         if !paths.contains(&extra) {
             paths.push(extra);
@@ -87,21 +99,28 @@ fn cache_dir() -> Option<PathBuf> {
 /// The settings (the queue of the last run, the moods, the genres, the sources...), the history of the
 /// listening (when a track was played, the blends of the statistics) and the tracks that were loaded to
 /// wait for their turn. The analysis of the tracks stays, so does the token.
-fn clean_state() -> Result<(), String> {
-    let cache = cache_dir().ok_or("no home directory")?;
+fn clean_state(cache: &Path) -> Result<(), String> {
     let db = cache.join(radio_core::paths::CACHE_NAME);
     if db.exists() {
-        let mut conn = rusqlite::Connection::open(&db).map_err(|error| format!("cannot open the database: {error}"))?;
-        conn.busy_timeout(Duration::from_secs(5)).map_err(|error| error.to_string())?;
+        let mut conn = rusqlite::Connection::open(&db)
+            .map_err(|error| format!("cannot open the database: {error}"))?;
+        conn.busy_timeout(Duration::from_secs(5))
+            .map_err(|error| error.to_string())?;
         let tx = conn.transaction().map_err(|error| error.to_string())?;
-        tx.execute_batch("DELETE FROM settings; DELETE FROM transitions; UPDATE tracks SET played_at = NULL;")
-            .map_err(|error| format!("cannot clear the database: {error}"))?;
+        tx.execute_batch(
+            "DELETE FROM settings; DELETE FROM transitions; UPDATE tracks SET played_at = NULL;",
+        )
+        .map_err(|error| format!("cannot clear the database: {error}"))?;
         tx.commit().map_err(|error| error.to_string())?;
     }
     if let Ok(entries) = fs::read_dir(radio_core::paths::tracks_dir_of(&db)) {
         for entry in entries.flatten() {
             let path = entry.path();
-            let _ = if path.is_dir() { fs::remove_dir_all(&path) } else { fs::remove_file(&path) };
+            let _ = if path.is_dir() {
+                fs::remove_dir_all(&path)
+            } else {
+                fs::remove_file(&path)
+            };
         }
     }
     Ok(())
@@ -141,7 +160,9 @@ fn watch(app: &AppHandle) {
             return;
         }
         let _ = app.emit("radio", "restarting");
-        std::thread::sleep(Duration::from_secs(1 << (crashes - 1).min(5)).min(Duration::from_secs(30)));
+        std::thread::sleep(
+            Duration::from_secs(1 << (crashes - 1).min(5)).min(Duration::from_secs(30)),
+        );
         if radio.stopping.load(Ordering::SeqCst) {
             return;
         }
@@ -179,9 +200,7 @@ impl Radio {
         if is_up(port) {
             return Ok(());
         }
-        // An app started from the Finder has a short PATH: ffprobe and the rest are looked for by it.
-        // Safety: set before the engine starts its threads, from the one that starts it.
-        unsafe { std::env::set_var("PATH", path_with_ffmpeg_places(resources)) };
+        radio_core::daemon::migrate_files();
         let mut args: Vec<String> = ["--host", HOST, "--port"].map(String::from).to_vec();
         args.push(port.to_string());
         if let Some(extra) = env("ARGS").and_then(|value| value.into_string().ok()) {
@@ -190,8 +209,10 @@ impl Radio {
         if env("DEBUG").is_some() {
             args.push("--debug".into());
         }
-        let bundled = resources.map(|dir| dir.join("ffmpeg").join("ffmpeg")).filter(|path| path.is_file());
-        let log = (env("LOG").is_some() || env("DEBUG").is_some()).then(log_path).flatten();
+        let bundled = find_ffmpeg(resources);
+        let log = (env("LOG").is_some() || env("DEBUG").is_some())
+            .then(log_path)
+            .flatten();
         *guard = Some(Engine::start(&args, bundled, log.as_deref())?);
         Ok(())
     }
@@ -209,11 +230,15 @@ impl Radio {
     /// (it was there before) is not ours to stop.
     pub fn reset(&self, resources: Option<&Path>) -> Result<(), String> {
         if self.engine.lock().unwrap().is_none() && is_up(port()) {
-            return Err("The radio service was not started by this app: stop it, then reset".into());
+            return Err(
+                "The radio service was not started by this app: stop it, then reset".into(),
+            );
         }
         self.paused.store(true, Ordering::SeqCst);
         self.stop_child(150); // it ends by itself in a moment once nobody listens
-        let cleaned = clean_state();
+        let cleaned = cache_dir()
+            .ok_or_else(|| "no home directory".to_owned())
+            .and_then(|cache| clean_state(&cache));
         self.paused.store(false, Ordering::SeqCst);
         let started = self.launch(resources);
         cleaned.and(started)
@@ -236,8 +261,6 @@ mod tests {
         let cache = home.join(".cache");
         fs::create_dir_all(cache.join("endlesswave-tracks")).unwrap();
         fs::write(cache.join("endlesswave-tracks").join("a.aac"), b"x").unwrap();
-        // Safety: the only test that touches the environment.
-        unsafe { std::env::set_var("HOME", &home) };
 
         let conn = rusqlite::Connection::open(cache.join("endlesswave.db")).unwrap();
         conn.execute_batch(
@@ -251,16 +274,32 @@ mod tests {
         .unwrap();
         drop(conn);
 
-        clean_state().unwrap();
+        clean_state(&cache).unwrap();
 
         let conn = rusqlite::Connection::open(cache.join("endlesswave.db")).unwrap();
         let count = |sql: &str| conn.query_row(sql, [], |row| row.get::<_, i64>(0)).unwrap();
         assert_eq!(count("SELECT COUNT(*) FROM settings"), 0);
         assert_eq!(count("SELECT COUNT(*) FROM transitions"), 0);
-        assert_eq!(count("SELECT COUNT(*) FROM tracks"), 1, "the analysis stays");
-        assert_eq!(count("SELECT COUNT(*) FROM tracks WHERE played_at IS NULL"), 1, "the history goes");
-        assert_eq!(count("SELECT COUNT(*) FROM tracks WHERE analysis LIKE '%120%'"), 1);
-        assert_eq!(fs::read_dir(cache.join("endlesswave-tracks")).unwrap().count(), 0);
+        assert_eq!(
+            count("SELECT COUNT(*) FROM tracks"),
+            1,
+            "the analysis stays"
+        );
+        assert_eq!(
+            count("SELECT COUNT(*) FROM tracks WHERE played_at IS NULL"),
+            1,
+            "the history goes"
+        );
+        assert_eq!(
+            count("SELECT COUNT(*) FROM tracks WHERE analysis LIKE '%120%'"),
+            1
+        );
+        assert_eq!(
+            fs::read_dir(cache.join("endlesswave-tracks"))
+                .unwrap()
+                .count(),
+            0
+        );
         let _ = fs::remove_dir_all(&home);
     }
 }

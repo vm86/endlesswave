@@ -50,7 +50,13 @@ pub fn find_attacks(mono: &[f32]) -> Vec<bool> {
 /// Where to read the next frame so it follows the previous one. The frame should start like the signal after
 /// the previous frame goes on at `reference`. It is looked for around `nominal`: first on the decimated signal,
 /// then at full resolution round the best place.
-fn best_start(coarse: &[f32], mono: &[f32], reference: usize, nominal: usize, tolerance: usize) -> usize {
+fn best_start(
+    coarse: &[f32],
+    mono: &[f32],
+    reference: usize,
+    nominal: usize,
+    tolerance: usize,
+) -> usize {
     let (hop, step) = (GLIDE_HOP, GLIDE_DECIMATION);
     let size = hop / step;
     let slice = |from: usize, to: usize| &coarse[from.min(coarse.len())..to.min(coarse.len())];
@@ -67,7 +73,11 @@ fn best_start(coarse: &[f32], mono: &[f32], reference: usize, nominal: usize, to
     }
     let mut best = (0, f64::NEG_INFINITY);
     for k in 0..=segment.len() - size {
-        let corr: f64 = segment[k..k + size].iter().zip(reference_coarse).map(|(&a, &b)| f64::from(a) * f64::from(b)).sum();
+        let corr: f64 = segment[k..k + size]
+            .iter()
+            .zip(reference_coarse)
+            .map(|(&a, &b)| f64::from(a) * f64::from(b))
+            .sum();
         let score = corr / (energy[k + size] - energy[k] + 1e-9).sqrt();
         if score > best.1 {
             best = (k, score);
@@ -83,8 +93,16 @@ fn best_start(coarse: &[f32], mono: &[f32], reference: usize, nominal: usize, to
         if candidate.len() < hop || target.len() < hop {
             continue;
         }
-        let dot: f64 = candidate.iter().zip(target).map(|(&a, &b)| f64::from(a) * f64::from(b)).sum();
-        let norm = candidate.iter().map(|&a| f64::from(a).powi(2)).sum::<f64>().sqrt();
+        let dot: f64 = candidate
+            .iter()
+            .zip(target)
+            .map(|(&a, &b)| f64::from(a) * f64::from(b))
+            .sum();
+        let norm = candidate
+            .iter()
+            .map(|&a| f64::from(a).powi(2))
+            .sum::<f64>()
+            .sqrt();
         let fit = dot / (norm + 1e-9);
         if fit > found_score {
             (found, found_score) = (place, fit);
@@ -102,13 +120,18 @@ pub fn wsola(pcm: &[f32], positions: &[f64], frames: usize) -> Vec<f32> {
     let mut padded = vec![0.0f32; (pad + pcm.len() / CHANNELS + pad + window) * CHANNELS];
     padded[pad * CHANNELS..pad * CHANNELS + pcm.len()].copy_from_slice(pcm);
     let padded_frames = padded.len() / CHANNELS;
-    let mono: Vec<f32> = padded.chunks_exact(CHANNELS).map(|f| (f[0] + f[1]) / 2.0).collect();
+    let mono: Vec<f32> = padded
+        .chunks_exact(CHANNELS)
+        .map(|f| (f[0] + f[1]) / 2.0)
+        .collect();
     let coarse: Vec<f32> = mono
         .chunks_exact(GLIDE_DECIMATION)
         .map(|c| (((c[0] + c[1]) + c[2]) + c[3]) / GLIDE_DECIMATION as f32)
         .collect();
 
-    let rising: Vec<f32> = (0..window).map(|n| (0.5 - 0.5 * (2.0 * PI * n as f64 / window as f64).cos()) as f32).collect();
+    let rising: Vec<f32> = (0..window)
+        .map(|n| (0.5 - 0.5 * (2.0 * PI * n as f64 / window as f64).cos()) as f32)
+        .collect();
     // Nothing comes before the first frame, so it does not fade in.
     let mut first = rising.clone();
     first[..hop].fill(1.0);
@@ -125,8 +148,14 @@ pub fn wsola(pcm: &[f32], positions: &[f64], frames: usize) -> Vec<f32> {
         } else {
             // A slice of Python: it stops at the end.
             let from = (nominal / GLIDE_BLOCK).min(attacks.len());
-            let to = ((nominal + window) / GLIDE_BLOCK + 1).min(attacks.len()).max(from);
-            let tolerance = if attacks[from..to].iter().any(|&a| a) { GLIDE_ATTACK_TOLERANCE } else { GLIDE_TOLERANCE };
+            let to = ((nominal + window) / GLIDE_BLOCK + 1)
+                .min(attacks.len())
+                .max(from);
+            let tolerance = if attacks[from..to].iter().any(|&a| a) {
+                GLIDE_ATTACK_TOLERANCE
+            } else {
+                GLIDE_TOLERANCE
+            };
             start = best_start(&coarse, &mono, start + hop, nominal, tolerance).min(last);
             &rising
         };
@@ -149,13 +178,25 @@ pub fn wsola(pcm: &[f32], positions: &[f64], frames: usize) -> Vec<f32> {
 /// beats, and `GLIDE_MARGIN` more if the track has them), `incoming` starts where the blend starts in the
 /// incoming track and holds `length * speed`. Returns the two pieces, equally long, and where each of their
 /// beats is.
-pub fn tempo_glide(outgoing: &[f32], incoming: &[f32], bpm: f64, speed: f64, length: usize) -> (Vec<f32>, Vec<f32>, Vec<f64>) {
+pub fn tempo_glide(
+    outgoing: &[f32],
+    incoming: &[f32],
+    bpm: f64,
+    speed: f64,
+    length: usize,
+) -> (Vec<f32>, Vec<f32>, Vec<f64>) {
     let period = f64::from(SAMPLE_RATE) * 60.0 / bpm;
     let beats = length as f64 / period;
     if (speed - 1.0).abs() < NEGLIGIBLE_TEMPO_SHIFT {
-        let frames = length.min(outgoing.len() / CHANNELS).min(incoming.len() / CHANNELS);
+        let frames = length
+            .min(outgoing.len() / CHANNELS)
+            .min(incoming.len() / CHANNELS);
         let grid = (0..=beats as usize).map(|i| i as f64 * period).collect();
-        return (outgoing[..frames * CHANNELS].to_vec(), incoming[..frames * CHANNELS].to_vec(), grid);
+        return (
+            outgoing[..frames * CHANNELS].to_vec(),
+            incoming[..frames * CHANNELS].to_vec(),
+            grid,
+        );
     }
 
     let target = bpm / speed;
@@ -164,9 +205,16 @@ pub fn tempo_glide(outgoing: &[f32], incoming: &[f32], bpm: f64, speed: f64, len
     let rate = step / (60.0 * f64::from(SAMPLE_RATE));
     let frames = ((target / bpm).ln() / rate) as usize;
     // Outgoing samples read by each time.
-    let pace: Vec<f64> =
-        (0..(frames as f64 / GLIDE_HOP as f64).ceil() as usize + 2).map(|i| ((rate * (i * GLIDE_HOP) as f64).exp() - 1.0) / rate).collect();
-    let grid = (0..=beats as usize).map(|i| ((bpm + step * i as f64) / bpm).ln() / rate).collect();
+    let pace: Vec<f64> = (0..(frames as f64 / GLIDE_HOP as f64).ceil() as usize + 2)
+        .map(|i| ((rate * (i * GLIDE_HOP) as f64).exp() - 1.0) / rate)
+        .collect();
+    let grid = (0..=beats as usize)
+        .map(|i| ((bpm + step * i as f64) / bpm).ln() / rate)
+        .collect();
     let faster: Vec<f64> = pace.iter().map(|p| p * speed).collect();
-    (wsola(outgoing, &pace, frames), wsola(incoming, &faster, frames), grid)
+    (
+        wsola(outgoing, &pace, frames),
+        wsola(incoming, &faster, frames),
+        grid,
+    )
 }

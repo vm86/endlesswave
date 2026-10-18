@@ -57,14 +57,24 @@ pub struct TrackInfo {
 }
 
 impl TrackInfo {
-    pub fn of(title: &str, analysis: &TrackAnalysis, track: Option<&Track>, mood: &str, decided: bool, pinned: bool) -> Self {
+    pub fn of(
+        title: &str,
+        analysis: &TrackAnalysis,
+        track: Option<&Track>,
+        mood: &str,
+        decided: bool,
+        pinned: bool,
+    ) -> Self {
         Self {
             track_id: track.map_or_else(String::new, |t| t.track_id.clone()),
             title: title.to_owned(),
             artists: track.map_or_else(Vec::new, |t| t.artists.clone()),
             bpm: round_to(analysis.bpm, 1),
             loudness_db: round_to(analysis.loudness_db, 1),
-            duration_seconds: round_to((analysis.end - analysis.start) as f64 / f64::from(SAMPLE_RATE), 1),
+            duration_seconds: round_to(
+                (analysis.end - analysis.start) as f64 / f64::from(SAMPLE_RATE),
+                1,
+            ),
             mood: mood.to_owned(),
             camelot: key::camelot_code(analysis.key),
             key: key::key_name(analysis.key),
@@ -93,7 +103,10 @@ pub enum RadioError {
 impl std::fmt::Display for RadioError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::SkipRefused(why) | Self::QueueChangeRefused(why) | Self::Invalid(why) | Self::Backend(why) => f.write_str(why),
+            Self::SkipRefused(why)
+            | Self::QueueChangeRefused(why)
+            | Self::Invalid(why)
+            | Self::Backend(why) => f.write_str(why),
             Self::UnknownQueueTrack(id) => f.write_str(id),
         }
     }

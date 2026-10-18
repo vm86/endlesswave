@@ -55,12 +55,18 @@ impl Frame {
 
 /// Server-sent events for frames: `data: {...}` and an empty line for each.
 pub fn sse_frames(frames: &[Frame]) -> String {
-    frames.iter().map(|f| format!("data: {}\n\n", f.to_json())).collect()
+    frames
+        .iter()
+        .map(|f| format!("data: {}\n\n", f.to_json()))
+        .collect()
 }
 
 /// The first event: where in the mix the player of the page starts (`null` if it did not connect in time).
 pub fn sse_start(position: Option<f64>) -> String {
-    let position = position.map_or_else(|| "null".to_owned(), |p| serde_json::to_string(&p).expect("a finite number"));
+    let position = position.map_or_else(
+        || "null".to_owned(),
+        |p| serde_json::to_string(&p).expect("a finite number"),
+    );
     format!("event: start\ndata: {{\"position\": {position}}}\n\n")
 }
 
@@ -68,7 +74,9 @@ pub fn sse_start(position: Option<f64>) -> String {
 fn geomspace(low: f64, high: f64, count: usize) -> Vec<f64> {
     let (log_low, log_high) = (low.log10(), high.log10());
     let step = (log_high - log_low) / (count - 1) as f64;
-    let mut edges: Vec<f64> = (0..count).map(|i| 10f64.powf(i as f64 * step + log_low)).collect();
+    let mut edges: Vec<f64> = (0..count)
+        .map(|i| 10f64.powf(i as f64 * step + log_low))
+        .collect();
     edges[0] = low;
     edges[count - 1] = high;
     edges
@@ -95,8 +103,12 @@ impl Default for SpectrumAnalyzer {
 impl SpectrumAnalyzer {
     pub fn new() -> Self {
         // np.hanning: symmetric.
-        let window = (0..WINDOW).map(|n| (0.5 - 0.5 * (2.0 * PI * n as f64 / (WINDOW - 1) as f64).cos()) as f32).collect();
-        let freqs: Vec<f64> = (0..=WINDOW / 2).map(|k| k as f64 * f64::from(SAMPLE_RATE) / WINDOW as f64).collect();
+        let window = (0..WINDOW)
+            .map(|n| (0.5 - 0.5 * (2.0 * PI * n as f64 / (WINDOW - 1) as f64).cos()) as f32)
+            .collect();
+        let freqs: Vec<f64> = (0..=WINDOW / 2)
+            .map(|k| k as f64 * f64::from(SAMPLE_RATE) / WINDOW as f64)
+            .collect();
         let edges = geomspace(LOW_HZ, HIGH_HZ, BANDS + 1);
         // np.searchsorted: the first bin at or above the edge.
         let search = |value: f64| freqs.partition_point(|&f| f < value);
@@ -107,9 +119,18 @@ impl SpectrumAnalyzer {
             })
             .collect();
         let tilt = (0..BANDS)
-            .map(|band| TILT_DB_PER_OCTAVE * ((edges[band] * edges[band + 1]).sqrt() / TILT_FROM_HZ).log2())
+            .map(|band| {
+                TILT_DB_PER_OCTAVE * ((edges[band] * edges[band + 1]).sqrt() / TILT_FROM_HZ).log2()
+            })
             .collect();
-        Self { buffer: Vec::new(), origin: 0, window, ranges, tilt, fft: RealFftPlanner::<f32>::new().plan_fft_forward(WINDOW) }
+        Self {
+            buffer: Vec::new(),
+            origin: 0,
+            window,
+            ranges,
+            tilt,
+            fft: RealFftPlanner::<f32>::new().plan_fft_forward(WINDOW),
+        }
     }
 
     /// Seconds of the mix that were fed.
@@ -119,7 +140,8 @@ impl SpectrumAnalyzer {
 
     /// Take the next piece of the mix (stereo, interleaved), return the bands of its windows.
     pub fn feed(&mut self, pcm: &[f32]) -> Vec<Frame> {
-        self.buffer.extend(pcm.chunks_exact(CHANNELS).map(|f| (f[0] + f[1]) / 2.0));
+        self.buffer
+            .extend(pcm.chunks_exact(CHANNELS).map(|f| (f[0] + f[1]) / 2.0));
         if self.buffer.len() < WINDOW {
             return Vec::new();
         }
@@ -128,19 +150,33 @@ impl SpectrumAnalyzer {
         let mut output = self.fft.make_output_vec();
         let mut frames = Vec::with_capacity(count);
         for i in 0..count {
-            for ((x, &s), &w) in input.iter_mut().zip(&self.buffer[i * HOP..i * HOP + WINDOW]).zip(&self.window) {
+            for ((x, &s), &w) in input
+                .iter_mut()
+                .zip(&self.buffer[i * HOP..i * HOP + WINDOW])
+                .zip(&self.window)
+            {
                 *x = s * w;
             }
-            self.fft.process(&mut input, &mut output).expect("sizes are right");
+            self.fft
+                .process(&mut input, &mut output)
+                .expect("sizes are right");
             // A sine of amplitude 1 gives 1 here (the Hann window passes half).
-            let amplitude: Vec<f32> = output.iter().map(|bin| bin.norm() / (WINDOW / 4) as f32).collect();
+            let amplitude: Vec<f32> = output
+                .iter()
+                .map(|bin| bin.norm() / (WINDOW / 4) as f32)
+                .collect();
             let mut bands = [0.0f64; BANDS];
             for (band, &(low, high)) in self.ranges.iter().enumerate() {
-                let peak = amplitude[low..high].iter().fold(0.0f32, |top, &a| top.max(a));
+                let peak = amplitude[low..high]
+                    .iter()
+                    .fold(0.0f32, |top, &a| top.max(a));
                 let db = f64::from(20.0 * peak.max(1e-6).log10()) + self.tilt[band];
                 bands[band] = ((db - FLOOR_DB) / -FLOOR_DB).clamp(0.0, 1.0);
             }
-            frames.push(Frame { t: ((self.origin + i * HOP) as f64 + WINDOW as f64 / 2.0) / f64::from(SAMPLE_RATE), bands });
+            frames.push(Frame {
+                t: ((self.origin + i * HOP) as f64 + WINDOW as f64 / 2.0) / f64::from(SAMPLE_RATE),
+                bands,
+            });
         }
         let used = count * HOP;
         self.buffer.drain(..used);
@@ -230,11 +266,22 @@ impl SpectrumFeed {
 
     /// Watch the frames: those from `since` on, then the new ones.
     pub fn subscribe(self: &Arc<Self>, since: Option<f64>) -> (Watcher, Vec<Frame>) {
-        let page = Arc::new(Page { queue: Mutex::new(VecDeque::new()), ready: Notify::new() });
+        let page = Arc::new(Page {
+            queue: Mutex::new(VecDeque::new()),
+            ready: Notify::new(),
+        });
         let mut state = self.state();
         state.1.push(Arc::clone(&page));
-        let backlog = since.map_or_else(Vec::new, |since| state.0.iter().filter(|f| f.t >= since).cloned().collect());
-        (Watcher { page, feed: Arc::clone(self) }, backlog)
+        let backlog = since.map_or_else(Vec::new, |since| {
+            state.0.iter().filter(|f| f.t >= since).cloned().collect()
+        });
+        (
+            Watcher {
+                page,
+                feed: Arc::clone(self),
+            },
+            backlog,
+        )
     }
 }
 
@@ -281,7 +328,12 @@ impl StartPositions {
             if let Some(&place) = state.places.get(name) {
                 return Some(place);
             }
-            Arc::clone(state.asked.entry(name.to_owned()).or_insert_with(|| Arc::new(Notify::new())))
+            Arc::clone(
+                state
+                    .asked
+                    .entry(name.to_owned())
+                    .or_insert_with(|| Arc::new(Notify::new())),
+            )
         };
         let notified = notify.notified();
         tokio::pin!(notified);
@@ -293,6 +345,11 @@ impl StartPositions {
         if tokio::time::timeout(wait, notified).await.is_err() {
             self.state.lock().expect("not poisoned").asked.remove(name);
         }
-        self.state.lock().expect("not poisoned").places.get(name).copied()
+        self.state
+            .lock()
+            .expect("not poisoned")
+            .places
+            .get(name)
+            .copied()
     }
 }

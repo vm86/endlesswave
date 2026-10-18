@@ -135,15 +135,34 @@ pub trait MusicBackend: Send + Sync {
     fn supports_moods(&self) -> bool;
     /// The next tracks of the station, ready to be downloaded. Tracks of `exclude_track_ids` may be left out. May
     /// repeat tracks it gave before when it has nothing else. `BackendError` when the service can't be reached.
-    async fn station_batch(&self, station_id: &str, exclude_track_ids: &HashSet<String>) -> Result<Vec<Track>, BackendError>;
+    async fn station_batch(
+        &self,
+        station_id: &str,
+        exclude_track_ids: &HashSet<String>,
+    ) -> Result<Vec<Track>, BackendError>;
     /// Write the audio of the track to `path`.
     async fn download(&self, track: &Track, path: &Path) -> Result<(), BackendError>;
     /// Tell the backend that the track was started, finished or skipped.
-    async fn feedback_track(&self, track: &Track, feedback: Feedback, station_id: &str, total_played_seconds: f64) -> Result<(), BackendError>;
+    async fn feedback_track(
+        &self,
+        track: &Track,
+        feedback: Feedback,
+        station_id: &str,
+        total_played_seconds: f64,
+    ) -> Result<(), BackendError>;
     /// The station's (mood_energy, diversity, language).
-    async fn station_settings(&self, station_id: &str) -> Result<(String, String, String), BackendError>;
+    async fn station_settings(
+        &self,
+        station_id: &str,
+    ) -> Result<(String, String, String), BackendError>;
     /// Change the station's settings (only if `supports_moods`).
-    async fn set_station_settings(&self, station_id: &str, mood_energy: &str, diversity: &str, language: &str) -> Result<(), BackendError>;
+    async fn set_station_settings(
+        &self,
+        station_id: &str,
+        mood_energy: &str,
+        diversity: &str,
+        language: &str,
+    ) -> Result<(), BackendError>;
     /// Stop what the backend runs in the background.
     async fn aclose(&self);
     /// The settings the page can show and change (the folder of `local`), with what they are called; `None` for a backend

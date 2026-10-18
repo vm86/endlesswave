@@ -36,8 +36,9 @@ pub fn onset_envelope(mono: &[f32]) -> Vec<f32> {
     }
     let count = (mono.len() - FRAME) / HOP + 1;
     // np.hanning: symmetric.
-    let window: Vec<f32> =
-        (0..FRAME).map(|n| (0.5 - 0.5 * (2.0 * PI * n as f64 / (FRAME - 1) as f64).cos()) as f32).collect();
+    let window: Vec<f32> = (0..FRAME)
+        .map(|n| (0.5 - 0.5 * (2.0 * PI * n as f64 / (FRAME - 1) as f64).cos()) as f32)
+        .collect();
     let fft = RealFftPlanner::<f32>::new().plan_fft_forward(FRAME);
     let mut input = fft.make_input_vec();
     let mut output = fft.make_output_vec();
@@ -49,7 +50,8 @@ pub fn onset_envelope(mono: &[f32]) -> Vec<f32> {
         for ((x, &s), &w) in input.iter_mut().zip(frame).zip(&window) {
             *x = s * w;
         }
-        fft.process_with_scratch(&mut input, &mut output, &mut scratch).expect("sizes are right");
+        fft.process_with_scratch(&mut input, &mut output, &mut scratch)
+            .expect("sizes are right");
         let mut rise = 0.0f64;
         for (bin, last) in output.iter().zip(previous.iter_mut()) {
             let now = (10.0 * bin.norm()).ln_1p();
@@ -100,12 +102,16 @@ pub fn estimate_tempo(flux: &[f32]) -> f64 {
         *x = f64::from(f) - mean;
     }
     let mut spectrum = forward.make_output_vec();
-    forward.process(&mut signal, &mut spectrum).expect("sizes are right");
+    forward
+        .process(&mut signal, &mut spectrum)
+        .expect("sizes are right");
     for bin in &mut spectrum {
         *bin = (bin.norm_sqr()).into();
     }
     let mut correlation = inverse.make_output_vec();
-    inverse.process(&mut spectrum, &mut correlation).expect("sizes are right");
+    inverse
+        .process(&mut spectrum, &mut correlation)
+        .expect("sizes are right");
     // realfft does not scale the inverse: only the ratio to the first lag matters.
     let zero = correlation[0];
     for c in &mut correlation {
@@ -141,11 +147,18 @@ pub fn estimate_tempo(flux: &[f32]) -> f64 {
 
 /// Onset energy found on a beat grid, for every grid phase: `(offsets, scores)`.
 fn comb_scores(flux: &[f32], period: f64) -> (Vec<f64>, Vec<f64>) {
-    let offsets: Vec<f64> = (0..).map(|i| f64::from(i) * 0.5).take_while(|&o| o < period).collect();
+    let offsets: Vec<f64> = (0..)
+        .map(|i| f64::from(i) * 0.5)
+        .take_while(|&o| o < period)
+        .collect();
     let beats = ((flux.len() as f64 / period) as i64 - 1).max(0);
     let scores = offsets
         .iter()
-        .map(|&offset| (0..beats).map(|beat| f64::from(flux[(offset + period * beat as f64) as usize])).sum())
+        .map(|&offset| {
+            (0..beats)
+                .map(|beat| f64::from(flux[(offset + period * beat as f64) as usize]))
+                .sum()
+        })
         .collect();
     (offsets, scores)
 }
@@ -185,7 +198,10 @@ pub fn refine_tempo(flux: &[f32], bpm: f64) -> f64 {
 pub fn find_beat(flux: &[f32], bpm: f64, first_frame: i64, last_frame: usize) -> f64 {
     let first = first_frame.max(0) as usize;
     let period = 60.0 * FRAMES_PER_SECOND / bpm;
-    let (offsets, scores) = comb_scores(&flux[first.min(last_frame)..last_frame.min(flux.len())], period);
+    let (offsets, scores) = comb_scores(
+        &flux[first.min(last_frame)..last_frame.min(flux.len())],
+        period,
+    );
     let best = offsets[argmax(&scores)] + first as f64;
     best * HOP as f64 + FRAME as f64 / 2.0
 }
@@ -198,7 +214,10 @@ pub fn audible_range(pcm: &[f32]) -> (usize, usize) {
     match first {
         None => (0, frames),
         Some(first) => {
-            let last = pcm.chunks_exact(CHANNELS).rposition(loud).expect("there is a first one");
+            let last = pcm
+                .chunks_exact(CHANNELS)
+                .rposition(loud)
+                .expect("there is a first one");
             (first, last + 1)
         }
     }
@@ -214,11 +233,18 @@ pub fn find_sections(mono: &[f32], start: usize, bar: usize) -> Option<(usize, u
     }
     let levels: Vec<f64> = mono[..count * bar]
         .chunks_exact(bar)
-        .map(|b| 10.0 * (b.iter().map(|&s| f64::from(s).powi(2)).sum::<f64>() / bar as f64 + 1e-12).log10())
+        .map(|b| {
+            10.0 * (b.iter().map(|&s| f64::from(s).powi(2)).sum::<f64>() / bar as f64 + 1e-12)
+                .log10()
+        })
         .collect();
     let mut sorted = levels.clone();
     sorted.sort_by(f64::total_cmp);
-    let median = if count % 2 == 1 { sorted[count / 2] } else { (sorted[count / 2 - 1] + sorted[count / 2]) / 2.0 };
+    let median = if count % 2 == 1 {
+        sorted[count / 2]
+    } else {
+        (sorted[count / 2 - 1] + sorted[count / 2]) / 2.0
+    };
     let loud = |&&level: &&f64| level >= median - SECTION_THRESHOLD_DB;
     let first = levels.iter().position(|l| loud(&l))?;
     let last = levels.iter().rposition(|l| loud(&l))?;
@@ -249,8 +275,10 @@ pub struct Rhythm {
 /// that does not need the key or the loudness).
 pub fn rhythm(pcm: &[f32]) -> Rhythm {
     let (start, end) = audible_range(pcm);
-    let mono: Vec<f32> =
-        pcm[start * CHANNELS..end * CHANNELS].chunks_exact(CHANNELS).map(|f| (f[0] + f[1]) / 2.0).collect();
+    let mono: Vec<f32> = pcm[start * CHANNELS..end * CHANNELS]
+        .chunks_exact(CHANNELS)
+        .map(|f| (f[0] + f[1]) / 2.0)
+        .collect();
 
     let (mut bpm, mut head_beat, mut tail_beat) = (0.0, 0.0, 0.0);
     if mono.len() > 2 * FRAME {
@@ -262,12 +290,22 @@ pub fn rhythm(pcm: &[f32]) -> Rhythm {
             // tracks will be blended.
             let edge = (BEAT_WINDOW_SECONDS * FRAMES_PER_SECOND) as usize;
             head_beat = start as f64 + find_beat(&flux, bpm, 0, edge);
-            tail_beat = start as f64 + find_beat(&flux, bpm, flux.len() as i64 - edge as i64, flux.len());
+            tail_beat =
+                start as f64 + find_beat(&flux, bpm, flux.len() as i64 - edge as i64, flux.len());
         }
     }
 
-    let bar = if bpm != 0.0 { BEATS_PER_BAR * SAMPLE_RATE as f64 * 60.0 / bpm } else { 0.0 };
-    let bar_samples = (if bar != 0.0 { bar } else { FALLBACK_BAR_SECONDS * SAMPLE_RATE as f64 }).round_ties_even() as usize;
+    let bar = if bpm != 0.0 {
+        BEATS_PER_BAR * SAMPLE_RATE as f64 * 60.0 / bpm
+    } else {
+        0.0
+    };
+    let bar_samples = (if bar != 0.0 {
+        bar
+    } else {
+        FALLBACK_BAR_SECONDS * SAMPLE_RATE as f64
+    })
+    .round_ties_even() as usize;
     let (mut intro_end, mut outro_start) = match find_sections(&mono, start, bar_samples) {
         Some((intro, outro)) => (intro as i64, outro as i64),
         None => (-1, -1),
@@ -281,5 +319,13 @@ pub fn rhythm(pcm: &[f32]) -> Rhythm {
             outro_start = -1;
         }
     }
-    Rhythm { bpm, head_beat, tail_beat, start, end, intro_end, outro_start }
+    Rhythm {
+        bpm,
+        head_beat,
+        tail_beat,
+        start,
+        end,
+        intro_end,
+        outro_start,
+    }
 }

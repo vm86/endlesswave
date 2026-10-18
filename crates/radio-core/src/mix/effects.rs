@@ -57,7 +57,9 @@ impl RandomNoise<rand::rngs::StdRng> {
 impl<R: rand::Rng> NoiseSource for RandomNoise<R> {
     fn normal(&mut self, count: usize) -> Vec<f64> {
         use rand_distr::{Distribution, StandardNormal};
-        (0..count).map(|_| StandardNormal.sample(&mut self.0)).collect()
+        (0..count)
+            .map(|_| StandardNormal.sample(&mut self.0))
+            .collect()
     }
 }
 
@@ -68,14 +70,21 @@ fn round(value: f64) -> i64 {
 
 /// White noise that gets brighter and louder, peak 1 (`frames` stereo frames).
 pub fn riser(frames: usize, noise: &mut dyn NoiseSource) -> Vec<f32> {
-    let noise: Vec<f32> = noise.normal(frames * CHANNELS).into_iter().map(|x| x as f32).collect();
+    let noise: Vec<f32> = noise
+        .normal(frames * CHANNELS)
+        .into_iter()
+        .map(|x| x as f32)
+        .collect();
     let position = linspace(f64::from(SWEEP_TOP), frames);
     let mut bright = sweep(&noise, &position, false);
     let low = Spectrum::new(&bright).lowpass(RISER_FLOOR_HZ);
     for (b, l) in bright.iter_mut().zip(&low) {
         *b -= l;
     }
-    let envelope: Vec<f32> = linspace(1.0, frames).into_iter().map(|e| e.powf(2.5)).collect();
+    let envelope: Vec<f32> = linspace(1.0, frames)
+        .into_iter()
+        .map(|e| e.powf(2.5))
+        .collect();
     for (frame, &e) in envelope.iter().enumerate() {
         for c in 0..CHANNELS {
             bright[frame * CHANNELS + c] *= e;
@@ -103,7 +112,9 @@ fn linspace_between(start: f64, end: f64, count: usize) -> Vec<f32> {
     match count {
         0 => Vec::new(),
         1 => vec![start as f32],
-        _ => (0..count).map(|i| (start + (end - start) * i as f64 / (count - 1) as f64) as f32).collect(),
+        _ => (0..count)
+            .map(|i| (start + (end - start) * i as f64 / (count - 1) as f64) as f32)
+            .collect(),
     }
 }
 
@@ -121,8 +132,13 @@ pub fn impact(frames: usize, noise: &mut dyn NoiseSource) -> Vec<f32> {
             phase.sin() * (-t * 4.5).exp() + click[i] * (-t * 60.0).exp() * 0.3
         })
         .collect();
-    let peak = mono.iter().fold(0.0f64, |top, x| top.max(x.abs())).max(1e-9);
-    mono.iter().flat_map(|&m| [(m / peak) as f32; CHANNELS]).collect()
+    let peak = mono
+        .iter()
+        .fold(0.0f64, |top, x| top.max(x.abs()))
+        .max(1e-9);
+    mono.iter()
+        .flat_map(|&m| [(m / peak) as f32; CHANNELS])
+        .collect()
 }
 
 /// Cut the track at `cut` and let its last slice echo on, fading. Before the cut nothing changes. The last slice
@@ -133,7 +149,10 @@ pub fn echo_out(pcm: &[f32], cut: usize, level: f64) -> Vec<f32> {
     let delay = round(ECHO_DELAY_SECONDS * f64::from(SAMPLE_RATE)) as usize;
     let cut = cut.max(delay);
     let edge = (delay / 2).min(round(CUT_FADE_SECONDS * f64::from(SAMPLE_RATE)) as usize);
-    let (rise, fall) = (linspace_between(0.0, 1.0, edge), linspace_between(1.0, 0.0, edge));
+    let (rise, fall) = (
+        linspace_between(0.0, 1.0, edge),
+        linspace_between(1.0, 0.0, edge),
+    );
 
     let mut slice = pcm[(cut - delay) * CHANNELS..cut * CHANNELS].to_vec();
     for n in 0..edge {
@@ -198,10 +217,16 @@ pub fn limit(pcm: &[f32], ceiling: f32) -> Vec<f32> {
         padded
     };
     let padded = pad(&need);
-    let held: Vec<f32> = padded.windows(width).map(|w| w.iter().fold(f32::INFINITY, |low, &x| low.min(x))).collect();
+    let held: Vec<f32> = padded
+        .windows(width)
+        .map(|w| w.iter().fold(f32::INFINITY, |low, &x| low.min(x)))
+        .collect();
     let padded = pad(&held);
     let weight = 1.0 / width as f64;
-    let mut gain: Vec<f64> = padded.windows(width).map(|w| w.iter().map(|&x| f64::from(x) * weight).sum()).collect();
+    let mut gain: Vec<f64> = padded
+        .windows(width)
+        .map(|w| w.iter().map(|&x| f64::from(x) * weight).sum())
+        .collect();
     // And back up slowly, never above what the peaks allow.
     for index in 1..count {
         let recovered = gain[index - 1] + LIMIT_RELEASE * (1.0 - gain[index - 1]);
@@ -227,7 +252,8 @@ pub fn limit(pcm: &[f32], ceiling: f32) -> Vec<f32> {
         } as f32;
         for c in 0..CHANNELS {
             // What the smoothing can't catch, to the last sample.
-            limited[frame * CHANNELS + c] = (pcm[frame * CHANNELS + c] * per_sample).clamp(-1.0, 1.0);
+            limited[frame * CHANNELS + c] =
+                (pcm[frame * CHANNELS + c] * per_sample).clamp(-1.0, 1.0);
         }
     }
     limited
@@ -238,7 +264,13 @@ fn rms(pcm: &[f32]) -> f64 {
 }
 
 /// Add a riser that builds up to the drop and a boom on it.
-pub fn add_drop(blended: &[f32], drop: i64, beat_period: f64, level: f64, noise: &mut dyn NoiseSource) -> Vec<f32> {
+pub fn add_drop(
+    blended: &[f32],
+    drop: i64,
+    beat_period: f64,
+    level: f64,
+    noise: &mut dyn NoiseSource,
+) -> Vec<f32> {
     let frames = blended.len() / CHANNELS;
     let loudness = rms(blended);
     let length = drop.min(round(RISER_BEATS * beat_period));
@@ -295,12 +327,25 @@ pub struct Applied {
 /// effects; otherwise the effects follow `effects` and the beats (a drop with a shared grid, else an echo).
 pub fn applied_blend(kind: Transition, frames: usize, beat_period: f64, effects: f64) -> Applied {
     if (frames as f64) < MIN_FILTERED_BLEND_SECONDS * f64::from(SAMPLE_RATE) {
-        return Applied { kind: Transition::Crossfade, effect: Effect::None };
+        return Applied {
+            kind: Transition::Crossfade,
+            effect: Effect::None,
+        };
     }
     if effects <= 0.0 {
-        return Applied { kind, effect: Effect::None };
+        return Applied {
+            kind,
+            effect: Effect::None,
+        };
     }
-    Applied { kind, effect: if beat_period != 0.0 { Effect::Drop } else { Effect::Echo } }
+    Applied {
+        kind,
+        effect: if beat_period != 0.0 {
+            Effect::Drop
+        } else {
+            Effect::Echo
+        },
+    }
 }
 
 /// Blend two equally long pieces the given way. `effects` (0..1) dresses the transition up like in a club: with
@@ -324,7 +369,11 @@ pub fn blend(
 
     let echoed;
     let outgoing = if used.effect == Effect::Echo {
-        echoed = echo_out(outgoing, round(frames as f64 * ECHO_CUT_AT) as usize, effects);
+        echoed = echo_out(
+            outgoing,
+            round(frames as f64 * ECHO_CUT_AT) as usize,
+            effects,
+        );
         &echoed[..]
     } else {
         outgoing
@@ -343,7 +392,9 @@ pub fn blend(
     }
     let mut period = beat_period;
     let drop = match (swap, beat_grid) {
-        (Some(swap), _) if matches!(kind, Transition::BassSwap | Transition::EqBlend) => round(swap.0),
+        (Some(swap), _) if matches!(kind, Transition::BassSwap | Transition::EqBlend) => {
+            round(swap.0)
+        }
         (_, Some(grid)) if grid.len() > 1 => {
             // The last beat of the blend, so that the boom has room.
             period = grid[grid.len() - 1] - grid[grid.len() - 2];

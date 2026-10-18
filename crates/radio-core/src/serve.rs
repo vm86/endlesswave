@@ -13,7 +13,7 @@ use crate::{
     spectrum::{SpectrumFeed, StartPositions},
     stream::{
         broadcaster::{Broadcaster, Config},
-        encoder::{Format, FfmpegEncoder},
+        encoder::{FfmpegEncoder, Format},
         native::{AnyEncoder, NativeEncoder},
     },
 };
@@ -80,7 +80,10 @@ async fn first_tracks(radio: &Radio, retry: Duration) {
         if !radio.pool().is_empty() {
             return;
         }
-        tracing::warn!("No playable tracks yet, is a music backend reachable? Retry in {} s", retry.as_secs());
+        tracing::warn!(
+            "No playable tracks yet, is a music backend reachable? Retry in {} s",
+            retry.as_secs()
+        );
         tokio::time::sleep(retry).await;
     }
 }
@@ -95,7 +98,16 @@ pub async fn serve(
     ready: Option<tokio::sync::oneshot::Sender<SocketAddr>>,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> std::io::Result<()> {
-    serve_with(backend, selectable, options, cache, ready, shutdown, Duration::from_secs(STARTUP_RETRY_SECONDS)).await
+    serve_with(
+        backend,
+        selectable,
+        options,
+        cache,
+        ready,
+        shutdown,
+        Duration::from_secs(STARTUP_RETRY_SECONDS),
+    )
+    .await
 }
 
 pub async fn serve_with(
@@ -110,7 +122,10 @@ pub async fn serve_with(
     let keep = cache.is_some() && options.tracks_dir.is_some();
     let (workdir, temporary) = match (&options.tracks_dir, keep) {
         (Some(dir), true) => (dir.clone(), false),
-        _ => (std::env::temp_dir().join(format!("endlesswave-{}", uuid::Uuid::new_v4())), true),
+        _ => (
+            std::env::temp_dir().join(format!("endlesswave-{}", uuid::Uuid::new_v4())),
+            true,
+        ),
     };
     tokio::fs::create_dir_all(&workdir).await?;
 
@@ -170,7 +185,11 @@ pub async fn serve_with(
                     tracing::error!("Could not start the mood arc: {error}");
                 }
             }
-            tracing::info!("Preparing {} tracks from {}...", options.pool_size, radio.station_id());
+            tracing::info!(
+                "Preparing {} tracks from {}...",
+                options.pool_size,
+                radio.station_id()
+            );
             first_tracks(&radio, startup_retry).await;
             let refill = tokio::spawn({
                 let radio = radio.clone();
@@ -186,7 +205,11 @@ pub async fn serve_with(
                 streams,
                 Some(spectrum),
                 move |format: Format, hub: Arc<Broadcaster>| {
-                    if ffmpeg_encoders { FfmpegEncoder::start(&ffmpeg, format, hub).map(AnyEncoder::Ffmpeg) } else { NativeEncoder::start(format, hub).map(AnyEncoder::Native) }
+                    if ffmpeg_encoders {
+                        FfmpegEncoder::start(&ffmpeg, format, hub).map(AnyEncoder::Ffmpeg)
+                    } else {
+                        NativeEncoder::start(format, hub).map(AnyEncoder::Native)
+                    }
                 },
                 Options::default(),
             );
@@ -209,7 +232,10 @@ pub async fn serve_with(
     }
     // The streams never end by themselves: a listener that is still there would keep a graceful stop waiting for ever.
     let _ = stop_server.send(());
-    if tokio::time::timeout(Duration::from_secs(2), &mut server).await.is_err() {
+    if tokio::time::timeout(Duration::from_secs(2), &mut server)
+        .await
+        .is_err()
+    {
         server.abort();
     }
     if temporary {

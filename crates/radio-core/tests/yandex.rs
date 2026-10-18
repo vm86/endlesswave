@@ -38,7 +38,9 @@ struct Mock {
 }
 
 fn header(headers: &HeaderMap, name: &str) -> Value {
-    headers.get(name).map_or(Value::Null, |v| json!(v.to_str().unwrap()))
+    headers
+        .get(name)
+        .map_or(Value::Null, |v| json!(v.to_str().unwrap()))
 }
 
 async fn handle(State(mock): State<Arc<Mock>>, request: Request) -> Response {
@@ -53,7 +55,14 @@ async fn handle(State(mock): State<Arc<Mock>>, request: Request) -> Response {
         for pair in String::from_utf8(raw.to_vec()).unwrap().split('&') {
             let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
             let value = percent(value);
-            form.insert(key.to_owned(), if key == "device_id" { json!("<id>") } else { json!(value) });
+            form.insert(
+                key.to_owned(),
+                if key == "device_id" {
+                    json!("<id>")
+                } else {
+                    json!(value)
+                },
+            );
         }
         Value::Object(form)
     } else if raw.is_empty() {
@@ -61,10 +70,17 @@ async fn handle(State(mock): State<Arc<Mock>>, request: Request) -> Response {
     } else {
         json!(String::from_utf8(raw.to_vec()).unwrap())
     };
-    let mut query: Vec<(String, String)> = parts.uri.query().unwrap_or("").split('&').filter(|p| !p.is_empty()).map(|pair| {
-        let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
-        (percent(key), percent(value))
-    }).collect();
+    let mut query: Vec<(String, String)> = parts
+        .uri
+        .query()
+        .unwrap_or("")
+        .split('&')
+        .filter(|p| !p.is_empty())
+        .map(|pair| {
+            let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
+            (percent(key), percent(value))
+        })
+        .collect();
     query.sort();
     let method = parts.method.as_str().to_owned();
     let path = percent(parts.uri.path());
@@ -84,11 +100,22 @@ async fn handle(State(mock): State<Arc<Mock>>, request: Request) -> Response {
     let answer = mock.routes.iter().enumerate().find(|(_, route)| {
         route["method"] == method.as_str()
             && route["path"] == path.as_str()
-            && route["when"].as_object().is_none_or(|when| when.iter().all(|(k, v)| query.iter().any(|(qk, qv)| qk == k && Some(qv.as_str()) == v.as_str())))
+            && route["when"].as_object().is_none_or(|when| {
+                when.iter().all(|(k, v)| {
+                    query
+                        .iter()
+                        .any(|(qk, qv)| qk == k && Some(qv.as_str()) == v.as_str())
+                })
+            })
     });
     let origin = mock.origin.lock().unwrap().clone();
     let Some((index, route)) = answer else {
-        return (StatusCode::NOT_FOUND, [("content-type", "application/json")], r#"{"error": "no route"}"#).into_response();
+        return (
+            StatusCode::NOT_FOUND,
+            [("content-type", "application/json")],
+            r#"{"error": "no route"}"#,
+        )
+            .into_response();
     };
     let turn = {
         let mut calls = mock.calls.lock().unwrap();
@@ -101,7 +128,12 @@ async fn handle(State(mock): State<Arc<Mock>>, request: Request) -> Response {
     let status = StatusCode::from_u16(answer["status"].as_u64().unwrap() as u16).unwrap();
     match answer.get("text").and_then(Value::as_str) {
         Some(text) => (status, text.replace("<mock>", &origin)).into_response(),
-        None => (status, [("content-type", "application/json")], answer["json"].to_string().replace("<mock>", &origin)).into_response(),
+        None => (
+            status,
+            [("content-type", "application/json")],
+            answer["json"].to_string().replace("<mock>", &origin),
+        )
+            .into_response(),
     }
 }
 
@@ -111,7 +143,9 @@ fn percent(text: &str) -> String {
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'%' && i + 2 < bytes.len() + 0 && i + 2 <= bytes.len() - 1 {
-            out.push(u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap(), 16).unwrap());
+            out.push(
+                u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap(), 16).unwrap(),
+            );
             i += 3;
         } else {
             out.push(bytes[i]);
@@ -128,12 +162,18 @@ fn track(value: &Value) -> Track {
 /// The error, as the Python harness writes it (what a failed download says of the HTTP error is not compared).
 fn error_text(kind: &str, message: &str, origin: &str) -> String {
     let text = format!("{kind}: {message}").replace(origin, "<mock>");
-    match text.find("download of ").and_then(|at| text[at..].find(": ").map(|colon| (at, colon))) {
+    match text
+        .find("download of ")
+        .and_then(|at| text[at..].find(": ").map(|colon| (at, colon)))
+    {
         Some((at, colon)) => {
             let rest = &text[at + colon + 2..];
             // after "from <url>"
             if text[at..].contains(" from ") && rest.contains(&text[at + 12..at + colon]) == false {
-                match text[at..].find(" from ").and_then(|f| text[at + f..].find(": ").map(|c| at + f + c)) {
+                match text[at..]
+                    .find(" from ")
+                    .and_then(|f| text[at + f..].find(": ").map(|c| at + f + c))
+                {
                     Some(cut) => text[..cut].to_owned(),
                     None => text,
                 }
@@ -147,8 +187,18 @@ fn error_text(kind: &str, message: &str, origin: &str) -> String {
 
 fn first_difference(got: &Value, want: &Value, path: &str) -> Option<String> {
     match (got, want) {
-        (Value::Object(a), Value::Object(b)) => a.keys().chain(b.keys()).find_map(|key| first_difference(a.get(key).unwrap_or(&Value::Null), b.get(key).unwrap_or(&Value::Null), &format!("{path}.{key}"))),
-        (Value::Array(a), Value::Array(b)) if a.len() == b.len() => a.iter().zip(b).enumerate().find_map(|(i, (x, y))| first_difference(x, y, &format!("{path}[{i}]"))),
+        (Value::Object(a), Value::Object(b)) => a.keys().chain(b.keys()).find_map(|key| {
+            first_difference(
+                a.get(key).unwrap_or(&Value::Null),
+                b.get(key).unwrap_or(&Value::Null),
+                &format!("{path}.{key}"),
+            )
+        }),
+        (Value::Array(a), Value::Array(b)) if a.len() == b.len() => a
+            .iter()
+            .zip(b)
+            .enumerate()
+            .find_map(|(i, (x, y))| first_difference(x, y, &format!("{path}[{i}]"))),
         _ if got == want => None,
         _ => Some(format!("{path}: {got} against {want}")),
     }
@@ -178,7 +228,10 @@ fn settle(requests: Vec<Value>) -> Vec<Value> {
 async fn the_yandex_backend_sends_and_reads_as_the_python_one_does() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden/yandex/expected.json");
     let Ok(text) = fs::read_to_string(&path) else {
-        assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "no golden file, run tools/gen_golden.py");
+        assert!(
+            std::env::var_os("GOLDEN_REQUIRED").is_none(),
+            "no golden file, run tools/gen_golden.py"
+        );
         eprintln!("no golden file: skipped");
         return;
     };
@@ -190,7 +243,12 @@ async fn the_yandex_backend_sends_and_reads_as_the_python_one_does() {
         let name = scenario["name"].as_str().unwrap();
         let dir = scratch.join(name);
         fs::create_dir_all(&dir).unwrap();
-        let mock = Arc::new(Mock { routes: scenario["routes"].as_array().unwrap().clone(), calls: Mutex::default(), log: Mutex::default(), origin: Mutex::default() });
+        let mock = Arc::new(Mock {
+            routes: scenario["routes"].as_array().unwrap().clone(),
+            calls: Mutex::default(),
+            log: Mutex::default(),
+            origin: Mutex::default(),
+        });
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
         *mock.origin.lock().unwrap() = origin.clone();
@@ -201,10 +259,20 @@ async fn the_yandex_backend_sends_and_reads_as_the_python_one_does() {
         if !scenario["settings"].is_null() {
             fs::write(&settings_path, scenario["settings"].to_string()).unwrap();
         }
-        let delays = scenario.get("rate_limit_delays").and_then(Value::as_array).map_or_else(|| vec![0.01, 0.02, 0.04, 0.08], |d| d.iter().map(|v| v.as_f64().unwrap()).collect());
+        let delays = scenario
+            .get("rate_limit_delays")
+            .and_then(Value::as_array)
+            .map_or_else(
+                || vec![0.01, 0.02, 0.04, 0.08],
+                |d| d.iter().map(|v| v.as_f64().unwrap()).collect(),
+            );
         let backend = YandexBackend::new(
             settings_path.clone(),
-            YandexOptions { api: origin.clone(), oauth: origin.clone(), rate_limit_delays: delays },
+            YandexOptions {
+                api: origin.clone(),
+                oauth: origin.clone(),
+                rate_limit_delays: delays,
+            },
             Arc::new(ManualClock::new(WALL)),
         )
         .unwrap();
@@ -214,13 +282,26 @@ async fn the_yandex_backend_sends_and_reads_as_the_python_one_does() {
             let want = &scenario["results"][index];
             let op = step["op"].as_str().unwrap();
             let mut got = serde_json::Map::new();
-            let failed = |kind: &str, error: &dyn std::fmt::Display, got: &mut serde_json::Map<String, Value>| {
-                got.insert("error".to_owned(), json!(error_text(kind, &error.to_string(), &origin)));
+            let failed = |kind: &str,
+                          error: &dyn std::fmt::Display,
+                          got: &mut serde_json::Map<String, Value>| {
+                got.insert(
+                    "error".to_owned(),
+                    json!(error_text(kind, &error.to_string(), &origin)),
+                );
             };
             match op {
                 "batch" => {
-                    let exclude = step["exclude"].as_array().into_iter().flatten().map(|v| v.as_str().unwrap().to_owned()).collect();
-                    match backend.station_batch(step["station"].as_str().unwrap(), &exclude).await {
+                    let exclude = step["exclude"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .map(|v| v.as_str().unwrap().to_owned())
+                        .collect();
+                    match backend
+                        .station_batch(step["station"].as_str().unwrap(), &exclude)
+                        .await
+                    {
                         Ok(tracks) => {
                             got.insert("tracks".to_owned(), serde_json::to_value(tracks).unwrap());
                         }
@@ -242,15 +323,34 @@ async fn the_yandex_backend_sends_and_reads_as_the_python_one_does() {
                         "finished" => Feedback::Finished,
                         _ => Feedback::Skipped,
                     };
-                    backend.feedback_track(&track(&step["track"]), kind, step["station"].as_str().unwrap(), step["seconds"].as_f64().unwrap()).await.unwrap();
+                    backend
+                        .feedback_track(
+                            &track(&step["track"]),
+                            kind,
+                            step["station"].as_str().unwrap(),
+                            step["seconds"].as_f64().unwrap(),
+                        )
+                        .await
+                        .unwrap();
                 }
                 "station_settings" => {
-                    let (a, b, c) = backend.station_settings(step["station"].as_str().unwrap()).await.unwrap();
+                    let (a, b, c) = backend
+                        .station_settings(step["station"].as_str().unwrap())
+                        .await
+                        .unwrap();
                     got.insert("settings".to_owned(), json!([a, b, c]));
                 }
                 "set_station_settings" => {
                     let s = |key: &str| step[key].as_str().unwrap().to_owned();
-                    backend.set_station_settings(&s("station"), &s("mood"), &s("diversity"), &s("language")).await.unwrap();
+                    backend
+                        .set_station_settings(
+                            &s("station"),
+                            &s("mood"),
+                            &s("diversity"),
+                            &s("language"),
+                        )
+                        .await
+                        .unwrap();
                 }
                 "authorize" => {
                     if let Err(error) = backend.authorize(&HashMap::new()).await {
@@ -266,8 +366,13 @@ async fn the_yandex_backend_sends_and_reads_as_the_python_one_does() {
                         tokio::time::sleep(Duration::from_millis(10)).await;
                     }
                     let prompt = backend.auth_prompt();
-                    got.insert("prompt".to_owned(), json!({"url": prompt.url, "code": prompt.code}));
-                    tokio::time::timeout(Duration::from_secs(10), backend.wait_authorized()).await.unwrap();
+                    got.insert(
+                        "prompt".to_owned(),
+                        json!({"url": prompt.url, "code": prompt.code}),
+                    );
+                    tokio::time::timeout(Duration::from_secs(10), backend.wait_authorized())
+                        .await
+                        .unwrap();
                     tokio::time::sleep(Duration::from_millis(50)).await;
                 }
                 "query" => {}
@@ -283,7 +388,9 @@ async fn the_yandex_backend_sends_and_reads_as_the_python_one_does() {
             #[cfg(unix)]
             let mode = {
                 use std::os::unix::fs::PermissionsExt;
-                fs::metadata(&settings_path).ok().map(|m| m.permissions().mode() & 0o777)
+                fs::metadata(&settings_path)
+                    .ok()
+                    .map(|m| m.permissions().mode() & 0o777)
             };
             #[cfg(not(unix))]
             let mode = want["state"]["settings_mode"].as_u64().map(|m| m as u32);

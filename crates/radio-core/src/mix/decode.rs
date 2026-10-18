@@ -18,7 +18,10 @@ pub fn decode_file(path: &Path) -> io::Result<Vec<f32>> {
 pub fn decode_file_with(ffmpeg: &Path, path: &Path) -> io::Result<Vec<f32>> {
     match decode_native(path) {
         Ok(samples) => return Ok(samples),
-        Err(error) => tracing::debug!("{} is not decoded natively ({error}), trying ffmpeg", path.display()),
+        Err(error) => tracing::debug!(
+            "{} is not decoded natively ({error}), trying ffmpeg",
+            path.display()
+        ),
     }
     decode_with_ffmpeg(ffmpeg, path)
 }
@@ -28,33 +31,59 @@ pub fn decode_with_ffmpeg(ffmpeg: &Path, path: &Path) -> io::Result<Vec<f32>> {
     let output = Command::new(ffmpeg)
         .args(["-nostdin", "-v", "error", "-i"])
         .arg(path)
-        .args(["-f", "f32le", "-ac", &CHANNELS.to_string(), "-ar", &SAMPLE_RATE.to_string(), "pipe:1"])
+        .args([
+            "-f",
+            "f32le",
+            "-ac",
+            &CHANNELS.to_string(),
+            "-ar",
+            &SAMPLE_RATE.to_string(),
+            "pipe:1",
+        ])
         .stdin(Stdio::null())
         .stderr(Stdio::null())
         .output()?;
     // The tail of a cut frame is left out.
     let usable = output.stdout.len() / (4 * CHANNELS) * (4 * CHANNELS);
     if !output.status.success() || usable == 0 {
-        let name = path.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        let name = path
+            .file_name()
+            .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
         return Err(io::Error::other(format!("ffmpeg could not decode {name}")));
     }
-    Ok(output.stdout[..usable].chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect())
+    Ok(output.stdout[..usable]
+        .chunks_exact(4)
+        .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        .collect())
 }
 
 /// The same as [`decode_file_with`] for a task that may be stopped: ffmpeg is killed when the future is dropped.
 pub async fn decode_file_async(ffmpeg: &Path, path: &Path) -> io::Result<Vec<f32>> {
     let native = {
         let path = path.to_owned();
-        tokio::task::spawn_blocking(move || decode_native(&path)).await.map_err(io::Error::other)?
+        tokio::task::spawn_blocking(move || decode_native(&path))
+            .await
+            .map_err(io::Error::other)?
     };
     match native {
         Ok(samples) => return Ok(samples),
-        Err(error) => tracing::debug!("{} is not decoded natively ({error}), trying ffmpeg", path.display()),
+        Err(error) => tracing::debug!(
+            "{} is not decoded natively ({error}), trying ffmpeg",
+            path.display()
+        ),
     }
     let output = tokio::process::Command::new(ffmpeg)
         .args(["-nostdin", "-v", "error", "-i"])
         .arg(path)
-        .args(["-f", "f32le", "-ac", &CHANNELS.to_string(), "-ar", &SAMPLE_RATE.to_string(), "pipe:1"])
+        .args([
+            "-f",
+            "f32le",
+            "-ac",
+            &CHANNELS.to_string(),
+            "-ar",
+            &SAMPLE_RATE.to_string(),
+            "pipe:1",
+        ])
         .stdin(Stdio::null())
         .stderr(Stdio::null())
         .kill_on_drop(true)
@@ -63,10 +92,15 @@ pub async fn decode_file_async(ffmpeg: &Path, path: &Path) -> io::Result<Vec<f32
     // The tail of a cut frame is left out.
     let usable = output.stdout.len() / (4 * CHANNELS) * (4 * CHANNELS);
     if !output.status.success() || usable == 0 {
-        let name = path.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        let name = path
+            .file_name()
+            .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
         return Err(io::Error::other(format!("ffmpeg could not decode {name}")));
     }
-    Ok(output.stdout[..usable].chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect())
+    Ok(output.stdout[..usable]
+        .chunks_exact(4)
+        .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        .collect())
 }
 
 /// Why the native decoder gave nothing: the file may still be read by ffmpeg.
@@ -105,12 +139,25 @@ pub fn decode_native(path: &Path) -> Result<Vec<f32>, NativeError> {
         hint.with_extension(extension);
     }
     let mut format = symphonia::default::get_probe()
-        .probe(&hint, MediaSourceStream::new(Box::new(file), Default::default()), FormatOptions::default(), MetadataOptions::default())
+        .probe(
+            &hint,
+            MediaSourceStream::new(Box::new(file), Default::default()),
+            FormatOptions::default(),
+            MetadataOptions::default(),
+        )
         .map_err(unsupported)?;
-    let track = format.default_track(TrackType::Audio).ok_or_else(|| NativeError::Unsupported("no audio track".into()))?;
+    let track = format
+        .default_track(TrackType::Audio)
+        .ok_or_else(|| NativeError::Unsupported("no audio track".into()))?;
     let track_id = track.id;
-    let params = track.codec_params.as_ref().and_then(|p| p.audio()).ok_or_else(|| NativeError::Unsupported("no audio parameters".into()))?;
-    let mut decoder = symphonia::default::get_codecs().make_audio_decoder(params, &AudioDecoderOptions::default()).map_err(unsupported)?;
+    let params = track
+        .codec_params
+        .as_ref()
+        .and_then(|p| p.audio())
+        .ok_or_else(|| NativeError::Unsupported("no audio parameters".into()))?;
+    let mut decoder = symphonia::default::get_codecs()
+        .make_audio_decoder(params, &AudioDecoderOptions::default())
+        .map_err(unsupported)?;
 
     let (mut channels, mut rate) = (0usize, 0u32);
     let mut samples: Vec<f32> = Vec::new();
@@ -133,7 +180,9 @@ pub fn decode_native(path: &Path) -> Result<Vec<f32>, NativeError> {
                 if channels == 0 {
                     (channels, rate) = (count, hz);
                 } else if (count, hz) != (channels, rate) {
-                    return Err(NativeError::Unsupported("the format changes in the middle".into()));
+                    return Err(NativeError::Unsupported(
+                        "the format changes in the middle".into(),
+                    ));
                 }
                 chunk.clear();
                 decoded.copy_to_vec_interleaved(&mut chunk);
@@ -149,7 +198,10 @@ pub fn decode_native(path: &Path) -> Result<Vec<f32>, NativeError> {
     }
     let stereo: Vec<f32> = match channels {
         // (what ffmpeg makes of a mono file: the centre goes to both sides at -3 dB)
-        1 => samples.iter().flat_map(|&s| [s * std::f32::consts::FRAC_1_SQRT_2; 2]).collect(),
+        1 => samples
+            .iter()
+            .flat_map(|&s| [s * std::f32::consts::FRAC_1_SQRT_2; 2])
+            .collect(),
         2 => samples,
         n => return Err(NativeError::Unsupported(format!("{n} channels"))),
     };
@@ -164,8 +216,12 @@ fn resample(stereo: &[f32], from: usize) -> Result<Vec<f32>, NativeError> {
     use rubato::{Fft, FixedSync, Resampler};
     let frames = stereo.len() / CHANNELS;
     let failed = |e: &dyn std::fmt::Display| NativeError::Failed(format!("resampling: {e}"));
-    let mut resampler = Fft::<f32>::new(from, SAMPLE_RATE as usize, 1024, CHANNELS, FixedSync::Both).map_err(|e| failed(&e))?;
+    let mut resampler =
+        Fft::<f32>::new(from, SAMPLE_RATE as usize, 1024, CHANNELS, FixedSync::Both)
+            .map_err(|e| failed(&e))?;
     let input = InterleavedSlice::new(stereo, CHANNELS, frames).map_err(|e| failed(&e))?;
-    let output = resampler.process_all(&input, frames, None).map_err(|e| failed(&e))?;
+    let output = resampler
+        .process_all(&input, frames, None)
+        .map_err(|e| failed(&e))?;
     Ok(output.take_data())
 }

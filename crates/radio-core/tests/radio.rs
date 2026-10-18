@@ -20,16 +20,21 @@ use radio_core::{
     },
     cache::TrackCache,
     clock::ManualClock,
-    mix::{effects::Effect, plan::Transition},
     encode::Streams,
+    mix::{effects::Effect, plan::Transition},
     pipeline::{Deck, DeckSource},
     radio::{Radio, RadioConfig, RadioError},
     spectrum::{SpectrumFeed, StartPositions},
     stream::broadcaster::{Broadcaster, Config},
 };
-use tower::ServiceExt as _;
 use serde_json::{Value, json};
-use std::{collections::HashMap, fs, path::PathBuf, sync::{Arc, Mutex}};
+use std::{
+    collections::HashMap,
+    fs,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
+use tower::ServiceExt as _;
 
 fn dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden/radio")
@@ -40,7 +45,10 @@ fn first_difference(got: &Value, want: &Value, path: &str) -> Option<String> {
     match (got, want) {
         (Value::Object(a), Value::Object(b)) => {
             for key in a.keys().chain(b.keys()) {
-                let (x, y) = (a.get(key).unwrap_or(&Value::Null), b.get(key).unwrap_or(&Value::Null));
+                let (x, y) = (
+                    a.get(key).unwrap_or(&Value::Null),
+                    b.get(key).unwrap_or(&Value::Null),
+                );
                 if let Some(found) = first_difference(x, y, &format!("{path}.{key}")) {
                     return Some(found);
                 }
@@ -49,9 +57,16 @@ fn first_difference(got: &Value, want: &Value, path: &str) -> Option<String> {
         }
         (Value::Array(a), Value::Array(b)) => {
             if a.len() != b.len() {
-                return Some(format!("{path}: {} items against {}: {got} / {want}", a.len(), b.len()));
+                return Some(format!(
+                    "{path}: {} items against {}: {got} / {want}",
+                    a.len(),
+                    b.len()
+                ));
             }
-            a.iter().zip(b).enumerate().find_map(|(i, (x, y))| first_difference(x, y, &format!("{path}[{i}]")))
+            a.iter()
+                .zip(b)
+                .enumerate()
+                .find_map(|(i, (x, y))| first_difference(x, y, &format!("{path}[{i}]")))
         }
         _ if got == want => None,
         _ => Some(format!("{path}: {got} against {want}")),
@@ -72,7 +87,10 @@ fn unknown(id: &str) -> String {
 #[async_trait]
 impl BackendSet for StubBackends {
     async fn enable(&self, id: &str) -> Result<(), String> {
-        let id = STUB_IDS.iter().find(|i| **i == id).ok_or_else(|| unknown(id))?;
+        let id = STUB_IDS
+            .iter()
+            .find(|i| **i == id)
+            .ok_or_else(|| unknown(id))?;
         let mut on = self.on.lock().unwrap();
         if !on.contains(id) {
             on.push(id);
@@ -80,7 +98,10 @@ impl BackendSet for StubBackends {
         Ok(())
     }
     async fn disable(&self, id: &str) -> Result<(), String> {
-        let id = STUB_IDS.iter().find(|i| **i == id).ok_or_else(|| unknown(id))?;
+        let id = STUB_IDS
+            .iter()
+            .find(|i| **i == id)
+            .ok_or_else(|| unknown(id))?;
         self.on.lock().unwrap().retain(|i| i != id);
         Ok(())
     }
@@ -96,9 +117,18 @@ impl BackendSet for StubBackends {
             })
             .collect()
     }
-    async fn authorize_backend(&self, id: &str, values: &HashMap<String, String>) -> Result<(), AuthError> {
-        if !self.on.lock().unwrap().contains(&id) && !self.on.lock().unwrap().iter().any(|i| *i == id) {
-            return Err(AuthError(format!("music backend {} is not on", radio_core::api::py_repr(id))));
+    async fn authorize_backend(
+        &self,
+        id: &str,
+        values: &HashMap<String, String>,
+    ) -> Result<(), AuthError> {
+        if !self.on.lock().unwrap().contains(&id)
+            && !self.on.lock().unwrap().iter().any(|i| *i == id)
+        {
+            return Err(AuthError(format!(
+                "music backend {} is not on",
+                radio_core::api::py_repr(id)
+            )));
         }
         if values.get("token").map(String::as_str) != Some("good") {
             return Err(AuthError("the token is wrong".to_owned()));
@@ -113,10 +143,17 @@ async fn ask(router: &Router, step: &Value) -> Value {
         Some(json) => json.to_string(),
         None => step["raw"].as_str().unwrap_or("").to_owned(),
     };
-    let request = Request::builder().method(step["method"].as_str().unwrap()).uri(step["path"].as_str().unwrap()).body(Body::from(body)).unwrap();
+    let request = Request::builder()
+        .method(step["method"].as_str().unwrap())
+        .uri(step["path"].as_str().unwrap())
+        .body(Body::from(body))
+        .unwrap();
     let response = router.clone().oneshot(request).await.unwrap();
     let status = response.status().as_u16();
-    let content_type = response.headers().get("content-type").map(|v| v.to_str().unwrap().to_owned());
+    let content_type = response
+        .headers()
+        .get("content-type")
+        .map(|v| v.to_str().unwrap().to_owned());
     let bytes = response.into_body().collect().await.unwrap().to_bytes();
     let text = String::from_utf8(bytes.to_vec()).unwrap();
     let mut answer = json!({"status": status, "content_type": content_type});
@@ -150,16 +187,32 @@ fn error_name(error: &RadioError) -> &'static str {
     }
 }
 
-fn snapshot(radio: &Radio, backend: &FakeBackend, workdir: &std::path::Path, taken: &mut usize) -> Value {
+fn snapshot(
+    radio: &Radio,
+    backend: &FakeBackend,
+    workdir: &std::path::Path,
+    taken: &mut usize,
+) -> Value {
     let calls = backend.calls();
     let new: Vec<String> = calls[*taken..].to_vec();
     *taken = calls.len();
-    let mut files: Vec<String> = fs::read_dir(workdir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
-    files.sort();
-    let settings: serde_json::Map<String, Value> = ["playlist", "queue_order", "genres", "blocked_genres", "moods", "language", "station_settings"]
-        .into_iter()
-        .map(|key| (key.to_owned(), radio.setting(key).unwrap_or(Value::Null)))
+    let mut files: Vec<String> = fs::read_dir(workdir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
         .collect();
+    files.sort();
+    let settings: serde_json::Map<String, Value> = [
+        "playlist",
+        "queue_order",
+        "genres",
+        "blocked_genres",
+        "moods",
+        "language",
+        "station_settings",
+    ]
+    .into_iter()
+    .map(|key| (key.to_owned(), radio.setting(key).unwrap_or(Value::Null)))
+    .collect();
     json!({
         "queue": radio.queue(2, 15),
         "pool": radio.pool().iter().map(|c| c.title.clone()).collect::<Vec<_>>(),
@@ -181,18 +234,27 @@ async fn the_radio_looks_after_each_step_as_the_python_radio_does() {
         eprintln!("{why}: skipped");
     };
     if !cfg!(feature = "essentia") {
-        return skip("the cache of the stand holds the analyses of Essentia: build with --features essentia");
+        return skip(
+            "the cache of the stand holds the analyses of Essentia: build with --features essentia",
+        );
     }
     let library_dir = dir().join("library");
     let primed = dir().join("primed.db");
     if !library_dir.join("t0.wav").exists() || !primed.exists() {
         return skip("no library, run tools/gen_golden.py");
     }
-    if !std::process::Command::new("ffmpeg").arg("-version").output().is_ok_and(|o| o.status.success()) {
+    if !std::process::Command::new("ffmpeg")
+        .arg("-version")
+        .output()
+        .is_ok_and(|o| o.status.success())
+    {
         return skip("no ffmpeg");
     }
-    let library: Vec<Value> = serde_json::from_str(&fs::read_to_string(dir().join("library.json")).unwrap()).unwrap();
-    let scenarios: Vec<Value> = serde_json::from_str(&fs::read_to_string(dir().join("radio_scenarios.json")).unwrap()).unwrap();
+    let library: Vec<Value> =
+        serde_json::from_str(&fs::read_to_string(dir().join("library.json")).unwrap()).unwrap();
+    let scenarios: Vec<Value> =
+        serde_json::from_str(&fs::read_to_string(dir().join("radio_scenarios.json")).unwrap())
+            .unwrap();
     let scratch = std::env::temp_dir().join(format!("radio-core-radio-{}", std::process::id()));
     fs::create_dir_all(&scratch).unwrap();
 
@@ -203,8 +265,19 @@ async fn the_radio_looks_after_each_step_as_the_python_radio_does() {
             .iter()
             .map(|entry| {
                 let mut asdict = entry.clone();
-                let file = library_dir.join(asdict.as_object_mut().unwrap().remove("file").unwrap().as_str().unwrap());
-                FakeTrack { track: serde_json::from_value(asdict).unwrap(), file }
+                let file = library_dir.join(
+                    asdict
+                        .as_object_mut()
+                        .unwrap()
+                        .remove("file")
+                        .unwrap()
+                        .as_str()
+                        .unwrap(),
+                );
+                FakeTrack {
+                    track: serde_json::from_value(asdict).unwrap(),
+                    file,
+                }
             })
             .collect();
         let backend = Arc::new(FakeBackend::new(
@@ -212,7 +285,12 @@ async fn the_radio_looks_after_each_step_as_the_python_radio_does() {
             FakeOptions {
                 batch_size: options["batch_size"].as_u64().unwrap_or(3) as usize,
                 supports_moods: options["supports_moods"].as_bool().unwrap_or(false),
-                fail_downloads: options["fail_downloads"].as_array().into_iter().flatten().map(|v| v.as_str().unwrap().to_owned()).collect(),
+                fail_downloads: options["fail_downloads"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|v| v.as_str().unwrap().to_owned())
+                    .collect(),
                 authorized: options["authorized"].as_bool().unwrap_or(true),
                 ..FakeOptions::default()
             },
@@ -243,10 +321,19 @@ async fn the_radio_looks_after_each_step_as_the_python_radio_does() {
         let mut decks: HashMap<String, Deck> = HashMap::new();
         let mut taken = 0;
         let results = scenario["results"].as_array().unwrap();
-        for (n, (step, want)) in scenario["steps"].as_array().unwrap().iter().zip(results).enumerate() {
+        for (n, (step, want)) in scenario["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(results)
+            .enumerate()
+        {
             let mut got = json!({});
             match step["op"].as_str().unwrap() {
-                "fill" => radio.fill(step["size"].as_u64().map(|s| s as usize)).await.unwrap(),
+                "fill" => radio
+                    .fill(step["size"].as_u64().map(|s| s as usize))
+                    .await
+                    .unwrap(),
                 "next_deck" => {
                     let after = step["after"].as_str().map(|a| decks[a].analysis.clone());
                     let deck = Radio::next_deck(&radio, after.as_ref()).await.unwrap();
@@ -256,26 +343,51 @@ async fn the_radio_looks_after_each_step_as_the_python_radio_does() {
                 "started" => DeckSource::started(&*radio, &decks[step["deck"].as_str().unwrap()]),
                 "finished" => DeckSource::finished(&*radio, &decks[step["deck"].as_str().unwrap()]),
                 "transition" => {
-                    let kind = [Transition::Crossfade, Transition::BassSwap, Transition::EqBlend, Transition::FilterSweep]
+                    let kind = [
+                        Transition::Crossfade,
+                        Transition::BassSwap,
+                        Transition::EqBlend,
+                        Transition::FilterSweep,
+                    ]
+                    .into_iter()
+                    .find(|k| k.name() == step["kind"].as_str().unwrap())
+                    .unwrap();
+                    let effect = [Effect::None, Effect::Drop, Effect::Echo]
                         .into_iter()
-                        .find(|k| k.name() == step["kind"].as_str().unwrap())
+                        .find(|e| e.name() == step["effect"].as_str().unwrap())
                         .unwrap();
-                    let effect = [Effect::None, Effect::Drop, Effect::Echo].into_iter().find(|e| e.name() == step["effect"].as_str().unwrap()).unwrap();
-                    DeckSource::transition(&*radio, kind, &decks[step["current"].as_str().unwrap()], &decks[step["following"].as_str().unwrap()], effect, None);
+                    DeckSource::transition(
+                        &*radio,
+                        kind,
+                        &decks[step["current"].as_str().unwrap()],
+                        &decks[step["following"].as_str().unwrap()],
+                        effect,
+                        None,
+                    );
                 }
                 "advance" => clock.advance(step["seconds"].as_f64().unwrap()),
                 "http" => {
                     let app = web.get_or_insert_with(|| {
                         router(Api {
                             radio: radio.clone(),
-                            backends: scenario["backends"].as_bool().unwrap_or(false).then(|| Arc::new(StubBackends { on: Mutex::new(vec!["alpha"]) }) as Arc<dyn BackendSet>),
-                            streams: Streams { mp3: Broadcaster::new(Config::mp3()), flac: Some(Broadcaster::new(Config::flac())), ogg: Some(Broadcaster::new(Config::ogg())) },
+                            backends: scenario["backends"].as_bool().unwrap_or(false).then(|| {
+                                Arc::new(StubBackends {
+                                    on: Mutex::new(vec!["alpha"]),
+                                }) as Arc<dyn BackendSet>
+                            }),
+                            streams: Streams {
+                                mp3: Broadcaster::new(Config::mp3()),
+                                flac: Some(Broadcaster::new(Config::flac())),
+                                ogg: Some(Broadcaster::new(Config::ogg())),
+                            },
                             spectrum: Some(SpectrumFeed::new()),
                             starts: Arc::new(StartPositions::new()),
                         })
                     });
                     let answer = ask(app, step).await;
-                    got.as_object_mut().unwrap().extend(answer.as_object().unwrap().clone());
+                    got.as_object_mut()
+                        .unwrap()
+                        .extend(answer.as_object().unwrap().clone());
                 }
                 "restart" => {
                     // the program is stopped and started again: the files and the cache stay
@@ -286,7 +398,14 @@ async fn the_radio_looks_after_each_step_as_the_python_radio_does() {
                 "call" => {
                     let args = step["args"].as_array().cloned().unwrap_or_default();
                     let text = |i: usize| args[i].as_str().unwrap().to_owned();
-                    let list = |i: usize| -> Vec<String> { args[i].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect() };
+                    let list = |i: usize| -> Vec<String> {
+                        args[i]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .map(|v| v.as_str().unwrap().to_owned())
+                            .collect()
+                    };
                     let outcome: Result<(), RadioError> = match step["method"].as_str().unwrap() {
                         "pause" => Ok(radio.pause()),
                         "resume" => Ok(radio.resume()),

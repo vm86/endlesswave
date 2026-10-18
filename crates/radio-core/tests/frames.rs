@@ -18,7 +18,10 @@ fn golden() -> Value {
 
 fn stream(name: &str) -> Option<Vec<u8>> {
     let Ok(data) = fs::read(dir().join(format!("{name}.bin"))) else {
-        assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "{name}: run tools/gen_golden.py");
+        assert!(
+            std::env::var_os("GOLDEN_REQUIRED").is_none(),
+            "{name}: run tools/gen_golden.py"
+        );
         eprintln!("{name}: no stream, skipped");
         return None;
     };
@@ -57,8 +60,17 @@ fn mp3_frames_start_where_python_finds_them() {
     assert!(cuts.len() > 50);
     for cut in cuts {
         let part = &data[u(&cut["begin"])..u(&cut["end"])];
-        assert_eq!(frames::mp3_start(part), u(&cut["start"]), "cut {}..{}", cut["begin"], cut["end"]);
-        assert_eq!(frames::mp3_frame_length(&part[..part.len().min(4)]), u(&cut["frame"]));
+        assert_eq!(
+            frames::mp3_start(part),
+            u(&cut["start"]),
+            "cut {}..{}",
+            cut["begin"],
+            cut["end"]
+        );
+        assert_eq!(
+            frames::mp3_frame_length(&part[..part.len().min(4)]),
+            u(&cut["frame"])
+        );
     }
 }
 
@@ -69,12 +81,22 @@ fn flac_frames_and_header_are_the_pythons() {
     let entry = &golden["streams"]["flac"];
     for cut in entry["cuts"].as_array().unwrap() {
         let part = &data[u(&cut["begin"])..u(&cut["end"])];
-        assert_eq!(frames::flac_start(part), u(&cut["start"]), "cut {}..{}", cut["begin"], cut["end"]);
+        assert_eq!(
+            frames::flac_start(part),
+            u(&cut["start"]),
+            "cut {}..{}",
+            cut["begin"],
+            cut["end"]
+        );
     }
     assert_eq!(header(frames::flac_header_length(&data)), entry["header"]);
     for h in entry["headers"].as_array().unwrap() {
         let size = u(&h["size"]);
-        assert_eq!(header(frames::flac_header_length(&data[..size])), h["result"], "header of {size} bytes");
+        assert_eq!(
+            header(frames::flac_header_length(&data[..size])),
+            h["result"],
+            "header of {size} bytes"
+        );
     }
 }
 
@@ -85,20 +107,43 @@ fn ogg_pages_and_header_are_the_pythons() {
     let entry = &golden["streams"]["ogg"];
     for cut in entry["cuts"].as_array().unwrap() {
         let part = &data[u(&cut["begin"])..u(&cut["end"])];
-        assert_eq!(frames::ogg_start(part), u(&cut["start"]), "cut {}..{}", cut["begin"], cut["end"]);
-        let places = [0, 1, 5, part.len().wrapping_sub(1), part.len(), part.len() + 3];
+        assert_eq!(
+            frames::ogg_start(part),
+            u(&cut["start"]),
+            "cut {}..{}",
+            cut["begin"],
+            cut["end"]
+        );
+        let places = [
+            0,
+            1,
+            5,
+            part.len().wrapping_sub(1),
+            part.len(),
+            part.len() + 3,
+        ];
         for (place, want) in places.iter().zip(cut["page"].as_array().unwrap()) {
             // len - 1 of an empty cut is -1 in Python, which Rust has no place for.
             if *place > part.len() + 3 {
                 continue;
             }
-            assert_eq!(frames::ogg_page_length(part, *place), page(want), "page at {place} of {}..{}", cut["begin"], cut["end"]);
+            assert_eq!(
+                frames::ogg_page_length(part, *place),
+                page(want),
+                "page at {place} of {}..{}",
+                cut["begin"],
+                cut["end"]
+            );
         }
     }
     assert_eq!(header(frames::ogg_header_length(&data)), entry["header"]);
     for h in entry["headers"].as_array().unwrap() {
         let size = u(&h["size"]);
-        assert_eq!(header(frames::ogg_header_length(&data[..size])), h["result"], "header of {size} bytes");
+        assert_eq!(
+            header(frames::ogg_header_length(&data[..size])),
+            h["result"],
+            "header of {size} bytes"
+        );
     }
 }
 
@@ -109,16 +154,30 @@ fn bytes_that_are_no_stream_give_what_python_gives() {
     assert_eq!(randoms.len(), 40);
     for (n, case) in randoms.iter().enumerate() {
         let hex = case["hex"].as_str().unwrap();
-        let data: Vec<u8> = (0..hex.len() / 2).map(|i| u8::from_str_radix(&hex[2 * i..2 * i + 2], 16).unwrap()).collect();
+        let data: Vec<u8> = (0..hex.len() / 2)
+            .map(|i| u8::from_str_radix(&hex[2 * i..2 * i + 2], 16).unwrap())
+            .collect();
         let what = format!("random {n} ({} bytes)", data.len());
         assert_eq!(frames::mp3_start(&data), u(&case["mp3_start"]), "{what}");
         assert_eq!(frames::flac_start(&data), u(&case["flac_start"]), "{what}");
         assert_eq!(frames::ogg_start(&data), u(&case["ogg_start"]), "{what}");
-        assert_eq!(header(frames::flac_header_length(&data)), case["flac_header"], "{what}");
-        assert_eq!(header(frames::ogg_header_length(&data)), case["ogg_header"], "{what}");
+        assert_eq!(
+            header(frames::flac_header_length(&data)),
+            case["flac_header"],
+            "{what}"
+        );
+        assert_eq!(
+            header(frames::ogg_header_length(&data)),
+            case["ogg_header"],
+            "{what}"
+        );
         let places = [0, 1, data.len(), data.len() + 2];
         for (place, want) in places.iter().zip(case["ogg_page"].as_array().unwrap()) {
-            assert_eq!(frames::ogg_page_length(&data, *place), page(want), "{what}: page at {place}");
+            assert_eq!(
+                frames::ogg_page_length(&data, *place),
+                page(want),
+                "{what}: page at {place}"
+            );
         }
     }
 }

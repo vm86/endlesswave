@@ -53,26 +53,40 @@ fn index() -> Index {
 
 fn read(name: &str, part: &str) -> Option<Vec<f32>> {
     let Ok(bytes) = fs::read(dir().join(format!("{name}.{part}.f32"))) else {
-        assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "{name}: no pieces, run tools/gen_golden.py");
+        assert!(
+            std::env::var_os("GOLDEN_REQUIRED").is_none(),
+            "{name}: no pieces, run tools/gen_golden.py"
+        );
         eprintln!("{name}: no pieces, skipped");
         return None;
     };
-    Some(bytes.chunks_exact(4).map(|b| f32::from_le_bytes(b.try_into().unwrap())).collect())
+    Some(
+        bytes
+            .chunks_exact(4)
+            .map(|b| f32::from_le_bytes(b.try_into().unwrap()))
+            .collect(),
+    )
 }
 
 fn snr_db(got: &[f32], want: &[f32]) -> f64 {
     assert_eq!(got.len(), want.len());
     let signal: f64 = want.iter().map(|&w| f64::from(w).powi(2)).sum();
-    let noise: f64 = got.iter().zip(want).map(|(&g, &w)| f64::from(g - w).powi(2)).sum();
+    let noise: f64 = got
+        .iter()
+        .zip(want)
+        .map(|(&g, &w)| f64::from(g - w).powi(2))
+        .sum();
     10.0 * (signal / noise.max(1e-30)).log10()
 }
 
 #[test]
 fn blends_sound_as_the_python_ones_do() {
     for case in index().cases {
-        let (Some(out), Some(inc), Some(want)) =
-            (read(&case.name, "out"), read(&case.name, "in"), read(&case.name, "want"))
-        else {
+        let (Some(out), Some(inc), Some(want)) = (
+            read(&case.name, "out"),
+            read(&case.name, "in"),
+            read(&case.name, "want"),
+        ) else {
             continue;
         };
         let got = match case.function.as_str() {
@@ -92,15 +106,33 @@ fn blends_sound_as_the_python_ones_do() {
 fn the_swap_point_is_where_python_puts_it() {
     for s in index().swaps {
         let (point, ramp) = blend::swap_point(s.frames, s.beat_period, s.grid.as_deref());
-        assert_eq!((point, ramp), s.swap, "{} frames, period {}, grid {:?}", s.frames, s.beat_period, s.grid);
+        assert_eq!(
+            (point, ramp),
+            s.swap,
+            "{} frames, period {}, grid {:?}",
+            s.frames,
+            s.beat_period,
+            s.grid
+        );
     }
 }
 
 #[test]
 fn the_blocks_with_an_attack_are_the_ones_python_finds() {
-    let Some(mono) = read("attacks", "in") else { return };
-    let found: Vec<usize> = glide::find_attacks(&mono).iter().enumerate().filter(|&(_, &a)| a).map(|(i, _)| i).collect();
-    assert!(found.len() >= 5, "{} attacks: the signal has kicks", found.len());
+    let Some(mono) = read("attacks", "in") else {
+        return;
+    };
+    let found: Vec<usize> = glide::find_attacks(&mono)
+        .iter()
+        .enumerate()
+        .filter(|&(_, &a)| a)
+        .map(|(i, _)| i)
+        .collect();
+    assert!(
+        found.len() >= 5,
+        "{} attacks: the signal has kicks",
+        found.len()
+    );
     assert_eq!(found, index().attacks);
 }
 
@@ -110,19 +142,38 @@ fn the_blocks_with_an_attack_are_the_ones_python_finds() {
 #[test]
 fn the_tempo_glides_as_python_makes_it() {
     for g in index().glides {
-        let (Some(out), Some(inc), Some(want_out), Some(want_in)) =
-            (read(&g.name, "out"), read(&g.name, "in"), read(&g.name, "want_out"), read(&g.name, "want_in"))
-        else {
+        let (Some(out), Some(inc), Some(want_out), Some(want_in)) = (
+            read(&g.name, "out"),
+            read(&g.name, "in"),
+            read(&g.name, "want_out"),
+            read(&g.name, "want_in"),
+        ) else {
             continue;
         };
         let (got_out, got_in, grid) = glide::tempo_glide(&out, &inc, g.bpm, g.speed, g.length);
-        assert_eq!((got_out.len(), got_in.len()), (want_out.len(), want_in.len()), "{}: lengths", g.name);
+        assert_eq!(
+            (got_out.len(), got_in.len()),
+            (want_out.len(), want_in.len()),
+            "{}: lengths",
+            g.name
+        );
         assert_eq!(grid.len(), g.grid.len(), "{}: beats", g.name);
         for (got, want) in grid.iter().zip(&g.grid) {
-            assert!((got - want).abs() < 1e-6, "{}: grid {got} against {want}", g.name);
+            assert!(
+                (got - want).abs() < 1e-6,
+                "{}: grid {got} against {want}",
+                g.name
+            );
         }
         let (snr_out, snr_in) = (snr_db(&got_out, &want_out), snr_db(&got_in, &want_in));
-        println!("{:14} outgoing {snr_out:6.1} dB, incoming {snr_in:6.1} dB", g.name);
-        assert!(snr_out > MIN_SNR_DB && snr_in > MIN_SNR_DB, "{}: {snr_out:.1} dB, {snr_in:.1} dB", g.name);
+        println!(
+            "{:14} outgoing {snr_out:6.1} dB, incoming {snr_in:6.1} dB",
+            g.name
+        );
+        assert!(
+            snr_out > MIN_SNR_DB && snr_in > MIN_SNR_DB,
+            "{}: {snr_out:.1} dB, {snr_in:.1} dB",
+            g.name
+        );
     }
 }

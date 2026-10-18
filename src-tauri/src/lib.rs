@@ -9,9 +9,9 @@ use media::Media;
 use menu::MenuState;
 use radio::Radio;
 use tauri::{
+    AppHandle, Emitter, Manager, RunEvent, State, WindowEvent,
     menu::{MenuBuilder, MenuItem, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, RunEvent, State, WindowEvent,
 };
 
 struct TrayState {
@@ -62,7 +62,13 @@ fn player_status(audio: State<Audio>) -> Status {
 }
 
 #[tauri::command]
-fn media_metadata(media: State<Media>, title: String, artist: String, cover: String, duration: f64) {
+fn media_metadata(
+    media: State<Media>,
+    title: String,
+    artist: String,
+    cover: String,
+    duration: f64,
+) {
     media.metadata(&title, &artist, &cover, duration);
 }
 
@@ -74,13 +80,21 @@ fn media_playback(media: State<Media>, state: String, progress: f64) {
 /// The page tells the tray what plays.
 #[tauri::command]
 fn update_tray(app: AppHandle, state: State<TrayState>, title: String, playing: bool) {
-    let _ = state.now.set_text(if title.is_empty() { "Nothing playing" } else { &title });
+    let _ = state.now.set_text(if title.is_empty() {
+        "Nothing playing"
+    } else {
+        &title
+    });
     let _ = state.play.set_text(if playing { "Pause" } else { "Play" });
     if let Some(items) = app.state::<MenuState>().0.lock().unwrap().as_ref() {
         let _ = items.play.set_text(if playing { "Pause" } else { "Play" });
     }
     if let Some(tray) = app.tray_by_id("main") {
-        let _ = tray.set_tooltip(Some(if title.is_empty() { "EndlessWave" } else { &title }));
+        let _ = tray.set_tooltip(Some(if title.is_empty() {
+            "EndlessWave"
+        } else {
+            &title
+        }));
     }
 }
 
@@ -101,7 +115,11 @@ fn set_dock_visible(app: AppHandle, visible: bool) {
     #[cfg(target_os = "macos")]
     {
         use tauri::ActivationPolicy;
-        let _ = app.set_activation_policy(if visible { ActivationPolicy::Regular } else { ActivationPolicy::Accessory });
+        let _ = app.set_activation_policy(if visible {
+            ActivationPolicy::Regular
+        } else {
+            ActivationPolicy::Accessory
+        });
         let _ = app.set_dock_visibility(visible);
         show_window(&app);
     }
@@ -113,9 +131,14 @@ fn set_dock_visible(app: AppHandle, visible: bool) {
 /// "Quit" does, so the radio is stopped and not left behind.
 #[cfg(unix)]
 fn watch_signals(app: AppHandle) {
-    use signal_hook::{consts::signal::{SIGHUP, SIGINT, SIGTERM}, iterator::Signals};
+    use signal_hook::{
+        consts::signal::{SIGHUP, SIGINT, SIGTERM},
+        iterator::Signals,
+    };
 
-    let Ok(mut signals) = Signals::new([SIGTERM, SIGINT, SIGHUP]) else { return };
+    let Ok(mut signals) = Signals::new([SIGTERM, SIGINT, SIGHUP]) else {
+        return;
+    };
     std::thread::spawn(move || {
         if signals.forever().next().is_none() {
             return;
@@ -167,7 +190,9 @@ pub fn run() {
             set_dock_visible
         ])
         .setup(|app| {
-            let now = MenuItemBuilder::with_id("now", "Nothing playing").enabled(false).build(app)?;
+            let now = MenuItemBuilder::with_id("now", "Nothing playing")
+                .enabled(false)
+                .build(app)?;
             let play = MenuItemBuilder::with_id("play", "Play").build(app)?;
             let next = MenuItemBuilder::with_id("next", "Next track").build(app)?;
             let show = MenuItemBuilder::with_id("show", "Show window").build(app)?;
@@ -209,7 +234,9 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             {
                 tray = tray
-                    .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png"))?)
+                    .icon(tauri::image::Image::from_bytes(include_bytes!(
+                        "../icons/tray.png"
+                    ))?)
                     .icon_as_template(true);
             }
             #[cfg(not(target_os = "macos"))]

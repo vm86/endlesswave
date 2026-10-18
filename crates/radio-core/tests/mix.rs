@@ -77,7 +77,8 @@ impl PieceSink for Driver {
             }
         }
         for action in self.actions.get(&count).into_iter().flatten() {
-            self.script.event(format!("action {action} after piece {count}"));
+            self.script
+                .event(format!("action {action} after piece {count}"));
             if action == "skip" {
                 self.script.skip.store(true, Ordering::SeqCst);
             } else {
@@ -85,7 +86,11 @@ impl PieceSink for Driver {
             }
         }
         tokio::task::yield_now().await; // the tasks that make decks get their turn
-        if count >= self.limit { Err(Closed) } else { Ok(()) }
+        if count >= self.limit {
+            Err(Closed)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -100,23 +105,36 @@ impl NoiseSource for NoNoise {
 fn snr_db(got: &[f32], want: &[f32]) -> f64 {
     assert_eq!(got.len(), want.len(), "lengths");
     let signal: f64 = want.iter().map(|&w| f64::from(w).powi(2)).sum();
-    let noise: f64 = got.iter().zip(want).map(|(&g, &w)| f64::from(g - w).powi(2)).sum();
+    let noise: f64 = got
+        .iter()
+        .zip(want)
+        .map(|(&g, &w)| f64::from(g - w).powi(2))
+        .sum();
     10.0 * (signal / noise.max(1e-30)).log10()
 }
 
 #[tokio::test]
 async fn the_mix_plays_and_tells_what_python_does() {
-    let golden: Golden = serde_json::from_str(&fs::read_to_string(dir().join("mix.json")).unwrap()).unwrap();
+    let golden: Golden =
+        serde_json::from_str(&fs::read_to_string(dir().join("mix.json")).unwrap()).unwrap();
     let library = dir().join("library");
     if !library.join("t0.wav").exists() {
-        assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "no library, run tools/gen_golden.py");
+        assert!(
+            std::env::var_os("GOLDEN_REQUIRED").is_none(),
+            "no library, run tools/gen_golden.py"
+        );
         eprintln!("no library: skipped");
         return;
     }
     let mut decks = Vec::new();
     for track in &golden.tracks {
-        match decode::decode_with_ffmpeg(std::path::Path::new("ffmpeg"), &library.join(&track.file)) {
-            Ok(pcm) => decks.push((track.title.clone(), Arc::<[f32]>::from(pcm), track.analysis.clone())),
+        match decode::decode_with_ffmpeg(std::path::Path::new("ffmpeg"), &library.join(&track.file))
+        {
+            Ok(pcm) => decks.push((
+                track.title.clone(),
+                Arc::<[f32]>::from(pcm),
+                track.analysis.clone(),
+            )),
             Err(error) => {
                 assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "{error}");
                 eprintln!("{error}: skipped");
@@ -130,23 +148,45 @@ async fn the_mix_plays_and_tells_what_python_does() {
         let script = ScriptedRadio::new(decks.clone(), scenario.order.clone());
         let driver = Driver {
             script: script.clone(),
-            actions: scenario.actions.iter().map(|(k, v)| (k.parse().unwrap(), v.clone())).collect(),
+            actions: scenario
+                .actions
+                .iter()
+                .map(|(k, v)| (k.parse().unwrap(), v.clone()))
+                .collect(),
             limit: scenario.limit,
             count: AtomicUsize::new(0),
             heard: Mutex::new(Vec::new()),
         };
         let noise: SharedNoise = Arc::new(Mutex::new(NoNoise));
-        let ended = mix(script.clone(), Arc::new(ManualClock::new(0.0)), 0.0, noise, &driver).await;
-        assert_eq!(ended, Err(radio_core::pipeline::MixError::Closed), "{name}: how it ended");
+        let ended = mix(
+            script.clone(),
+            Arc::new(ManualClock::new(0.0)),
+            0.0,
+            noise,
+            &driver,
+        )
+        .await;
+        assert_eq!(
+            ended,
+            Err(radio_core::pipeline::MixError::Closed),
+            "{name}: how it ended"
+        );
 
         let log = script.log.lock().unwrap().clone();
-        assert_eq!(log.len(), scenario.log.len(), "{name}: the story has as many parts");
+        assert_eq!(
+            log.len(),
+            scenario.log.len(),
+            "{name}: the story has as many parts"
+        );
         for (n, (got, want)) in log.iter().zip(&scenario.log).enumerate() {
             assert_eq!(got, want, "{name}: part {n} of the story");
         }
         let heard = driver.heard.lock().unwrap().clone();
         let bytes = fs::read(dir().join(format!("mix_{name}.want.f32"))).unwrap();
-        let want: Vec<f32> = bytes.chunks_exact(4).map(|b| f32::from_le_bytes(b.try_into().unwrap())).collect();
+        let want: Vec<f32> = bytes
+            .chunks_exact(4)
+            .map(|b| f32::from_le_bytes(b.try_into().unwrap()))
+            .collect();
         let snr = snr_db(&heard, &want);
         println!("{name:18} {} frames, {snr:6.1} dB", heard.len() / 2);
         assert!(snr > 100.0, "{name}: {snr:.1} dB");

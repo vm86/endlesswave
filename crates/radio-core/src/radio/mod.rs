@@ -67,14 +67,63 @@ pub const SETTING_PLAYLIST: &str = "playlist";
 /// The order of the queue that was put in place by hand.
 pub const SETTING_ORDER: &str = "queue_order";
 /// What a download can be called, of the ones that are cleared away.
-pub const AUDIO_SUFFIXES: [&str; 12] =
-    ["mp3", "flac", "flac-mp4", "aac", "aac-mp4", "he-aac", "he-aac-mp4", "m4a", "mp4", "ogg", "opus", "wav"];
+pub const AUDIO_SUFFIXES: [&str; 12] = [
+    "mp3",
+    "flac",
+    "flac-mp4",
+    "aac",
+    "aac-mp4",
+    "he-aac",
+    "he-aac-mp4",
+    "m4a",
+    "mp4",
+    "ogg",
+    "opus",
+    "wav",
+];
 /// The genres of My Wave known so far: offered while the cache has none yet.
 pub const KNOWN_GENRES: [&str; 41] = [
-    "dance", "pop", "house", "electronics", "rock", "country", "alternative", "hardrock", "numetal", "alternativemetal",
-    "classicmetal", "industrial", "metal", "epicmetal", "lounge", "edmgenre", "gothicmetal", "indie", "punk", "relax", "rnb",
-    "estrada", "metalcoregenre", "rap", "soundtrack", "trance", "tvseries", "disco", "dnb", "films", "folkmetal", "folkrock",
-    "kpop", "newwave", "posthardcore", "ruspop", "rusrock", "soul", "stonerrock", "triphopgenre", "videogame",
+    "dance",
+    "pop",
+    "house",
+    "electronics",
+    "rock",
+    "country",
+    "alternative",
+    "hardrock",
+    "numetal",
+    "alternativemetal",
+    "classicmetal",
+    "industrial",
+    "metal",
+    "epicmetal",
+    "lounge",
+    "edmgenre",
+    "gothicmetal",
+    "indie",
+    "punk",
+    "relax",
+    "rnb",
+    "estrada",
+    "metalcoregenre",
+    "rap",
+    "soundtrack",
+    "trance",
+    "tvseries",
+    "disco",
+    "dnb",
+    "films",
+    "folkmetal",
+    "folkrock",
+    "kpop",
+    "newwave",
+    "posthardcore",
+    "ruspop",
+    "rusrock",
+    "soul",
+    "stonerrock",
+    "triphopgenre",
+    "videogame",
 ];
 
 /// What the radio is told when it is made.
@@ -92,7 +141,13 @@ pub struct RadioConfig {
 
 impl Default for RadioConfig {
     fn default() -> Self {
-        Self { station_id: String::new(), pool_size: DEFAULT_POOL_SIZE, mood_arc: false, keep_playlist: false, ffmpeg: PathBuf::from("ffmpeg") }
+        Self {
+            station_id: String::new(),
+            pool_size: DEFAULT_POOL_SIZE,
+            mood_arc: false,
+            keep_playlist: false,
+            ffmpeg: PathBuf::from("ffmpeg"),
+        }
     }
 }
 
@@ -176,9 +231,18 @@ pub struct Radio {
 }
 
 impl Radio {
-    pub fn new(backend: Arc<dyn MusicBackend>, workdir: PathBuf, config: RadioConfig, cache: Option<TrackCache>, clock: Arc<dyn Clock>) -> Arc<Self> {
+    pub fn new(
+        backend: Arc<dyn MusicBackend>,
+        workdir: PathBuf,
+        config: RadioConfig,
+        cache: Option<TrackCache>,
+        clock: Arc<dyn Clock>,
+    ) -> Arc<Self> {
         tracing::info!("Keys are found by {}", crate::mix::key_detector());
-        let seen = cache.as_ref().and_then(|c| c.recently_played(CACHED_PLAYED_SKIPPED).ok()).unwrap_or_default();
+        let seen = cache
+            .as_ref()
+            .and_then(|c| c.recently_played(CACHED_PLAYED_SKIPPED).ok())
+            .unwrap_or_default();
         let keep_playlist = config.keep_playlist && cache.is_some();
         Arc::new(Self {
             backend,
@@ -244,7 +308,11 @@ impl Radio {
 
     /// The station asked for, else the one the backend starts with.
     pub fn station_id(&self) -> String {
-        if self.config.station_id.is_empty() { self.backend.default_station() } else { self.config.station_id.clone() }
+        if self.config.station_id.is_empty() {
+            self.backend.default_station()
+        } else {
+            self.config.station_id.clone()
+        }
     }
 
     pub fn authorized(&self) -> bool {
@@ -323,7 +391,9 @@ impl Radio {
             return Err(RadioError::SkipRefused("nothing is playing yet".to_owned()));
         }
         if state.blending {
-            return Err(RadioError::SkipRefused("a transition is already under way".to_owned()));
+            return Err(RadioError::SkipRefused(
+                "a transition is already under way".to_owned(),
+            ));
         }
         state.skip = true;
         Ok(())
@@ -360,10 +430,15 @@ impl Radio {
 
 impl Radio {
     pub(crate) fn send_feedback(&self, deck: &Deck, kind: Feedback, seconds: f64) {
-        let Some(track) = deck.track.clone() else { return };
+        let Some(track) = deck.track.clone() else {
+            return;
+        };
         let (backend, station) = (Arc::clone(&self.backend), self.station_id());
         let handle = tokio::spawn(async move {
-            if let Err(error) = backend.feedback_track(&track, kind, &station, seconds).await {
+            if let Err(error) = backend
+                .feedback_track(&track, kind, &station, seconds)
+                .await
+            {
                 tracing::warn!("Feedback about {} was not taken: {error}", track.track_id);
             }
         });
@@ -407,9 +482,19 @@ impl DeckSource for Radio {
         state.heard_seconds = Some(self.heard(&state));
     }
 
-    fn transition(&self, kind: crate::mix::plan::Transition, current: &Deck, following: &Deck, effect: crate::mix::effects::Effect, report: Option<BlendReport>) {
+    fn transition(
+        &self,
+        kind: crate::mix::plan::Transition,
+        current: &Deck,
+        following: &Deck,
+        effect: crate::mix::effects::Effect,
+        report: Option<BlendReport>,
+    ) {
         let relation = key::key_relation(current.analysis.key, following.analysis.key);
-        let (from_key, to_key) = (key::camelot_code(current.analysis.key), key::camelot_code(following.analysis.key));
+        let (from_key, to_key) = (
+            key::camelot_code(current.analysis.key),
+            key::camelot_code(following.analysis.key),
+        );
         {
             let mut state = self.st();
             if let Some(report) = report {
@@ -424,11 +509,18 @@ impl DeckSource for Radio {
             state.transitions.add(kind.name());
             state.effects.add(effect.name());
             state.transition_keys.add(relation.name());
-            *state.key_pairs.entry((from_key.clone(), to_key.clone())).or_insert(0) += 1;
+            *state
+                .key_pairs
+                .entry((from_key.clone(), to_key.clone()))
+                .or_insert(0) += 1;
             state.matched_transitions += i64::from(following.beat_matched);
         }
         if let Some(cache) = self.cache() {
-            let id = |deck: &Deck| deck.track.as_ref().map_or_else(String::new, |t| t.track_id.clone());
+            let id = |deck: &Deck| {
+                deck.track
+                    .as_ref()
+                    .map_or_else(String::new, |t| t.track_id.clone())
+            };
             let _ = cache.add_transition(&crate::cache::NewTransition {
                 kind: kind.name(),
                 beat_matched: following.beat_matched,
@@ -446,7 +538,14 @@ impl DeckSource for Radio {
         {
             let mut state = self.st();
             if let Some(now) = state.now.take() {
-                let info = TrackInfo::of(&now.title, &now.analysis, now.track.as_ref(), &now.mood, true, false);
+                let info = TrackInfo::of(
+                    &now.title,
+                    &now.analysis,
+                    now.track.as_ref(),
+                    &now.mood,
+                    true,
+                    false,
+                );
                 state.before.push_back(info);
                 while state.before.len() > MAX_LISTED {
                     state.before.pop_front();
@@ -467,7 +566,11 @@ impl DeckSource for Radio {
             if let Some(track) = &deck.track {
                 state.order.retain(|id| id != &track.track_id);
             }
-            if state.next.as_ref().is_some_and(|next| same_deck(next, deck)) {
+            if state
+                .next
+                .as_ref()
+                .is_some_and(|next| same_deck(next, deck))
+            {
                 state.next = None;
                 changed = true;
             }
@@ -487,7 +590,8 @@ impl DeckSource for Radio {
         match heard {
             Some(seconds) => self.send_feedback(deck, Feedback::Skipped, seconds),
             None => {
-                let seconds = (deck.analysis.end - deck.analysis.start) as f64 / f64::from(crate::mix::SAMPLE_RATE);
+                let seconds = (deck.analysis.end - deck.analysis.start) as f64
+                    / f64::from(crate::mix::SAMPLE_RATE);
                 self.send_feedback(deck, Feedback::Finished, seconds);
             }
         }

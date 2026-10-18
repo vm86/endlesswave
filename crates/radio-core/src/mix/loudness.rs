@@ -25,7 +25,8 @@ pub fn measure_loudness(body: &[f32]) -> f64 {
     if body.len() as f64 >= MIN_LUFS_SECONDS * f64::from(SAMPLE_RATE) * CHANNELS as f64 {
         // Essentia, where it is built in, gives the very numbers of the Python radio.
         #[cfg(feature = "essentia")]
-        if let Some(integrated) = super::essentia::essentia_loudness(body).filter(|l| l.is_finite()) {
+        if let Some(integrated) = super::essentia::essentia_loudness(body).filter(|l| l.is_finite())
+        {
             return integrated;
         }
         let integrated = EbuR128::new(CHANNELS as u32, SAMPLE_RATE, Mode::I)

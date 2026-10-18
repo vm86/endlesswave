@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 
 pub mod analysis;
 pub mod blend;
-pub mod chroma;
 pub mod choose;
+pub mod chroma;
 pub mod decode;
 pub mod effects;
 #[cfg(feature = "essentia")]
@@ -47,7 +47,11 @@ pub struct TrackAnalysis {
 
 /// Name of what finds the keys: "essentia" or "chroma profiles" (what the cache of the Python radio calls them).
 pub fn key_detector() -> &'static str {
-    if cfg!(feature = "essentia") { "essentia" } else { "chroma profiles" }
+    if cfg!(feature = "essentia") {
+        "essentia"
+    } else {
+        "chroma profiles"
+    }
 }
 
 /// Name of what measures the loudness. The `ebur128` crate does EBU R128 too, so it is "ebu r128" either way; "rms"
@@ -76,7 +80,10 @@ pub fn estimate_key(mono: &[f32]) -> i32 {
 pub fn analyze(pcm: &[f32]) -> TrackAnalysis {
     let rhythm = analysis::rhythm(pcm);
     let body = &pcm[rhythm.start * CHANNELS..rhythm.end * CHANNELS];
-    let mono: Vec<f32> = body.chunks_exact(CHANNELS).map(|f| (f[0] + f[1]) / 2.0).collect();
+    let mono: Vec<f32> = body
+        .chunks_exact(CHANNELS)
+        .map(|f| (f[0] + f[1]) / 2.0)
+        .collect();
     let key = estimate_key(&mono);
     TrackAnalysis {
         bpm: rhythm.bpm,

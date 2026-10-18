@@ -24,7 +24,10 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post, put},
 };
-use helpers::{count, json_body, json_response, ok, parse_genres, parse_language, parse_move, parse_moods, parse_track_id, parse_track_ids};
+use helpers::{
+    count, json_body, json_response, ok, parse_genres, parse_language, parse_moods, parse_move,
+    parse_track_id, parse_track_ids,
+};
 use serde_json::{Value, json};
 use std::{collections::HashMap, sync::Arc};
 
@@ -38,7 +41,11 @@ pub trait BackendSet: Send + Sync {
     /// Describe every backend, for the page that turns them on and off.
     fn status(&self) -> Value;
     /// Sign in to one of the backends that are on.
-    async fn authorize_backend(&self, id: &str, values: &HashMap<String, String>) -> Result<(), AuthError>;
+    async fn authorize_backend(
+        &self,
+        id: &str,
+        values: &HashMap<String, String>,
+    ) -> Result<(), AuthError>;
 }
 
 /// What the handlers work with.
@@ -56,8 +63,12 @@ type Query_ = Query<Vec<(String, String)>>;
 
 fn radio_error(error: RadioError) -> ApiError {
     match error {
-        RadioError::UnknownQueueTrack(id) => ApiError::not_found(format!("not in the queue: {}", py_repr(&id))),
-        RadioError::QueueChangeRefused(why) | RadioError::SkipRefused(why) => ApiError::conflict(why),
+        RadioError::UnknownQueueTrack(id) => {
+            ApiError::not_found(format!("not in the queue: {}", py_repr(&id)))
+        }
+        RadioError::QueueChangeRefused(why) | RadioError::SkipRefused(why) => {
+            ApiError::conflict(why)
+        }
         RadioError::Invalid(why) => ApiError::bad_request(why),
         RadioError::Backend(why) => ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, why),
     }
@@ -75,7 +86,11 @@ impl Api {
 
     /// The moods and the language are settings of the account at the backend.
     fn need_token(&self) -> Result<(), ApiError> {
-        if self.radio.authorized() { Ok(()) } else { Err(ApiError::unavailable("not authorized yet")) }
+        if self.radio.authorized() {
+            Ok(())
+        } else {
+            Err(ApiError::unavailable("not authorized yet"))
+        }
     }
 
     fn steerable(&self) -> Result<(), ApiError> {
@@ -94,7 +109,10 @@ impl Api {
 // ---- The handlers ---------------------------------------------------------------------------------------------------
 
 async fn root() -> Response {
-    json_response(StatusCode::NOT_FOUND, &json!({"web": false, "stream": "/stream", "api": "/api/queue"}))
+    json_response(
+        StatusCode::NOT_FOUND,
+        &json!({"web": false, "stream": "/stream", "api": "/api/queue"}),
+    )
 }
 
 async fn not_found(_uri: Uri) -> Response {
@@ -106,7 +124,10 @@ async fn not_allowed() -> Response {
 }
 
 async fn queue(State(api): State<Api>, Query(query): Query_) -> Result<Response, ApiError> {
-    let (previous, next) = (count(&query, "previous", 2)?, count(&query, "next", crate::radio::MAX_LISTED)?);
+    let (previous, next) = (
+        count(&query, "previous", 2)?,
+        count(&query, "next", crate::radio::MAX_LISTED)?,
+    );
     Ok(ok(&api.radio.queue(previous, next)))
 }
 
@@ -117,13 +138,19 @@ async fn get_moods(State(api): State<Api>) -> Response {
 async fn put_moods(State(api): State<Api>, body: Bytes) -> Result<Response, ApiError> {
     api.need_token()?;
     let moods = parse_moods(&json_body(&body)?)?;
-    api.radio.set_allowed_moods(moods).await.map_err(radio_error)?;
+    api.radio
+        .set_allowed_moods(moods)
+        .await
+        .map_err(radio_error)?;
     Ok(ok(&api.radio.moods_info()))
 }
 
 async fn delete_moods(State(api): State<Api>) -> Result<Response, ApiError> {
     api.need_token()?;
-    api.radio.set_allowed_moods(Vec::new()).await.map_err(radio_error)?;
+    api.radio
+        .set_allowed_moods(Vec::new())
+        .await
+        .map_err(radio_error)?;
     Ok(ok(&api.radio.moods_info()))
 }
 
@@ -161,11 +188,16 @@ async fn put_order(State(api): State<Api>, body: Bytes) -> Result<Response, ApiE
 
 async fn move_track(State(api): State<Api>, body: Bytes) -> Result<Response, ApiError> {
     let (track_id, position) = parse_move(&json_body(&body)?)?;
-    api.radio.queue_move(&track_id, position).map_err(radio_error)?;
+    api.radio
+        .queue_move(&track_id, position)
+        .map_err(radio_error)?;
     Ok(ok(&api.queue()))
 }
 
-async fn remove_track(State(api): State<Api>, Path(track_id): Path<String>) -> Result<Response, ApiError> {
+async fn remove_track(
+    State(api): State<Api>,
+    Path(track_id): Path<String>,
+) -> Result<Response, ApiError> {
     api.radio.queue_remove(&track_id).map_err(radio_error)?;
     Ok(ok(&api.queue()))
 }
@@ -184,7 +216,10 @@ async fn get_language(State(api): State<Api>) -> Response {
 async fn put_language(State(api): State<Api>, body: Bytes) -> Result<Response, ApiError> {
     api.steerable()?;
     let language = parse_language(&json_body(&body)?)?;
-    api.radio.set_language(Some(&language)).await.map_err(radio_error)?;
+    api.radio
+        .set_language(Some(&language))
+        .await
+        .map_err(radio_error)?;
     Ok(ok(&api.radio.language_info()))
 }
 
@@ -199,7 +234,8 @@ async fn get_genres(State(api): State<Api>) -> Response {
 }
 
 async fn put_genres(State(api): State<Api>, body: Bytes) -> Result<Response, ApiError> {
-    api.radio.set_wanted_genres(parse_genres(&json_body(&body)?)?);
+    api.radio
+        .set_wanted_genres(parse_genres(&json_body(&body)?)?);
     Ok(ok(&api.radio.genres_info()))
 }
 
@@ -209,7 +245,8 @@ async fn delete_genres(State(api): State<Api>) -> Response {
 }
 
 async fn put_blocked(State(api): State<Api>, body: Bytes) -> Result<Response, ApiError> {
-    api.radio.set_blocked_genres(parse_genres(&json_body(&body)?)?);
+    api.radio
+        .set_blocked_genres(parse_genres(&json_body(&body)?)?);
     Ok(ok(&api.radio.genres_info()))
 }
 
@@ -237,32 +274,53 @@ async fn auth(State(api): State<Api>) -> Response {
 async fn sign_in(State(api): State<Api>, body: Bytes) -> Result<Response, ApiError> {
     let body = json_body(&body)?;
     let which = body.get("backend").and_then(Value::as_str);
-    let values: Option<HashMap<String, String>> = body
-        .get("values")
-        .and_then(Value::as_object)
-        .and_then(|o| o.iter().map(|(k, v)| v.as_str().map(|v| (k.clone(), v.to_owned()))).collect());
-    let Some(values) = values else { return Err(ApiError::bad_request("expected {\"values\": {...}}")) };
+    let values: Option<HashMap<String, String>> =
+        body.get("values").and_then(Value::as_object).and_then(|o| {
+            o.iter()
+                .map(|(k, v)| v.as_str().map(|v| (k.clone(), v.to_owned())))
+                .collect()
+        });
+    let Some(values) = values else {
+        return Err(ApiError::bad_request("expected {\"values\": {...}}"));
+    };
     let signed = match (&api.backends, which) {
         (Some(backends), Some(which)) => backends.authorize_backend(which, &values).await,
-        _ => api.radio.authorize(&values).await.map_err(|e| AuthError(e.to_string())),
+        _ => api
+            .radio
+            .authorize(&values)
+            .await
+            .map_err(|e| AuthError(e.to_string())),
     };
     signed.map_err(|e| ApiError::bad_request(e.0))?;
     Ok(ok(&api.auth_info()))
 }
 
 fn known(api: &Api) -> Result<&Arc<dyn BackendSet>, ApiError> {
-    api.backends.as_ref().ok_or_else(|| ApiError::not_found("the backends are not selectable"))
+    api.backends
+        .as_ref()
+        .ok_or_else(|| ApiError::not_found("the backends are not selectable"))
 }
 
 async fn turn_on(State(api): State<Api>, body: Bytes) -> Result<Response, ApiError> {
     let body = json_body(&body)?;
-    let Some(chosen) = body.get("backend").and_then(Value::as_str) else { return Err(ApiError::bad_request("expected {\"backend\": \"...\"}")) };
-    known(&api)?.enable(chosen).await.map_err(ApiError::bad_request)?;
+    let Some(chosen) = body.get("backend").and_then(Value::as_str) else {
+        return Err(ApiError::bad_request("expected {\"backend\": \"...\"}"));
+    };
+    known(&api)?
+        .enable(chosen)
+        .await
+        .map_err(ApiError::bad_request)?;
     Ok(ok(&api.auth_info()))
 }
 
-async fn turn_off(State(api): State<Api>, Path(backend): Path<String>) -> Result<Response, ApiError> {
-    known(&api)?.disable(&backend).await.map_err(ApiError::not_found)?;
+async fn turn_off(
+    State(api): State<Api>,
+    Path(backend): Path<String>,
+) -> Result<Response, ApiError> {
+    known(&api)?
+        .disable(&backend)
+        .await
+        .map_err(ApiError::not_found)?;
     api.radio.backends_changed();
     Ok(ok(&api.auth_info()))
 }
@@ -272,29 +330,55 @@ pub fn router(api: Api) -> Router {
     let mut app = Router::new()
         .route("/", get(root))
         .route("/api/queue", get(queue))
-        .route("/api/moods", get(get_moods).put(put_moods).delete(delete_moods))
+        .route(
+            "/api/moods",
+            get(get_moods).put(put_moods).delete(delete_moods),
+        )
         .route("/api/queue/refresh", post(refresh_queue))
         .route("/api/next", get(next_status).post(next_track))
         .route("/api/pause", post(pause))
         .route("/api/resume", post(resume))
         .route("/api/queue/order", put(put_order))
         .route("/api/queue/move", post(move_track))
-        .route("/api/queue/tracks/{track_id}", axum::routing::delete(remove_track))
+        .route(
+            "/api/queue/tracks/{track_id}",
+            axum::routing::delete(remove_track),
+        )
         .route("/api/queue/play", post(play_track))
-        .route("/api/language", get(get_language).put(put_language).delete(delete_language))
-        .route("/api/genres", get(get_genres).put(put_genres).delete(delete_genres))
-        .route("/api/genres/blocked", put(put_blocked).delete(delete_blocked))
+        .route(
+            "/api/language",
+            get(get_language).put(put_language).delete(delete_language),
+        )
+        .route(
+            "/api/genres",
+            get(get_genres).put(put_genres).delete(delete_genres),
+        )
+        .route(
+            "/api/genres/blocked",
+            put(put_blocked).delete(delete_blocked),
+        )
         .route("/api/stats", get(stats))
         .route("/api/transitions", get(blends))
         .route("/api/stats/keys", get(key_pairs))
         .route("/api/auth", get(auth).post(sign_in))
         .route("/api/auth/backend", put(turn_on))
-        .route("/api/auth/backend/{backend}", axum::routing::delete(turn_off));
+        .route(
+            "/api/auth/backend/{backend}",
+            axum::routing::delete(turn_off),
+        );
     app = streams::add_streams(app, &api);
-    app.method_not_allowed_fallback(not_allowed).fallback(not_found).with_state(api)
+    app.method_not_allowed_fallback(not_allowed)
+        .fallback(not_found)
+        .with_state(api)
 }
 
 /// Serve the API and the streams on a socket until `shutdown` is done.
-pub async fn serve(listener: tokio::net::TcpListener, api: Api, shutdown: impl std::future::Future<Output = ()> + Send + 'static) -> std::io::Result<()> {
-    axum::serve(listener, router(api)).with_graceful_shutdown(shutdown).await
+pub async fn serve(
+    listener: tokio::net::TcpListener,
+    api: Api,
+    shutdown: impl std::future::Future<Output = ()> + Send + 'static,
+) -> std::io::Result<()> {
+    axum::serve(listener, router(api))
+        .with_graceful_shutdown(shutdown)
+        .await
 }

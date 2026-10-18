@@ -6,11 +6,25 @@ use super::{CHANNELS, SAMPLE_RATE};
 use std::ffi::{c_char, c_int};
 
 unsafe extern "C" {
-    fn ew_key(mono: *const f32, frames: usize, sample_rate: c_int, name: *mut c_char, minor: *mut c_int, strength: *mut f32) -> c_int;
-    fn ew_loudness(stereo: *const f32, frames: usize, sample_rate: c_int, integrated: *mut f64) -> c_int;
+    fn ew_key(
+        mono: *const f32,
+        frames: usize,
+        sample_rate: c_int,
+        name: *mut c_char,
+        minor: *mut c_int,
+        strength: *mut f32,
+    ) -> c_int;
+    fn ew_loudness(
+        stereo: *const f32,
+        frames: usize,
+        sample_rate: c_int,
+        integrated: *mut f64,
+    ) -> c_int;
 }
 
-const NOTES: [&str; 12] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const NOTES: [&str; 12] = [
+    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+];
 
 /// The tonic as Essentia spells it (flats too) to 0-11.
 fn tonic(name: &str) -> Option<i32> {
@@ -31,12 +45,27 @@ pub fn essentia_key(mono: &[f32]) -> i32 {
     let mut name = [0 as c_char; 4];
     let (mut minor, mut strength) = (0 as c_int, 0f32);
     // SAFETY: the pointers are to live buffers of the sizes shim.cpp is told or documents (name: 4 bytes).
-    let failed = unsafe { ew_key(mono.as_ptr(), mono.len(), SAMPLE_RATE as c_int, name.as_mut_ptr(), &mut minor, &mut strength) };
+    let failed = unsafe {
+        ew_key(
+            mono.as_ptr(),
+            mono.len(),
+            SAMPLE_RATE as c_int,
+            name.as_mut_ptr(),
+            &mut minor,
+            &mut strength,
+        )
+    };
     if failed != 0 || strength == 0.0 {
         return -1;
     }
-    let bytes: Vec<u8> = name.iter().take_while(|&&c| c != 0).map(|&c| c as u8).collect();
-    let Some(note) = std::str::from_utf8(&bytes).ok().and_then(tonic) else { return -1 };
+    let bytes: Vec<u8> = name
+        .iter()
+        .take_while(|&&c| c != 0)
+        .map(|&c| c as u8)
+        .collect();
+    let Some(note) = std::str::from_utf8(&bytes).ok().and_then(tonic) else {
+        return -1;
+    };
     note + if minor != 0 { 12 } else { 0 }
 }
 
@@ -44,6 +73,13 @@ pub fn essentia_key(mono: &[f32]) -> i32 {
 pub fn essentia_loudness(stereo: &[f32]) -> Option<f64> {
     let mut integrated = 0f64;
     // SAFETY: `stereo` holds whole frames of CHANNELS samples.
-    let failed = unsafe { ew_loudness(stereo.as_ptr(), stereo.len() / CHANNELS, SAMPLE_RATE as c_int, &mut integrated) };
+    let failed = unsafe {
+        ew_loudness(
+            stereo.as_ptr(),
+            stereo.len() / CHANNELS,
+            SAMPLE_RATE as c_int,
+            &mut integrated,
+        )
+    };
     (failed == 0).then_some(integrated)
 }

@@ -15,8 +15,12 @@ const KEY_QUIET_RATIO: f64 = 0.1;
 /// Below this correlation the track has no tonal centre worth a label.
 const MIN_KEY_CONFIDENCE: f64 = 0.3;
 const PITCH_CLASSES: usize = 12;
-const MAJOR_PROFILE: [f64; 12] = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
-const MINOR_PROFILE: [f64; 12] = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+const MAJOR_PROFILE: [f64; 12] = [
+    6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88,
+];
+const MINOR_PROFILE: [f64; 12] = [
+    6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17,
+];
 
 /// Energy of the track at each of the 12 pitch classes (C = 0).
 pub fn chroma(mono: &[f32]) -> [f64; 12] {
@@ -29,22 +33,31 @@ pub fn chroma(mono: &[f32]) -> [f64; 12] {
             })
         })
         .collect();
-    let starts: Vec<usize> = (0..).map(|i| i * KEY_HOP).take_while(|&s| s + KEY_FRAME < mono.len()).collect();
+    let starts: Vec<usize> = (0..)
+        .map(|i| i * KEY_HOP)
+        .take_while(|&s| s + KEY_FRAME < mono.len())
+        .collect();
     if starts.is_empty() {
         return [0.0; 12];
     }
     // np.hanning: symmetric.
-    let window: Vec<f32> =
-        (0..KEY_FRAME).map(|n| (0.5 - 0.5 * (2.0 * PI * n as f64 / (KEY_FRAME - 1) as f64).cos()) as f32).collect();
+    let window: Vec<f32> = (0..KEY_FRAME)
+        .map(|n| (0.5 - 0.5 * (2.0 * PI * n as f64 / (KEY_FRAME - 1) as f64).cos()) as f32)
+        .collect();
     let fft = RealFftPlanner::<f32>::new().plan_fft_forward(KEY_FRAME);
     let mut input = fft.make_input_vec();
     let mut output = fft.make_output_vec();
     let mut rows: Vec<[f64; 12]> = Vec::with_capacity(starts.len());
     for &start in &starts {
-        for ((x, &s), &w) in input.iter_mut().zip(&mono[start..start + KEY_FRAME]).zip(&window) {
+        for ((x, &s), &w) in input
+            .iter_mut()
+            .zip(&mono[start..start + KEY_FRAME])
+            .zip(&window)
+        {
             *x = s * w;
         }
-        fft.process(&mut input, &mut output).expect("sizes are right");
+        fft.process(&mut input, &mut output)
+            .expect("sizes are right");
         let mut row = [0.0f64; 12];
         // The square root keeps a loud bass note from drowning the harmony.
         for &(bin, class) in &usable {
@@ -88,7 +101,8 @@ pub fn profile_key(mono: &[f32]) -> (i32, f64) {
     for (offset, reference) in [(0, &MAJOR_PROFILE), (PITCH_CLASSES, &MINOR_PROFILE)] {
         for tonic in 0..PITCH_CLASSES {
             // np.roll(reference, tonic)
-            let rolled: [f64; 12] = std::array::from_fn(|i| reference[(i + PITCH_CLASSES - tonic) % PITCH_CLASSES]);
+            let rolled: [f64; 12] =
+                std::array::from_fn(|i| reference[(i + PITCH_CLASSES - tonic) % PITCH_CLASSES]);
             let score = correlation(&profile, &rolled);
             if score > best_score {
                 (best, best_score) = ((offset + tonic) as i32, score);
@@ -101,5 +115,9 @@ pub fn profile_key(mono: &[f32]) -> (i32, f64) {
 /// The key by the profiles, -1 if the track has no tonal centre.
 pub fn profile_estimate(mono: &[f32]) -> i32 {
     let (key, confidence) = profile_key(mono);
-    if confidence >= MIN_KEY_CONFIDENCE { key } else { -1 }
+    if confidence >= MIN_KEY_CONFIDENCE {
+        key
+    } else {
+        -1
+    }
 }

@@ -52,7 +52,8 @@ pub struct Entry {
 
 /// How intense a track is, 0..1: faster and louder is more.
 pub fn energy(analysis: &TrackAnalysis) -> f64 {
-    let scaled = |value: f64, (low, high): (f64, f64)| ((value - low) / (high - low)).clamp(0.0, 1.0);
+    let scaled =
+        |value: f64, (low, high): (f64, f64)| ((value - low) / (high - low)).clamp(0.0, 1.0);
     let loudness = scaled(analysis.loudness_db, ENERGY_LOUDNESS_RANGE_DB);
     if analysis.bpm == 0.0 {
         return loudness;
@@ -97,16 +98,29 @@ pub fn nearest_mood<'a>(wanted: &'a str, allowed: &'a [&'a str]) -> &'a str {
     if allowed.is_empty() || allowed.contains(&wanted) {
         return wanted;
     }
-    let Some(place) = ALL_MOODS.iter().position(|&m| m == wanted) else { return allowed[0] };
-    let distance = |mood: &str| ALL_MOODS.iter().position(|&m| m == mood).map_or(usize::MAX, |p| p.abs_diff(place));
+    let Some(place) = ALL_MOODS.iter().position(|&m| m == wanted) else {
+        return allowed[0];
+    };
+    let distance = |mood: &str| {
+        ALL_MOODS
+            .iter()
+            .position(|&m| m == mood)
+            .map_or(usize::MAX, |p| p.abs_diff(place))
+    };
     // The first of the closest, as min() says.
-    allowed.iter().copied().min_by_key(|m| distance(m)).expect("the list is not empty")
+    allowed
+        .iter()
+        .copied()
+        .min_by_key(|m| distance(m))
+        .expect("the list is not empty")
 }
 
 /// The cost of a track picked for another mood than wanted.
 pub fn mood_cost(wanted: &str, got: &str) -> f64 {
-    let (Some(wanted), Some(got)) = (MOODS.iter().position(|&m| m == wanted), MOODS.iter().position(|&m| m == got))
-    else {
+    let (Some(wanted), Some(got)) = (
+        MOODS.iter().position(|&m| m == wanted),
+        MOODS.iter().position(|&m| m == got),
+    ) else {
         return 0.0;
     };
     MOOD_COST * wanted.abs_diff(got) as f64
@@ -137,10 +151,18 @@ pub fn transition_cost(current: &TrackAnalysis, following: &TrackAnalysis) -> f6
 }
 
 /// Cost of playing the entry after `current`.
-pub fn step_cost(current: Option<&TrackAnalysis>, entry: &Entry, history: &[HashSet<String>], position: i64) -> f64 {
+pub fn step_cost(
+    current: Option<&TrackAnalysis>,
+    entry: &Entry,
+    history: &[HashSet<String>],
+    position: i64,
+) -> f64 {
     let mut cost = current.map_or(0.0, |current| transition_cost(current, &entry.analysis));
     let recent = &history[history.len().saturating_sub(REPEAT_WINDOW)..];
-    if recent.iter().any(|artists| !entry.artists.is_disjoint(artists)) {
+    if recent
+        .iter()
+        .any(|artists| !entry.artists.is_disjoint(artists))
+    {
         cost += REPEAT_ARTIST_COST;
     }
     cost += ENERGY_ARC_COST * (energy(&entry.analysis) - arc_target(position)).abs();
@@ -156,8 +178,11 @@ fn best_path(
     position: i64,
     depth: usize,
 ) -> (f64, usize) {
-    let mut steps: Vec<(f64, usize)> =
-        pool.iter().enumerate().map(|(index, entry)| (step_cost(current, entry, history, position), index)).collect();
+    let mut steps: Vec<(f64, usize)> = pool
+        .iter()
+        .enumerate()
+        .map(|(index, entry)| (step_cost(current, entry, history, position), index))
+        .collect();
     // A stable sort: of equal costs the first stays first.
     steps.sort_by(|a, b| a.0.total_cmp(&b.0));
 
@@ -165,10 +190,22 @@ fn best_path(
     for &(cost, index) in steps.iter().take(LOOKAHEAD_BEAM) {
         let mut total = LOOKAHEAD_WEIGHTS[LOOKAHEAD_WEIGHTS.len() - depth] * cost;
         if depth > 1 && pool.len() > 1 {
-            let rest: Vec<&Entry> = pool.iter().enumerate().filter(|&(i, _)| i != index).map(|(_, e)| *e).collect();
+            let rest: Vec<&Entry> = pool
+                .iter()
+                .enumerate()
+                .filter(|&(i, _)| i != index)
+                .map(|(_, e)| *e)
+                .collect();
             let mut later = history.to_vec();
             later.push(pool[index].artists.clone());
-            total += best_path(Some(&pool[index].analysis), &rest, &later, position + 1, depth - 1).0;
+            total += best_path(
+                Some(&pool[index].analysis),
+                &rest,
+                &later,
+                position + 1,
+                depth - 1,
+            )
+            .0;
         }
         if total < best_cost {
             (best_cost, best_index) = (total, index);
@@ -181,14 +218,24 @@ fn best_path(
 /// that blends perfectly but leaves nothing that fits after it is not a good pick.
 ///
 /// `history` has the artists of the tracks played, the oldest first. The pool must not be empty.
-pub fn choose_next(current: Option<&TrackAnalysis>, pool: &[Entry], history: &[HashSet<String>], position: i64) -> usize {
+pub fn choose_next(
+    current: Option<&TrackAnalysis>,
+    pool: &[Entry],
+    history: &[HashSet<String>],
+    position: i64,
+) -> usize {
     let depth = LOOKAHEAD_WEIGHTS.len().min(pool.len());
     let pool: Vec<&Entry> = pool.iter().collect();
     best_path(current, &pool, history, position, depth).1
 }
 
 /// As `choose_next`, with the cost of the best queue too (for the tests).
-pub fn best_queue_cost(current: Option<&TrackAnalysis>, pool: &[Entry], history: &[HashSet<String>], position: i64) -> f64 {
+pub fn best_queue_cost(
+    current: Option<&TrackAnalysis>,
+    pool: &[Entry],
+    history: &[HashSet<String>],
+    position: i64,
+) -> f64 {
     let depth = LOOKAHEAD_WEIGHTS.len().min(pool.len());
     let pool: Vec<&Entry> = pool.iter().collect();
     best_path(current, &pool, history, position, depth).0

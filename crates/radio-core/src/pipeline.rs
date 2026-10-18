@@ -67,7 +67,10 @@ pub struct BlendPlan {
 /// Cut a track into pieces of a quarter of a second, the last one shorter. The pieces are made one at a time.
 pub fn pieces<'a>(pcm: &'a [f32], title: &'a Arc<str>) -> impl Iterator<Item = Piece> + 'a {
     let size = (CHUNK_SECONDS * f64::from(SAMPLE_RATE)).round_ties_even() as usize * CHANNELS;
-    pcm.chunks(size).map(move |chunk| Piece { pcm: chunk.to_vec(), title: Arc::clone(title) })
+    pcm.chunks(size).map(move |chunk| Piece {
+        pcm: chunk.to_vec(),
+        title: Arc::clone(title),
+    })
 }
 
 /// Samples of a stretch of the following deck from `start` at `speed`: the Python `int(frames / speed)`.
@@ -85,8 +88,13 @@ pub fn plan_blend(current: &Deck, following: &mut Deck, position: i64) -> BlendP
     };
     // Without room for a blend on the beat the tracks are not matched.
     following.beat_matched = matched.is_some();
-    let planned = matched.unwrap_or_else(|| plan::plan_blend(&current.analysis, &following.analysis, false, 1.0));
-    let speed = if following.beat_matched { following.speed } else { 1.0 };
+    let planned = matched
+        .unwrap_or_else(|| plan::plan_blend(&current.analysis, &following.analysis, false, 1.0));
+    let speed = if following.beat_matched {
+        following.speed
+    } else {
+        1.0
+    };
     let start = planned.start.max(position);
     let length = 0.max(
         planned
@@ -96,19 +104,42 @@ pub fn plan_blend(current: &Deck, following: &mut Deck, position: i64) -> BlendP
             .min(current.frames() - start)
             .min(playable(following, planned.following_start, speed)),
     );
-    BlendPlan { start, following_start: planned.following_start, length, speed }
+    BlendPlan {
+        start,
+        following_start: planned.following_start,
+        length,
+        speed,
+    }
 }
 
 /// Plan the blend asked for by the skip button, if it can be made now. It needs some room left in both tracks. (The
 /// caller has seen that the following deck is ready and not stale.)
 pub fn plan_early(current: &Deck, following: &Deck, position: i64) -> Option<BlendPlan> {
-    let speed = if following.beat_matched { following.speed } else { 1.0 };
-    let planned = plan::plan_early(&current.analysis, &following.analysis, position, following.beat_matched, speed)?;
-    let length = planned.length.min(current.frames() - planned.start).min(playable(following, planned.following_start, speed));
+    let speed = if following.beat_matched {
+        following.speed
+    } else {
+        1.0
+    };
+    let planned = plan::plan_early(
+        &current.analysis,
+        &following.analysis,
+        position,
+        following.beat_matched,
+        speed,
+    )?;
+    let length = planned
+        .length
+        .min(current.frames() - planned.start)
+        .min(playable(following, planned.following_start, speed));
     if (length as f64) < MIN_EARLY_BLEND_SECONDS * f64::from(SAMPLE_RATE) {
         return None;
     }
-    Some(BlendPlan { start: planned.start, following_start: planned.following_start, length, speed })
+    Some(BlendPlan {
+        start: planned.start,
+        following_start: planned.following_start,
+        length,
+        speed,
+    })
 }
 
 /// The samples per beat of the blend, 0 if the beats don't match.
@@ -117,7 +148,9 @@ pub fn beat_period(current: &Deck, following: &Deck, beat_grid: Option<&[f64]>) 
         return 0.0;
     }
     match beat_grid {
-        Some(grid) if grid.len() >= MIN_BEATS_IN_GRID => (grid[grid.len() - 1] - grid[0]) / (grid.len() - 1) as f64,
+        Some(grid) if grid.len() >= MIN_BEATS_IN_GRID => {
+            (grid[grid.len() - 1] - grid[0]) / (grid.len() - 1) as f64
+        }
         _ => current.analysis.beat_period(),
     }
 }
@@ -126,7 +159,8 @@ pub fn beat_period(current: &Deck, following: &Deck, beat_grid: Option<&[f64]>) 
 /// the following track as of the outgoing one, however long the glide made the blend.
 pub fn followed_until(plan: &BlendPlan, following: &Deck) -> i64 {
     let glided = following.beat_matched && (plan.speed - 1.0).abs() >= NEGLIGIBLE_TEMPO_SHIFT;
-    plan.following_start + (plan.length as f64 * if glided { plan.speed } else { 1.0 }).round_ties_even() as i64
+    plan.following_start
+        + (plan.length as f64 * if glided { plan.speed } else { 1.0 }).round_ties_even() as i64
 }
 
 // ---- The blend itself (tasks 3.2.2 and 3.2.3) ----------------------------------------------------------------------
@@ -135,7 +169,9 @@ pub fn followed_until(plan: &BlendPlan, following: &Deck) -> i64 {
 use crate::{
     clock::Clock,
     mix::{
-        blend, effects::{self, Effect, NoiseSource}, glide, key,
+        blend,
+        effects::{self, Effect, NoiseSource},
+        glide, key,
         plan::{self as mix_plan, Transition},
     },
 };
@@ -195,7 +231,14 @@ pub trait DeckSource: Send + Sync {
     /// Note that the track that plays is left early, at the user's wish.
     fn skip_taken(&self);
     /// Count a blend of the current deck into the following one.
-    fn transition(&self, kind: Transition, current: &Deck, following: &Deck, effect: Effect, report: Option<BlendReport>);
+    fn transition(
+        &self,
+        kind: Transition,
+        current: &Deck,
+        following: &Deck,
+        effect: Effect,
+        report: Option<BlendReport>,
+    );
     /// Tell that the deck has begun to be heard.
     fn started(&self, deck: &Deck);
     /// Tell that the deck has been heard to the end, or skipped.
@@ -224,17 +267,31 @@ fn slice(pcm: &[f32], from: i64, to: i64) -> &[f32] {
 
 /// Cut the two pieces that are blended, equally long. If the tempos differ, the pieces glide from one to the other (and
 /// the beats of the blend are returned); otherwise they are just cut out.
-pub async fn blend_pieces(current: &Deck, following: &mut Deck, plan: &BlendPlan) -> (Vec<f32>, Vec<f32>, Option<Vec<f64>>) {
+pub async fn blend_pieces(
+    current: &Deck,
+    following: &mut Deck,
+    plan: &BlendPlan,
+) -> (Vec<f32>, Vec<f32>, Option<Vec<f64>>) {
     let (start, following_start) = (plan.start, plan.following_start);
-    let glides = following.beat_matched && (plan.speed - 1.0).abs() >= glide::NEGLIGIBLE_TEMPO_SHIFT;
+    let glides =
+        following.beat_matched && (plan.speed - 1.0).abs() >= glide::NEGLIGIBLE_TEMPO_SHIFT;
     if glides {
         let span = (plan.length as f64 * plan.speed).round_ties_even() as i64;
         let margin = glide::GLIDE_MARGIN as i64;
         let outgoing = slice(&current.pcm, start, start + plan.length + margin).to_vec();
-        let incoming = slice(&following.pcm, following_start, following_start + span + margin).to_vec();
+        let incoming = slice(
+            &following.pcm,
+            following_start,
+            following_start + span + margin,
+        )
+        .to_vec();
         let (bpm, speed, length) = (current.analysis.bpm, plan.speed, plan.length as usize);
         // Stretching takes a while too.
-        match tokio::task::spawn_blocking(move || glide::tempo_glide(&outgoing, &incoming, bpm, speed, length)).await {
+        match tokio::task::spawn_blocking(move || {
+            glide::tempo_glide(&outgoing, &incoming, bpm, speed, length)
+        })
+        .await
+        {
             Ok((outgoing, incoming, grid)) => return (outgoing, incoming, Some(grid)),
             Err(error) => {
                 tracing::error!("The tempo glide failed, the beats will not match: {error}");
@@ -243,10 +300,18 @@ pub async fn blend_pieces(current: &Deck, following: &mut Deck, plan: &BlendPlan
         }
     }
     let outgoing = slice(&current.pcm, start, start + plan.length);
-    let incoming = slice(&following.pcm, following_start, following_start + plan.length);
+    let incoming = slice(
+        &following.pcm,
+        following_start,
+        following_start + plan.length,
+    );
     // The pieces must be equally long, whatever the analysis says.
     let length = outgoing.len().min(incoming.len());
-    (outgoing[..length].to_vec(), incoming[..length].to_vec(), None)
+    (
+        outgoing[..length].to_vec(),
+        incoming[..length].to_vec(),
+        None,
+    )
 }
 
 /// Where the pieces of the mix go. In the radio it is a channel to the encoders; a test takes them one by one and
@@ -285,14 +350,28 @@ pub async fn transition(
     let frames = outgoing.len() / CHANNELS;
     let period = beat_period(current, following, beat_grid.as_deref());
     let seconds = frames as f64 / f64::from(SAMPLE_RATE);
-    let kind = mix_plan::choose_transition(&current.analysis, &following.analysis, following.beat_matched, seconds);
+    let kind = mix_plan::choose_transition(
+        &current.analysis,
+        &following.analysis,
+        following.beat_matched,
+        seconds,
+    );
     let mut used = effects::applied_blend(kind, frames, period, effects_level);
     // The filtering takes a while, don't stall the event loop with it.
     let task = {
-        let (outgoing, incoming, grid, noise) = (outgoing.clone(), incoming.clone(), beat_grid.clone(), noise);
+        let (outgoing, incoming, grid, noise) =
+            (outgoing.clone(), incoming.clone(), beat_grid.clone(), noise);
         tokio::task::spawn_blocking(move || {
             let mut noise = noise.lock().expect("not poisoned");
-            effects::blend(kind, &outgoing, &incoming, period, effects_level, &mut *noise, grid.as_deref())
+            effects::blend(
+                kind,
+                &outgoing,
+                &incoming,
+                period,
+                effects_level,
+                &mut *noise,
+                grid.as_deref(),
+            )
         })
     };
     let mut blended = match task.await {
@@ -300,13 +379,20 @@ pub async fn transition(
         Err(error) => {
             // A broken blend must not end the stream: fade instead.
             tracing::error!("Blend failed ({}), crossfading: {error}", kind.name());
-            used = effects::Applied { kind: Transition::Crossfade, effect: Effect::None };
+            used = effects::Applied {
+                kind: Transition::Crossfade,
+                effect: Effect::None,
+            };
             blend::crossfade(&outgoing, &incoming)
         }
     };
     // Two loud tracks and the effects add up to more than fits in the encoder.
     let peak = f64::from(blended.iter().fold(0.0f32, |top, x| top.max(x.abs())));
-    let over_db = if peak != 0.0 { (20.0 * (peak / 0.97).log10()).max(0.0) } else { 0.0 };
+    let over_db = if peak != 0.0 {
+        (20.0 * (peak / 0.97).log10()).max(0.0)
+    } else {
+        0.0
+    };
     blended = effects::limit(&blended, effects::LIMIT_CEILING);
     let blended_frames = blended.len() / CHANNELS;
     let report = BlendReport {
@@ -317,10 +403,19 @@ pub async fn transition(
         beat_matched: following.beat_matched,
         from_bpm: round_to(current.analysis.bpm, 1),
         to_bpm: round_to(following.analysis.bpm, 1),
-        glide: if beat_grid.is_some() { round_to(plan.speed - 1.0, 3) } else { 0.0 },
+        glide: if beat_grid.is_some() {
+            round_to(plan.speed - 1.0, 3)
+        } else {
+            0.0
+        },
         seconds: round_to(blended_frames as f64 / f64::from(SAMPLE_RATE), 1),
-        loudness_gap_db: round_to((current.analysis.loudness_db - following.analysis.loudness_db).abs(), 1),
-        key_relation: key::key_relation(current.analysis.key, following.analysis.key).name().to_owned(),
+        loudness_gap_db: round_to(
+            (current.analysis.loudness_db - following.analysis.loudness_db).abs(),
+            1,
+        ),
+        key_relation: key::key_relation(current.analysis.key, following.analysis.key)
+            .name()
+            .to_owned(),
         over_db: round_to(over_db, 1),
         at: clock.wall(),
     };
@@ -414,7 +509,9 @@ impl NextDeck {
         let finished = (&mut self.handle).await;
         match self.slot.lock().expect("not poisoned").take() {
             Some(result) => result,
-            None => Err(DeckError(format!("the task that makes the next deck ended: {finished:?}"))),
+            None => Err(DeckError(format!(
+                "the task that makes the next deck ended: {finished:?}"
+            ))),
         }
     }
 }
@@ -426,7 +523,11 @@ impl Drop for NextDeck {
 }
 
 /// Wait for the next deck; choose again if the queue was rebuilt.
-async fn ready_deck(radio: &Arc<dyn DeckSource>, current: &TrackAnalysis, task: &mut NextDeck) -> Result<Deck, DeckError> {
+async fn ready_deck(
+    radio: &Arc<dyn DeckSource>,
+    current: &TrackAnalysis,
+    task: &mut NextDeck,
+) -> Result<Deck, DeckError> {
     let mut following = task.wait().await?;
     while radio.is_stale(&following) {
         following = radio.next_deck(Some(current)).await?;
@@ -445,7 +546,12 @@ fn fresh(radio: &Arc<dyn DeckSource>, current: &Deck, task: NextDeck) -> NextDec
 
 /// Plan the blend asked for by the skip button, if it can be made now. It needs the next deck to be ready (the music
 /// goes on until it is) and some room left in both tracks.
-fn early_plan(radio: &Arc<dyn DeckSource>, current: &Deck, task: &NextDeck, position: i64) -> Option<BlendPlan> {
+fn early_plan(
+    radio: &Arc<dyn DeckSource>,
+    current: &Deck,
+    task: &NextDeck,
+    position: i64,
+) -> Option<BlendPlan> {
     let following = task.ready()?;
     if radio.is_stale(&following) {
         return None;
@@ -531,7 +637,17 @@ pub async fn mix(
         };
 
         approach(&radio, &current, &mut following, &mut plan, position, out).await?;
-        transition(&*radio, &*clock, &current, &mut following, &plan, effects_level, Arc::clone(&noise), out).await?;
+        transition(
+            &*radio,
+            &*clock,
+            &current,
+            &mut following,
+            &plan,
+            effects_level,
+            Arc::clone(&noise),
+            out,
+        )
+        .await?;
         position = followed_until(&plan, &following);
         current = following;
     }

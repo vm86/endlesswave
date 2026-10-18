@@ -2,7 +2,9 @@
 //! docs/rust-port.md. The mix (`mix.f32`) is not in git; without it the analyzer test is skipped, unless
 //! `GOLDEN_REQUIRED` is set.
 
-use radio_core::spectrum::{Frame, SpectrumAnalyzer, SpectrumFeed, StartPositions, sse_frames, sse_start};
+use radio_core::spectrum::{
+    Frame, SpectrumAnalyzer, SpectrumFeed, StartPositions, sse_frames, sse_start,
+};
 use serde_json::Value;
 use std::{fs, path::PathBuf, time::Duration};
 
@@ -26,11 +28,17 @@ fn bands(value: &Value) -> [f64; 12] {
 #[test]
 fn the_analyzer_gives_the_bands_python_gives() {
     let Ok(bytes) = fs::read(dir().join("mix.f32")) else {
-        assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "no mix, run tools/gen_golden.py");
+        assert!(
+            std::env::var_os("GOLDEN_REQUIRED").is_none(),
+            "no mix, run tools/gen_golden.py"
+        );
         eprintln!("no mix: skipped");
         return;
     };
-    let mix: Vec<f32> = bytes.chunks_exact(4).map(|b| f32::from_le_bytes(b.try_into().unwrap())).collect();
+    let mix: Vec<f32> = bytes
+        .chunks_exact(4)
+        .map(|b| f32::from_le_bytes(b.try_into().unwrap()))
+        .collect();
     let golden = golden();
     let mut analyzer = SpectrumAnalyzer::new();
     let (mut place, mut compared, mut worst_band, mut flips) = (0, 0, 0.0f64, 0);
@@ -38,7 +46,11 @@ fn the_analyzer_gives_the_bands_python_gives() {
         let size = feed["size"].as_u64().unwrap() as usize;
         let frames = analyzer.feed(&mix[place * 2..(place + size) * 2]);
         place += size;
-        assert_eq!(analyzer.position(), f(&feed["position"]), "feed {n}: position");
+        assert_eq!(
+            analyzer.position(),
+            f(&feed["position"]),
+            "feed {n}: position"
+        );
         let want = feed["frames"].as_array().unwrap();
         assert_eq!(frames.len(), want.len(), "feed {n}: number of frames");
         for (got, want) in frames.iter().zip(want) {
@@ -51,10 +63,21 @@ fn the_analyzer_gives_the_bands_python_gives() {
             let (got_json, want_json) = (got.to_json(), want["json"].as_str().unwrap());
             if got_json != want_json {
                 flips += 1;
-                let (a, b): (Value, Value) = (serde_json::from_str(&got_json).unwrap(), serde_json::from_str(want_json).unwrap());
+                let (a, b): (Value, Value) = (
+                    serde_json::from_str(&got_json).unwrap(),
+                    serde_json::from_str(want_json).unwrap(),
+                );
                 assert_eq!(a["t"], b["t"]);
-                for (x, y) in a["b"].as_array().unwrap().iter().zip(b["b"].as_array().unwrap()) {
-                    assert!((f(x) - f(y)).abs() < 0.0011, "feed {n}: {got_json} against {want_json}");
+                for (x, y) in a["b"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .zip(b["b"].as_array().unwrap())
+                {
+                    assert!(
+                        (f(x) - f(y)).abs() < 0.0011,
+                        "feed {n}: {got_json} against {want_json}"
+                    );
                 }
             }
             compared += 1;
@@ -62,7 +85,9 @@ fn the_analyzer_gives_the_bands_python_gives() {
     }
     assert_eq!(place * 2, mix.len());
     assert!(compared > 150, "{compared} frames");
-    println!("{compared} frames, the bands differ by {worst_band:e} at most, {flips} texts on a rounding edge");
+    println!(
+        "{compared} frames, the bands differ by {worst_band:e} at most, {flips} texts on a rounding edge"
+    );
     assert!(worst_band < 1e-4, "the bands differ by {worst_band}");
     assert!(flips <= 2, "{flips} texts differ");
 }
@@ -70,22 +95,57 @@ fn the_analyzer_gives_the_bands_python_gives() {
 #[test]
 fn the_text_of_a_frame_is_the_pythons() {
     for case in golden()["formats"].as_array().unwrap() {
-        let frame = Frame { t: f(&case["t"]), bands: bands(&case["b"]) };
-        assert_eq!(frame.to_json(), case["json"].as_str().unwrap(), "t = {}", case["t"]);
+        let frame = Frame {
+            t: f(&case["t"]),
+            bands: bands(&case["b"]),
+        };
+        assert_eq!(
+            frame.to_json(),
+            case["json"].as_str().unwrap(),
+            "t = {}",
+            case["t"]
+        );
     }
 }
 
 #[test]
 fn server_sent_events() {
-    let frames = [Frame { t: 1.5, bands: [0.25; 12] }, Frame { t: 1.533, bands: [0.0; 12] }];
+    let frames = [
+        Frame {
+            t: 1.5,
+            bands: [0.25; 12],
+        },
+        Frame {
+            t: 1.533,
+            bands: [0.0; 12],
+        },
+    ];
     let text = sse_frames(&frames);
-    assert_eq!(text, format!("data: {}\n\ndata: {}\n\n", frames[0].to_json(), frames[1].to_json()));
-    assert_eq!(sse_start(None), "event: start\ndata: {\"position\": null}\n\n");
-    assert_eq!(sse_start(Some(12.5)), "event: start\ndata: {\"position\": 12.5}\n\n");
+    assert_eq!(
+        text,
+        format!(
+            "data: {}\n\ndata: {}\n\n",
+            frames[0].to_json(),
+            frames[1].to_json()
+        )
+    );
+    assert_eq!(
+        sse_start(None),
+        "event: start\ndata: {\"position\": null}\n\n"
+    );
+    assert_eq!(
+        sse_start(Some(12.5)),
+        "event: start\ndata: {\"position\": 12.5}\n\n"
+    );
 }
 
 fn batch(from: f64, count: usize) -> Vec<Frame> {
-    (0..count).map(|i| Frame { t: from + i as f64 * 0.033, bands: [i as f64; 12] }).collect()
+    (0..count)
+        .map(|i| Frame {
+            t: from + i as f64 * 0.033,
+            bands: [i as f64; 12],
+        })
+        .collect()
 }
 
 #[tokio::test]
@@ -107,9 +167,14 @@ async fn the_feed_keeps_frames_for_who_joins_and_drops_for_who_lags() {
     }
     let (watcher, _) = feed.subscribe(None);
     for n in 0..100 {
-        feed.publish(vec![Frame { t: f64::from(n), bands: [0.0; 12] }]);
+        feed.publish(vec![Frame {
+            t: f64::from(n),
+            bands: [0.0; 12],
+        }]);
     }
-    let kept: Vec<f64> = std::iter::from_fn(|| watcher.try_recv()).map(|b| b[0].t).collect();
+    let kept: Vec<f64> = std::iter::from_fn(|| watcher.try_recv())
+        .map(|b| b[0].t)
+        .collect();
     let expected: Vec<f64> = want["kept"].as_array().unwrap().iter().map(f).collect();
     assert_eq!(kept, expected);
     assert_eq!(kept.len(), 64);
@@ -126,7 +191,10 @@ async fn a_page_gets_what_is_published_after_it_joined() {
     let reader = tokio::spawn(async move { watcher.recv().await });
     tokio::time::sleep(Duration::from_millis(20)).await;
     feed.publish(batch(1.0, 2));
-    let got = tokio::time::timeout(Duration::from_secs(2), reader).await.expect("got it").unwrap();
+    let got = tokio::time::timeout(Duration::from_secs(2), reader)
+        .await
+        .expect("got it")
+        .unwrap();
     assert_eq!(got.len(), 2);
 }
 
@@ -143,7 +211,11 @@ async fn the_start_of_a_listener_is_remembered_and_waited_for() {
     }
     for i in 0..340 {
         let name = format!("n{i}");
-        assert_eq!(positions.get(&name, Duration::ZERO).await, want[&name].as_f64(), "{name}");
+        assert_eq!(
+            positions.get(&name, Duration::ZERO).await,
+            want[&name].as_f64(),
+            "{name}"
+        );
     }
 
     let positions = std::sync::Arc::new(StartPositions::new());
@@ -153,6 +225,15 @@ async fn the_start_of_a_listener_is_remembered_and_waited_for() {
     };
     tokio::time::sleep(Duration::from_millis(30)).await;
     positions.set("page", 7.25);
-    assert_eq!(tokio::time::timeout(Duration::from_secs(2), waiting).await.expect("woken").unwrap(), Some(7.25));
-    assert_eq!(positions.get("nobody", Duration::from_millis(30)).await, None);
+    assert_eq!(
+        tokio::time::timeout(Duration::from_secs(2), waiting)
+            .await
+            .expect("woken")
+            .unwrap(),
+        Some(7.25)
+    );
+    assert_eq!(
+        positions.get("nobody", Duration::from_millis(30)).await,
+        None
+    );
 }

@@ -5,7 +5,9 @@
 use radio_core::stream::{
     broadcaster::Broadcaster,
     encoder::{Encoder, Format},
-    frames::{OggPage, flac_header_length, flac_start, ogg_header_length, ogg_page_length, ogg_start},
+    frames::{
+        OggPage, flac_header_length, flac_start, ogg_header_length, ogg_page_length, ogg_start,
+    },
     native::NativeEncoder,
 };
 use std::{fs, path::PathBuf};
@@ -20,8 +22,12 @@ fn signal(seconds: usize) -> Vec<f32> {
         let t = n as f32 / SR as f32;
         noise = noise.wrapping_mul(1664525).wrapping_add(1013904223);
         let hiss = ((noise >> 9) as f32 / (1 << 23) as f32 - 0.5) * 0.02;
-        let beat = (-(t * 2.0).fract() * 30.0).exp() * (2.0 * std::f32::consts::PI * 60.0 * t).sin() * 0.4;
-        let chord = [220.0f32, 277.2, 329.6].iter().map(|f| (2.0 * std::f32::consts::PI * f * t).sin() * 0.15).sum::<f32>();
+        let beat =
+            (-(t * 2.0).fract() * 30.0).exp() * (2.0 * std::f32::consts::PI * 60.0 * t).sin() * 0.4;
+        let chord = [220.0f32, 277.2, 329.6]
+            .iter()
+            .map(|f| (2.0 * std::f32::consts::PI * f * t).sin() * 0.15)
+            .sum::<f32>();
         out.push(chord + beat + hiss);
         out.push(chord * 0.8 - beat + hiss);
     }
@@ -42,7 +48,10 @@ async fn encode(format: Format, pcm: &[f32]) -> (Vec<u8>, std::sync::Arc<Broadca
         data.extend_from_slice(&chunk);
     }
     // (the listener was there before the header was known, and has it first)
-    assert!(hub.header().is_empty() || data.starts_with(&hub.header()), "the header comes first");
+    assert!(
+        hub.header().is_empty() || data.starts_with(&hub.header()),
+        "the header comes first"
+    );
     (data, hub)
 }
 
@@ -83,16 +92,29 @@ async fn the_flac_stream_is_lossless_to_sixteen_bits_and_can_be_cut() {
     let pcm = signal(12);
     let (bytes, hub) = encode(Format::Flac, &pcm).await;
     assert!(bytes.starts_with(b"fLaC"));
-    let header = flac_header_length(&bytes).unwrap().expect("the header is whole");
-    assert_eq!(hub.header().len(), header, "the broadcaster keeps just the header");
-    assert_eq!(flac_start(&bytes[header..]), 0, "a frame starts where the header ends");
+    let header = flac_header_length(&bytes)
+        .unwrap()
+        .expect("the header is whole");
+    assert_eq!(
+        hub.header().len(),
+        header,
+        "the broadcaster keeps just the header"
+    );
+    assert_eq!(
+        flac_start(&bytes[header..]),
+        0,
+        "a frame starts where the header ends"
+    );
     let back = decoded(&bytes, "a.flac");
     assert_eq!(back.len(), pcm.len(), "no samples lost");
     let (snr, shift) = snr_with_shift(&back, &pcm, 0);
     assert!(snr > 80.0, "{snr:.1} dB at shift {shift}");
     if let Some(ffmpeg) = ffmpeg_decode(&bytes, "a2.flac") {
         assert_eq!(ffmpeg.len(), pcm.len());
-        assert!(snr_with_shift(&ffmpeg, &pcm, 0).0 > 80.0, "ffmpeg reads the stream too");
+        assert!(
+            snr_with_shift(&ffmpeg, &pcm, 0).0 > 80.0,
+            "ffmpeg reads the stream too"
+        );
     }
 }
 
@@ -111,7 +133,9 @@ async fn the_ogg_stream_holds_the_same_flac_in_checked_pages() {
         pages += 1;
     }
     assert!(pages > 100, "{pages} pages for 12 s: about one in 100 ms");
-    let header = ogg_header_length(&bytes).unwrap().expect("the header is whole");
+    let header = ogg_header_length(&bytes)
+        .unwrap()
+        .expect("the header is whole");
     assert_eq!(hub.header().len(), header);
     assert_eq!(ogg_start(&bytes[header..]), 0);
     let back = decoded(&bytes, "a.ogg");
@@ -119,7 +143,10 @@ async fn the_ogg_stream_holds_the_same_flac_in_checked_pages() {
     assert!(snr_with_shift(&back, &pcm, 0).0 > 80.0);
     if let Some(ffmpeg) = ffmpeg_decode(&bytes, "a2.ogg") {
         assert_eq!(ffmpeg.len(), pcm.len());
-        assert!(snr_with_shift(&ffmpeg, &pcm, 0).0 > 80.0, "ffmpeg reads the pages too");
+        assert!(
+            snr_with_shift(&ffmpeg, &pcm, 0).0 > 80.0,
+            "ffmpeg reads the pages too"
+        );
     }
 }
 
@@ -127,7 +154,11 @@ async fn the_ogg_stream_holds_the_same_flac_in_checked_pages() {
 async fn the_mp3_stream_is_the_music() {
     let pcm = signal(12);
     let (bytes, _) = encode(Format::Mp3, &pcm).await;
-    assert!(bytes.len() > 12 * 40_000 - 20_000, "320 kbit/s is 40 kB a second, there are {}", bytes.len());
+    assert!(
+        bytes.len() > 12 * 40_000 - 20_000,
+        "320 kbit/s is 40 kB a second, there are {}",
+        bytes.len()
+    );
     assert!(bytes.len() < 12 * 40_000 + 20_000);
     let back = decoded(&bytes, "a.mp3");
     // a lossy codec with a delay: the best shift tells how much

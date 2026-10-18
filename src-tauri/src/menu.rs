@@ -9,8 +9,8 @@
 use std::sync::Mutex;
 
 use tauri::{
-    menu::{CheckMenuItem, MenuItem},
     AppHandle, Wry,
+    menu::{CheckMenuItem, MenuItem},
 };
 
 /// The items the page changes.
@@ -29,8 +29,11 @@ pub const PREFIX: &str = "m:";
 #[cfg(target_os = "macos")]
 pub fn install(app: &AppHandle) -> tauri::Result<()> {
     use tauri::{
-        menu::{AboutMetadataBuilder, CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder},
         Manager,
+        menu::{
+            AboutMetadataBuilder, CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder,
+            SubmenuBuilder,
+        },
     };
 
     let item = |id: &str, text: &str, accelerator: Option<&str>| {
@@ -46,7 +49,9 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         .version(Some(env!("CARGO_PKG_VERSION")))
         .license(Some("MIT"))
         .website(Some("https://github.com/vm86/endlesswave"))
-        .comments(Some("An endless DJ radio: tracks beat-matched and blended into one mix"))
+        .comments(Some(
+            "An endless DJ radio: tracks beat-matched and blended into one mix",
+        ))
         .build();
     // The settings of a Mac app are in its menu, with the shortcut of the system: ⌘,
     let settings = item("settings", "Settings…", Some("CmdOrCtrl+,"))?;
@@ -83,9 +88,10 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     let next = item("next", "Next Track", Some("CmdOrCtrl+Right"))?;
     let stop = item("stop", "Stop", Some("CmdOrCtrl+."))?;
     let refresh = item("refresh", "Rebuild the Queue", Some("CmdOrCtrl+R"))?;
-    let lossless = CheckMenuItemBuilder::with_id(format!("{PREFIX}lossless"), "Lossless Stream (FLAC)")
-        .accelerator("CmdOrCtrl+L")
-        .build(app)?;
+    let lossless =
+        CheckMenuItemBuilder::with_id(format!("{PREFIX}lossless"), "Lossless Stream (FLAC)")
+            .accelerator("CmdOrCtrl+L")
+            .build(app)?;
     let volume_up = item("volume-up", "Volume Up", Some("CmdOrCtrl+Up"))?;
     let volume_down = item("volume-down", "Volume Down", Some("CmdOrCtrl+Down"))?;
     let controls = SubmenuBuilder::new(app, "Controls")
@@ -122,7 +128,11 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         .build()?;
     app.set_menu(menu)?;
 
-    *app.state::<MenuState>().0.lock().unwrap() = Some(MenuItems { play, next, lossless });
+    *app.state::<MenuState>().0.lock().unwrap() = Some(MenuItems {
+        play,
+        next,
+        lossless,
+    });
     Ok(())
 }
 

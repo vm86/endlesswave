@@ -89,7 +89,10 @@ struct Golden {
 }
 
 fn golden() -> Golden {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden/logic/choose.json");
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/golden/logic/choose.json"
+    );
     serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap()
 }
 
@@ -132,12 +135,25 @@ fn every_change_of_key_is_named_and_priced_as_python_does() {
 fn energy_and_mood_of_a_track_and_the_arc_of_the_set() {
     let golden = golden();
     for (i, t) in golden.tracks.iter().enumerate() {
-        close(choose::energy(&t.analysis), t.energy, &format!("energy of track {i}"));
+        close(
+            choose::energy(&t.analysis),
+            t.energy,
+            &format!("energy of track {i}"),
+        );
         assert_eq!(choose::mood_of(&t.analysis), t.mood, "mood of track {i}");
     }
     for a in golden.arc {
-        close(choose::arc_target(a.position), a.target, &format!("arc at {}", a.position));
-        assert_eq!(choose::mood_for(a.position), a.mood, "mood at {}", a.position);
+        close(
+            choose::arc_target(a.position),
+            a.target,
+            &format!("arc at {}", a.position),
+        );
+        assert_eq!(
+            choose::mood_for(a.position),
+            a.mood,
+            "mood at {}",
+            a.position
+        );
     }
 }
 
@@ -158,17 +174,42 @@ fn nearest_mood_takes_the_closest_allowed() {
 fn a_pair_of_tracks_is_judged_as_python_judges_it() {
     for (i, p) in golden().pairs.iter().enumerate() {
         let what = format!("pair {i}");
-        close(plan::transition_speed(p.current.bpm, &p.following), p.speed, &what);
-        assert_eq!(plan::section_length(&p.current, &p.following), p.section, "{what}");
-        close(choose::transition_cost(&p.current, &p.following), p.cost, &what);
+        close(
+            plan::transition_speed(p.current.bpm, &p.following),
+            p.speed,
+            &what,
+        );
+        assert_eq!(
+            plan::section_length(&p.current, &p.following),
+            p.section,
+            "{what}"
+        );
+        close(
+            choose::transition_cost(&p.current, &p.following),
+            p.cost,
+            &what,
+        );
         if let Some(ratio) = p.tempo_ratio {
-            close(plan::tempo_ratio(p.current.bpm, p.following.bpm), ratio, &what);
+            close(
+                plan::tempo_ratio(p.current.bpm, p.following.bpm),
+                ratio,
+                &what,
+            );
         }
         let name = |t: Transition| t.name();
         for matched in [true, false] {
-            let got = name(plan::choose_transition(&p.current, &p.following, matched, 0.0));
+            let got = name(plan::choose_transition(
+                &p.current,
+                &p.following,
+                matched,
+                0.0,
+            ));
             // The file has Python's str(True) and str(False).
-            assert_eq!(got, p.kind[if matched { "True" } else { "False" }], "{what}");
+            assert_eq!(
+                got,
+                p.kind[if matched { "True" } else { "False" }],
+                "{what}"
+            );
         }
     }
 }
@@ -187,18 +228,38 @@ fn choose_next_picks_what_python_picks() {
                 mood: e.mood.clone(),
             })
             .collect();
-        let history: Vec<HashSet<String>> = s.history.iter().map(|h| h.iter().cloned().collect()).collect();
+        let history: Vec<HashSet<String>> = s
+            .history
+            .iter()
+            .map(|h| h.iter().cloned().collect())
+            .collect();
         let what = format!("scenario {n}");
         for (i, entry) in pool.iter().enumerate() {
-            close(choose::step_cost(s.current.as_ref(), entry, &history, s.position), s.steps[i], &format!("{what}, step {i}"));
+            close(
+                choose::step_cost(s.current.as_ref(), entry, &history, s.position),
+                s.steps[i],
+                &format!("{what}, step {i}"),
+            );
         }
-        close(choose::best_queue_cost(s.current.as_ref(), &pool, &history, s.position), s.cost, &what);
-        assert_eq!(choose::choose_next(s.current.as_ref(), &pool, &history, s.position), s.index, "{what}");
+        close(
+            choose::best_queue_cost(s.current.as_ref(), &pool, &history, s.position),
+            s.cost,
+            &what,
+        );
+        assert_eq!(
+            choose::choose_next(s.current.as_ref(), &pool, &history, s.position),
+            s.index,
+            "{what}"
+        );
     }
 }
 
 fn plan((start, following_start, length): (i64, i64, i64)) -> Plan {
-    Plan { start, following_start, length }
+    Plan {
+        start,
+        following_start,
+        length,
+    }
 }
 
 #[test]
@@ -214,15 +275,34 @@ fn blends_are_planned_where_python_plans_them() {
         }
         for beat_matched in [true, false] {
             let got = plan::plan_blend(&p.current, &p.following, beat_matched, p.speed);
-            assert_eq!(got, plan(p.blend[if beat_matched { "True" } else { "False" }]), "blend, {what}, matched {beat_matched}");
+            assert_eq!(
+                got,
+                plan(p.blend[if beat_matched { "True" } else { "False" }]),
+                "blend, {what}, matched {beat_matched}"
+            );
         }
         for e in &p.early {
-            let got = plan::plan_early(&p.current, &p.following, e.position, e.beat_matched, p.speed);
-            assert_eq!(got, e.plan.map(plan), "early at {}, {what}, matched {}", e.position, e.beat_matched);
+            let got = plan::plan_early(
+                &p.current,
+                &p.following,
+                e.position,
+                e.beat_matched,
+                p.speed,
+            );
+            assert_eq!(
+                got,
+                e.plan.map(plan),
+                "early at {}, {what}, matched {}",
+                e.position,
+                e.beat_matched
+            );
             early += got.is_some() as usize;
             refused += got.is_none() as usize;
         }
     }
     // The cases must be of both kinds, or the test says little.
-    assert!(matched > 50 && early > 500 && refused > 5, "{matched} {early} {refused}");
+    assert!(
+        matched > 50 && early > 500 && refused > 5,
+        "{matched} {early} {refused}"
+    );
 }

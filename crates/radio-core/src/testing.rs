@@ -52,7 +52,10 @@ impl ScriptedRadio {
     }
 
     pub fn event(&self, text: String) {
-        self.log.lock().expect("not poisoned").push(json!(["event", text]));
+        self.log
+            .lock()
+            .expect("not poisoned")
+            .push(json!(["event", text]));
     }
 
     /// Pause the mix, or let it go on.
@@ -82,7 +85,9 @@ impl DeckSource for ScriptedRadio {
         let speed = current.map_or(0.0, |c| plan::transition_speed(c.bpm, analysis));
         let generation = self.generation.load(Ordering::SeqCst);
         let after = current.map_or_else(|| "none".to_owned(), |c| format!("{:.3}", c.bpm));
-        self.event(format!("next_deck after {after} -> {title} gen={generation}"));
+        self.event(format!(
+            "next_deck after {after} -> {title} gen={generation}"
+        ));
         Ok(Deck {
             title: title.as_str().into(),
             pcm: pcm.clone(),
@@ -105,9 +110,22 @@ impl DeckSource for ScriptedRadio {
         self.event("skip_taken".to_owned());
     }
 
-    fn transition(&self, kind: Transition, current: &Deck, following: &Deck, effect: Effect, _report: Option<BlendReport>) {
+    fn transition(
+        &self,
+        kind: Transition,
+        current: &Deck,
+        following: &Deck,
+        effect: Effect,
+        _report: Option<BlendReport>,
+    ) {
         self.skip.store(false, Ordering::SeqCst);
-        self.event(format!("transition {} {} {} -> {}", kind.name(), effect.name(), current.title, following.title));
+        self.event(format!(
+            "transition {} {} {} -> {}",
+            kind.name(),
+            effect.name(),
+            current.title,
+            following.title
+        ));
     }
 
     fn started(&self, deck: &Deck) {
@@ -145,7 +163,10 @@ pub fn tone_deck(title: &str, seconds: f64, bpm: f64) -> (String, Arc<[f32]>, Tr
     let frames = (seconds * f64::from(crate::mix::SAMPLE_RATE)) as usize;
     let pcm: Vec<f32> = (0..frames)
         .flat_map(|i| {
-            let s = (0.3 * (2.0 * std::f64::consts::PI * 440.0 * i as f64 / f64::from(crate::mix::SAMPLE_RATE)).sin()) as f32;
+            let s = (0.3
+                * (2.0 * std::f64::consts::PI * 440.0 * i as f64
+                    / f64::from(crate::mix::SAMPLE_RATE))
+                .sin()) as f32;
             [s, s]
         })
         .collect();

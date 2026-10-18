@@ -6,7 +6,10 @@
 //! while the radio runs; they are put back when it stops, and kept in the cache meanwhile, so that if the radio is
 //! killed the next run puts them back first.
 
-use super::{LANGUAGE_KEEP_TRACKS, LANGUAGES, Radio, RadioError, SETTING_BLOCKED, SETTING_GENRES, SETTING_LANGUAGE, SETTING_MOODS, SETTING_STATION};
+use super::{
+    LANGUAGE_KEEP_TRACKS, LANGUAGES, Radio, RadioError, SETTING_BLOCKED, SETTING_GENRES,
+    SETTING_LANGUAGE, SETTING_MOODS, SETTING_STATION,
+};
 use crate::{backend::BackendError, mix::choose::ALL_MOODS};
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -22,14 +25,21 @@ impl Radio {
         if !self.backend.supports_moods() {
             return Ok(());
         }
-        let saved = self.backend.station_settings(&self.station_id()).await.map_err(backend_error)?;
+        let saved = self
+            .backend
+            .station_settings(&self.station_id())
+            .await
+            .map_err(backend_error)?;
         {
             let mut state = self.st();
             state.mood = saved.0.clone();
             state.language = saved.2.clone();
             state.saved_settings = Some(saved.clone());
         }
-        self.remember(SETTING_STATION, &json!({"station": self.station_id(), "settings": [saved.0, saved.1, saved.2]}));
+        self.remember(
+            SETTING_STATION,
+            &json!({"station": self.station_id(), "settings": [saved.0, saved.1, saved.2]}),
+        );
         Ok(())
     }
 
@@ -37,11 +47,18 @@ impl Radio {
     pub async fn restore_settings(&self) -> Result<(), RadioError> {
         let (saved, mood, language) = {
             let state = self.st();
-            (state.saved_settings.clone(), state.mood.clone(), state.language.clone())
+            (
+                state.saved_settings.clone(),
+                state.mood.clone(),
+                state.language.clone(),
+            )
         };
         let Some(saved) = saved else { return Ok(()) };
         if (mood.as_str(), language.as_str()) != (saved.0.as_str(), saved.2.as_str()) {
-            self.backend.set_station_settings(&self.station_id(), &saved.0, &saved.1, &saved.2).await.map_err(backend_error)?;
+            self.backend
+                .set_station_settings(&self.station_id(), &saved.0, &saved.1, &saved.2)
+                .await
+                .map_err(backend_error)?;
             let mut state = self.st();
             state.mood = saved.0;
             state.language = saved.2;
@@ -59,8 +76,15 @@ impl Radio {
         if let Some(Value::Object(left)) = self.setting(SETTING_STATION) {
             let parsed = (|| {
                 let station = left.get("station")?;
-                let station = station.as_str().map_or_else(|| station.to_string(), str::to_owned);
-                let settings: Vec<String> = left.get("settings")?.as_array()?.iter().map(|v| v.as_str().map(str::to_owned)).collect::<Option<_>>()?;
+                let station = station
+                    .as_str()
+                    .map_or_else(|| station.to_string(), str::to_owned);
+                let settings: Vec<String> = left
+                    .get("settings")?
+                    .as_array()?
+                    .iter()
+                    .map(|v| v.as_str().map(str::to_owned))
+                    .collect::<Option<_>>()?;
                 let [mood, diversity, language]: [String; 3] = settings.try_into().ok()?;
                 Some((station, mood, diversity, language))
             })();
@@ -69,9 +93,15 @@ impl Radio {
                     tracing::warn!("Ignoring the station settings left on disk");
                     self.forget(SETTING_STATION);
                 }
-                Some((station, mood, diversity, language)) => match self.backend.set_station_settings(&station, &mood, &diversity, &language).await {
+                Some((station, mood, diversity, language)) => match self
+                    .backend
+                    .set_station_settings(&station, &mood, &diversity, &language)
+                    .await
+                {
                     // Left for the next run, which may be able to.
-                    Err(error) => tracing::error!("Could not put the station's settings back: {error}"),
+                    Err(error) => {
+                        tracing::error!("Could not put the station's settings back: {error}")
+                    }
                     Ok(()) => {
                         tracing::info!("The station's settings put back (the last run left them)");
                         self.forget(SETTING_STATION);
@@ -80,7 +110,13 @@ impl Radio {
             }
         }
         let strings = |key: &str| -> Option<Vec<String>> {
-            Some(self.setting(key)?.as_array()?.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
+            Some(
+                self.setting(key)?
+                    .as_array()?
+                    .iter()
+                    .filter_map(|v| v.as_str().map(str::to_owned))
+                    .collect(),
+            )
         };
         if let Some(genres) = strings(SETTING_GENRES) {
             // Nothing is queued yet, so they are in force at once.
@@ -107,7 +143,11 @@ impl Radio {
     /// Play only tracks of these moods, or any with none given. The station's mood setting is kept on the account: it is
     /// changed for as long as the radio runs and put back when it stops.
     pub async fn set_allowed_moods(&self, moods: Vec<String>) -> Result<(), RadioError> {
-        let wanted: Vec<String> = ALL_MOODS.iter().filter(|m| moods.iter().any(|c| c == *m)).map(|m| (*m).to_owned()).collect();
+        let wanted: Vec<String> = ALL_MOODS
+            .iter()
+            .filter(|m| moods.iter().any(|c| c == *m))
+            .map(|m| (*m).to_owned())
+            .collect();
         if !wanted.is_empty() && self.st().saved_settings.is_none() {
             self.start_mood_arc().await?;
         }
@@ -115,7 +155,14 @@ impl Radio {
         self.remember(SETTING_MOODS, &json!(wanted));
         self.release_settings().await?;
         self.drop_unwanted();
-        tracing::info!("Moods played: {}", if wanted.is_empty() { "any".to_owned() } else { wanted.join(", ") });
+        tracing::info!(
+            "Moods played: {}",
+            if wanted.is_empty() {
+                "any".to_owned()
+            } else {
+                wanted.join(", ")
+            }
+        );
         // Wake up the refill: the pool may be short of tracks now.
         self.consumed.notify_one();
         Ok(())
@@ -125,7 +172,10 @@ impl Radio {
     async fn release_settings(&self) -> Result<(), RadioError> {
         let free = {
             let state = self.st();
-            state.saved_settings.is_some() && state.allowed_moods.is_empty() && !self.config.mood_arc && state.picked_language.is_none()
+            state.saved_settings.is_some()
+                && state.allowed_moods.is_empty()
+                && !self.config.mood_arc
+                && state.picked_language.is_none()
         };
         if free {
             self.restore_settings().await?;
@@ -141,20 +191,27 @@ impl Radio {
     pub async fn set_language(&self, language: Option<&str>) -> Result<(), RadioError> {
         if let Some(language) = language {
             if !LANGUAGES.contains(&language) {
-                return Err(RadioError::Invalid(format!("unknown language '{language}'")));
+                return Err(RadioError::Invalid(format!(
+                    "unknown language '{language}'"
+                )));
             }
         }
         if language.is_some() && self.st().saved_settings.is_none() {
             self.start_mood_arc().await?;
         }
-        let Some(saved) = self.st().saved_settings.clone() else { return Ok(()) /* nothing was changed: nothing to put back */ };
+        let Some(saved) = self.st().saved_settings.clone() else {
+            return Ok(()); /* nothing was changed: nothing to put back */
+        };
         let target = language.map_or_else(|| saved.2.clone(), str::to_owned);
         let (current, mood) = {
             let state = self.st();
             (state.language.clone(), state.mood.clone())
         };
         if target != current {
-            self.backend.set_station_settings(&self.station_id(), &mood, &saved.1, &target).await.map_err(backend_error)?;
+            self.backend
+                .set_station_settings(&self.station_id(), &mood, &saved.1, &target)
+                .await
+                .map_err(backend_error)?;
             self.st().language = target;
             self.give_up_the_pool();
         }
@@ -164,7 +221,10 @@ impl Radio {
             Some(language) => self.remember(SETTING_LANGUAGE, &json!(language)),
         }
         self.release_settings().await?;
-        tracing::info!("Language of the music: {}", language.unwrap_or("the account's own"));
+        tracing::info!(
+            "Language of the music: {}",
+            language.unwrap_or("the account's own")
+        );
         Ok(())
     }
 
@@ -185,7 +245,10 @@ impl Radio {
 
     /// Sign in to the backend with what the user typed.
     pub async fn authorize(&self, values: &HashMap<String, String>) -> Result<(), RadioError> {
-        self.backend.authorize(values).await.map_err(|e| RadioError::Backend(e.to_string()))
+        self.backend
+            .authorize(values)
+            .await
+            .map_err(|e| RadioError::Backend(e.to_string()))
     }
 
     /// What to do to authorize the app, while it isn't.

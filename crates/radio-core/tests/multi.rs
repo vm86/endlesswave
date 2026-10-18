@@ -29,16 +29,28 @@ fn dir() -> PathBuf {
 }
 
 fn values(step: &Value) -> HashMap<String, String> {
-    step["values"].as_object().into_iter().flatten().map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned())).collect()
+    step["values"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned()))
+        .collect()
 }
 
 fn first_difference(got: &Value, want: &Value, path: &str) -> Option<String> {
     match (got, want) {
-        (Value::Object(a), Value::Object(b)) => a
-            .keys()
-            .chain(b.keys())
-            .find_map(|key| first_difference(a.get(key).unwrap_or(&Value::Null), b.get(key).unwrap_or(&Value::Null), &format!("{path}.{key}"))),
-        (Value::Array(a), Value::Array(b)) if a.len() == b.len() => a.iter().zip(b).enumerate().find_map(|(i, (x, y))| first_difference(x, y, &format!("{path}[{i}]"))),
+        (Value::Object(a), Value::Object(b)) => a.keys().chain(b.keys()).find_map(|key| {
+            first_difference(
+                a.get(key).unwrap_or(&Value::Null),
+                b.get(key).unwrap_or(&Value::Null),
+                &format!("{path}.{key}"),
+            )
+        }),
+        (Value::Array(a), Value::Array(b)) if a.len() == b.len() => a
+            .iter()
+            .zip(b)
+            .enumerate()
+            .find_map(|(i, (x, y))| first_difference(x, y, &format!("{path}[{i}]"))),
         _ if got == want => None,
         _ => Some(format!("{path}: {got} against {want}")),
     }
@@ -67,12 +79,18 @@ fn named(kind: &str, message: &str) -> String {
 async fn the_multi_backend_answers_as_the_python_one_does() {
     let library_dir = dir().join("library");
     if !library_dir.join("t0.wav").exists() {
-        assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "no library, run tools/gen_golden.py");
+        assert!(
+            std::env::var_os("GOLDEN_REQUIRED").is_none(),
+            "no library, run tools/gen_golden.py"
+        );
         eprintln!("no library: skipped");
         return;
     }
-    let library: Vec<Value> = serde_json::from_str(&fs::read_to_string(dir().join("library.json")).unwrap()).unwrap();
-    let scenarios: Vec<Value> = serde_json::from_str(&fs::read_to_string(dir().join("multi_scenarios.json")).unwrap()).unwrap();
+    let library: Vec<Value> =
+        serde_json::from_str(&fs::read_to_string(dir().join("library.json")).unwrap()).unwrap();
+    let scenarios: Vec<Value> =
+        serde_json::from_str(&fs::read_to_string(dir().join("multi_scenarios.json")).unwrap())
+            .unwrap();
     let scratch = std::env::temp_dir().join(format!("radio-core-multi-{}", std::process::id()));
     fs::create_dir_all(&scratch).unwrap();
 
@@ -83,14 +101,30 @@ async fn the_multi_backend_answers_as_the_python_one_does() {
         let mut specs = Vec::new();
         for entry in scenario["backends"].as_array().unwrap() {
             let id = entry["id"].as_str().unwrap().to_owned();
-            let wanted: HashSet<&str> = entry["tracks"].as_array().unwrap().iter().map(|t| t.as_str().unwrap()).collect();
+            let wanted: HashSet<&str> = entry["tracks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|t| t.as_str().unwrap())
+                .collect();
             let tracks: Vec<FakeTrack> = library
                 .iter()
                 .filter(|e| wanted.contains(e["track_id"].as_str().unwrap()))
                 .map(|e| {
                     let mut asdict = e.clone();
-                    let file = library_dir.join(asdict.as_object_mut().unwrap().remove("file").unwrap().as_str().unwrap());
-                    FakeTrack { track: serde_json::from_value(asdict).unwrap(), file }
+                    let file = library_dir.join(
+                        asdict
+                            .as_object_mut()
+                            .unwrap()
+                            .remove("file")
+                            .unwrap()
+                            .as_str()
+                            .unwrap(),
+                    );
+                    FakeTrack {
+                        track: serde_json::from_value(asdict).unwrap(),
+                        file,
+                    }
                 })
                 .collect();
             let fake = Arc::new(FakeBackend::new(
@@ -105,7 +139,10 @@ async fn the_multi_backend_answers_as_the_python_one_does() {
             ));
             fakes.insert(id.clone(), fake.clone());
             let configured = entry["configured"].as_bool().unwrap_or(false);
-            let mut spec = BackendSpec::new(&id, entry["name"].as_str().unwrap(), move || fake.clone() as Arc<dyn MusicBackend>).configured(move || configured);
+            let mut spec = BackendSpec::new(&id, entry["name"].as_str().unwrap(), move || {
+                fake.clone() as Arc<dyn MusicBackend>
+            })
+            .configured(move || configured);
             if entry["plain_ids"].as_bool().unwrap_or(false) {
                 spec = spec.plain_ids();
             }
@@ -113,8 +150,18 @@ async fn the_multi_backend_answers_as_the_python_one_does() {
         }
         let changes: Arc<Mutex<Vec<Vec<String>>>> = Arc::default();
         let sink = changes.clone();
-        let enabled: Vec<String> = scenario["enabled"].as_array().into_iter().flatten().map(|v| v.as_str().unwrap().to_owned()).collect();
-        let stations: HashMap<String, String> = scenario["stations"].as_object().into_iter().flatten().map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned())).collect();
+        let enabled: Vec<String> = scenario["enabled"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|v| v.as_str().unwrap().to_owned())
+            .collect();
+        let stations: HashMap<String, String> = scenario["stations"]
+            .as_object()
+            .into_iter()
+            .flatten()
+            .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned()))
+            .collect();
         let multi = MultiBackend::new(
             specs,
             &enabled,
@@ -127,14 +174,37 @@ async fn the_multi_backend_answers_as_the_python_one_does() {
         let mut tracks: HashMap<String, Track> = HashMap::new();
         let mut taken: HashMap<String, usize> = fakes.keys().map(|k| (k.clone(), 0)).collect();
         let mut reported = 0;
-        for (n, (step, want)) in scenario["steps"].as_array().unwrap().iter().zip(scenario["results"].as_array().unwrap()).enumerate() {
+        for (n, (step, want)) in scenario["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(scenario["results"].as_array().unwrap())
+            .enumerate()
+        {
             let mut got = json!({});
             let mut error: Option<String> = None;
             match step["op"].as_str().unwrap() {
-                "enable" => error = multi.enable(step["id"].as_str().unwrap()).await.err().map(|m| named("ValueError", &m)),
-                "disable" => error = multi.disable(step["id"].as_str().unwrap()).await.err().map(|m| named("ValueError", &m)),
+                "enable" => {
+                    error = multi
+                        .enable(step["id"].as_str().unwrap())
+                        .await
+                        .err()
+                        .map(|m| named("ValueError", &m))
+                }
+                "disable" => {
+                    error = multi
+                        .disable(step["id"].as_str().unwrap())
+                        .await
+                        .err()
+                        .map(|m| named("ValueError", &m))
+                }
                 "batch" => {
-                    let exclude: HashSet<String> = step["exclude"].as_array().into_iter().flatten().map(|v| v.as_str().unwrap().to_owned()).collect();
+                    let exclude: HashSet<String> = step["exclude"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .map(|v| v.as_str().unwrap().to_owned())
+                        .collect();
                     match multi.station_batch("ignored", &exclude).await {
                         Ok(batch) => {
                             got["tracks"] = serde_json::to_value(&batch).unwrap();
@@ -144,9 +214,22 @@ async fn the_multi_backend_answers_as_the_python_one_does() {
                     }
                 }
                 "download" => {
-                    let path = scratch.join(format!("{name}-{}.wav", step["track"].as_str().unwrap().replace(':', "_")));
-                    if let Err(e) = multi.download(&tracks[step["track"].as_str().unwrap()], &path).await {
-                        error = Some(named(if e.0.starts_with("the backend of") { "RuntimeError" } else { "BackendError" }, &e.0));
+                    let path = scratch.join(format!(
+                        "{name}-{}.wav",
+                        step["track"].as_str().unwrap().replace(':', "_")
+                    ));
+                    if let Err(e) = multi
+                        .download(&tracks[step["track"].as_str().unwrap()], &path)
+                        .await
+                    {
+                        error = Some(named(
+                            if e.0.starts_with("the backend of") {
+                                "RuntimeError"
+                            } else {
+                                "BackendError"
+                            },
+                            &e.0,
+                        ));
                     }
                 }
                 "feedback" => {
@@ -155,7 +238,15 @@ async fn the_multi_backend_answers_as_the_python_one_does() {
                         "finished" => Feedback::Finished,
                         _ => Feedback::Skipped,
                     };
-                    if let Err(e) = multi.feedback_track(&tracks[step["track"].as_str().unwrap()], kind, "ignored", step["seconds"].as_f64().unwrap()).await {
+                    if let Err(e) = multi
+                        .feedback_track(
+                            &tracks[step["track"].as_str().unwrap()],
+                            kind,
+                            "ignored",
+                            step["seconds"].as_f64().unwrap(),
+                        )
+                        .await
+                    {
                         error = Some(named("RuntimeError", &e.0));
                     }
                 }
@@ -165,7 +256,15 @@ async fn the_multi_backend_answers_as_the_python_one_does() {
                 }
                 "set_settings" => {
                     let s = |k: &str| step[k].as_str().unwrap().to_owned();
-                    if let Err(e) = multi.set_station_settings("ignored", &s("mood"), &s("diversity"), &s("language")).await {
+                    if let Err(e) = multi
+                        .set_station_settings(
+                            "ignored",
+                            &s("mood"),
+                            &s("diversity"),
+                            &s("language"),
+                        )
+                        .await
+                    {
                         error = Some(named("BackendError", &e.0));
                     }
                 }
@@ -179,13 +278,32 @@ async fn the_multi_backend_answers_as_the_python_one_does() {
                         fake.set_authorized(authorized);
                     }
                 }
-                "authorize" => error = multi.authorize(&values(step)).await.err().map(|e| named("AuthError", &e.0)),
-                "authorize_backend" => error = multi.authorize_backend(step["id"].as_str().unwrap(), &values(step)).await.err().map(|e| named("AuthError", &e.0)),
+                "authorize" => {
+                    error = multi
+                        .authorize(&values(step))
+                        .await
+                        .err()
+                        .map(|e| named("AuthError", &e.0))
+                }
+                "authorize_backend" => {
+                    error = multi
+                        .authorize_backend(step["id"].as_str().unwrap(), &values(step))
+                        .await
+                        .err()
+                        .map(|e| named("AuthError", &e.0))
+                }
                 "start_auth" => multi.start_auth(),
                 "persist" => multi.persist(),
                 "wait_authorized" => {
-                    let waited = tokio::time::timeout(Duration::from_millis(300), multi.wait_authorized()).await;
-                    got["waited"] = if waited.is_ok() { "returned" } else { "blocked" }.into();
+                    let waited =
+                        tokio::time::timeout(Duration::from_millis(300), multi.wait_authorized())
+                            .await;
+                    got["waited"] = if waited.is_ok() {
+                        "returned"
+                    } else {
+                        "blocked"
+                    }
+                    .into();
                 }
                 "query" => {}
                 other => panic!("{other}"),
@@ -210,6 +328,9 @@ async fn the_multi_backend_answers_as_the_python_one_does() {
                 panic!("{name}, step {n} ({step}): {difference}");
             }
         }
-        println!("{name}: {} steps the same", scenario["steps"].as_array().unwrap().len());
+        println!(
+            "{name}: {} steps the same",
+            scenario["steps"].as_array().unwrap().len()
+        );
     }
 }

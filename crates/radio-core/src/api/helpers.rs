@@ -17,7 +17,10 @@ pub struct ApiError {
 
 impl ApiError {
     pub fn new(status: StatusCode, text: impl Into<String>) -> Self {
-        Self { status, text: text.into() }
+        Self {
+            status,
+            text: text.into(),
+        }
     }
 
     pub fn bad_request(text: impl Into<String>) -> Self {
@@ -41,16 +44,24 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let mut response = Response::new(Body::from(self.text));
         *response.status_mut() = self.status;
-        response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
         response
     }
 }
 
 /// A JSON answer (`web.json_response`).
 pub fn json_response(status: StatusCode, value: &Value) -> Response {
-    let mut response = Response::new(Body::from(serde_json::to_vec(value).expect("a value is JSON")));
+    let mut response = Response::new(Body::from(
+        serde_json::to_vec(value).expect("a value is JSON"),
+    ));
     *response.status_mut() = status;
-    response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json; charset=utf-8"));
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json; charset=utf-8"),
+    );
     response
 }
 
@@ -60,7 +71,11 @@ pub fn ok(value: &Value) -> Response {
 
 /// Python's `repr()` of a string.
 pub fn py_repr(text: &str) -> String {
-    let quote = if text.contains('\'') && !text.contains('"') { '"' } else { '\'' };
+    let quote = if text.contains('\'') && !text.contains('"') {
+        '"'
+    } else {
+        '\''
+    };
     let mut out = String::from(quote);
     for c in text.chars() {
         match c {
@@ -72,7 +87,9 @@ pub fn py_repr(text: &str) -> String {
                 out.push('\\');
                 out.push(c);
             }
-            c if (c as u32) < 0x20 || c as u32 == 0x7f => out.push_str(&format!("\\x{:02x}", c as u32)),
+            c if (c as u32) < 0x20 || c as u32 == 0x7f => {
+                out.push_str(&format!("\\x{:02x}", c as u32))
+            }
             c => out.push(c),
         }
     }
@@ -82,7 +99,14 @@ pub fn py_repr(text: &str) -> String {
 
 /// Python's `repr()` of a list of strings: `['a', 'b']`.
 pub fn py_list_repr<S: AsRef<str>>(items: &[S]) -> String {
-    format!("[{}]", items.iter().map(|s| py_repr(s.as_ref())).collect::<Vec<_>>().join(", "))
+    format!(
+        "[{}]",
+        items
+            .iter()
+            .map(|s| py_repr(s.as_ref()))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }
 
 /// Python's `int(text)`: spaces around, a sign, digits with single underscores between them.
@@ -93,7 +117,12 @@ pub fn python_int(text: &str) -> Option<i64> {
         b'+' => (false, &text[1..]),
         _ => (false, text),
     };
-    if digits.is_empty() || digits.starts_with('_') || digits.ends_with('_') || digits.contains("__") || !digits.chars().all(|c| c.is_ascii_digit() || c == '_') {
+    if digits.is_empty()
+        || digits.starts_with('_')
+        || digits.ends_with('_')
+        || digits.contains("__")
+        || !digits.chars().all(|c| c.is_ascii_digit() || c == '_')
+    {
         return None;
     }
     let value: i64 = digits.replace('_', "").parse().ok()?;
@@ -102,15 +131,24 @@ pub fn python_int(text: &str) -> Option<i64> {
 
 /// The first value of a name in the query string.
 pub fn query_value<'a>(query: &'a [(String, String)], name: &str) -> Option<&'a str> {
-    query.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str())
+    query
+        .iter()
+        .find(|(k, _)| k == name)
+        .map(|(_, v)| v.as_str())
 }
 
 /// `_count`: how many tracks to list, from the query.
 pub fn count(query: &[(String, String)], name: &str, default: usize) -> Result<usize, ApiError> {
-    let Some(text) = query_value(query, name) else { return Ok(default.min(crate::radio::MAX_LISTED)) };
-    let Some(value) = python_int(text) else { return Err(ApiError::bad_request(format!("{name} must be a number"))) };
+    let Some(text) = query_value(query, name) else {
+        return Ok(default.min(crate::radio::MAX_LISTED));
+    };
+    let Some(value) = python_int(text) else {
+        return Err(ApiError::bad_request(format!("{name} must be a number")));
+    };
     if value < 0 {
-        return Err(ApiError::bad_request(format!("{name} must not be negative")));
+        return Err(ApiError::bad_request(format!(
+            "{name} must not be negative"
+        )));
     }
     Ok((value as usize).min(crate::radio::MAX_LISTED))
 }
@@ -121,13 +159,22 @@ pub fn json_body(body: &[u8]) -> Result<Value, ApiError> {
 }
 
 fn strings(value: &Value) -> Option<Vec<String>> {
-    value.as_array()?.iter().map(|v| v.as_str().map(str::to_owned)).collect()
+    value
+        .as_array()?
+        .iter()
+        .map(|v| v.as_str().map(str::to_owned))
+        .collect()
 }
 
 /// `_parse_moods`
 pub fn parse_moods(body: &Value) -> Result<Vec<String>, ApiError> {
-    let Some(moods) = body.get("moods").and_then(strings) else { return Err(ApiError::bad_request("expected {\"moods\": [...]}")) };
-    let mut unknown: Vec<&String> = moods.iter().filter(|m| !crate::mix::choose::ALL_MOODS.contains(&m.as_str())).collect();
+    let Some(moods) = body.get("moods").and_then(strings) else {
+        return Err(ApiError::bad_request("expected {\"moods\": [...]}"));
+    };
+    let mut unknown: Vec<&String> = moods
+        .iter()
+        .filter(|m| !crate::mix::choose::ALL_MOODS.contains(&m.as_str()))
+        .collect();
     unknown.sort();
     unknown.dedup();
     if !unknown.is_empty() {
@@ -150,13 +197,21 @@ pub fn parse_track_id(body: &Value) -> Result<String, ApiError> {
 
 /// `_parse_track_ids`
 pub fn parse_track_ids(body: &Value) -> Result<Vec<String>, ApiError> {
-    body.get("track_ids").and_then(strings).ok_or_else(|| ApiError::bad_request("expected {\"track_ids\": [...]}"))
+    body.get("track_ids")
+        .and_then(strings)
+        .ok_or_else(|| ApiError::bad_request("expected {\"track_ids\": [...]}"))
 }
 
 /// `_parse_move`
 pub fn parse_move(body: &Value) -> Result<(String, i64), ApiError> {
-    let position = body.get("position").and_then(|p| if p.is_boolean() { None } else { p.as_i64() });
-    let Some(position) = position else { return Err(ApiError::bad_request("expected {\"track_id\": \"...\", \"position\": 0}")) };
+    let position = body
+        .get("position")
+        .and_then(|p| if p.is_boolean() { None } else { p.as_i64() });
+    let Some(position) = position else {
+        return Err(ApiError::bad_request(
+            "expected {\"track_id\": \"...\", \"position\": 0}",
+        ));
+    };
     Ok((parse_track_id(body)?, position))
 }
 
@@ -173,5 +228,7 @@ pub fn parse_language(body: &Value) -> Result<String, ApiError> {
 
 /// `parse_genres`
 pub fn parse_genres(body: &Value) -> Result<Vec<String>, ApiError> {
-    body.get("genres").and_then(strings).ok_or_else(|| ApiError::bad_request("expected {\"genres\": [...]}"))
+    body.get("genres")
+        .and_then(strings)
+        .ok_or_else(|| ApiError::bad_request("expected {\"genres\": [...]}"))
 }

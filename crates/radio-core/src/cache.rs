@@ -62,7 +62,9 @@ fn count_by(column: &str) -> String {
 }
 
 fn now() -> f64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64())
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0.0, |d| d.as_secs_f64())
 }
 
 /// What is stored in the `analysis` column: the analysis and the names of what found its key and its loudness.
@@ -127,26 +129,38 @@ impl TrackCache {
     /// version lacks.
     pub fn open(path: &Path) -> rusqlite::Result<Self> {
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+            std::fs::create_dir_all(parent)
+                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
         }
         let db = Connection::open(path)?;
         db.execute_batch(SCHEMA)?;
         let columns = |table: &str| -> rusqlite::Result<HashSet<String>> {
-            db.prepare(&format!("PRAGMA table_info({table})"))?.query_map([], |row| row.get(1))?.collect()
+            db.prepare(&format!("PRAGMA table_info({table})"))?
+                .query_map([], |row| row.get(1))?
+                .collect()
         };
         let transition_columns = columns("transitions")?;
         for column in ["from_key", "to_key", "effect"] {
             if !transition_columns.contains(column) {
                 // Made before the keys (or the effects) of the transitions were kept: those rows have none (NULL),
                 // unlike a key that was not found, or a blend without effects.
-                db.execute(&format!("ALTER TABLE transitions ADD COLUMN {column} TEXT"), [])?;
+                db.execute(
+                    &format!("ALTER TABLE transitions ADD COLUMN {column} TEXT"),
+                    [],
+                )?;
             }
         }
         if !columns("tracks")?.contains("genre") {
             // A cache made before the genre was kept.
-            db.execute("ALTER TABLE tracks ADD COLUMN genre TEXT NOT NULL DEFAULT ''", [])?;
+            db.execute(
+                "ALTER TABLE tracks ADD COLUMN genre TEXT NOT NULL DEFAULT ''",
+                [],
+            )?;
         }
-        Ok(Self { db, max_rows: MAX_ROWS })
+        Ok(Self {
+            db,
+            max_rows: MAX_ROWS,
+        })
     }
 
     /// Keep this many rows of tracks instead of 20000 (for the tests).
@@ -157,8 +171,13 @@ impl TrackCache {
 
     /// What `put_setting` kept under the key, `None` if nothing (or something that is not JSON).
     pub fn get_setting(&self, key: &str) -> Option<Value> {
-        let text: String =
-            self.db.query_row("SELECT value FROM settings WHERE key = ?", [key], |row| row.get(0)).optional().ok()??;
+        let text: String = self
+            .db
+            .query_row("SELECT value FROM settings WHERE key = ?", [key], |row| {
+                row.get(0)
+            })
+            .optional()
+            .ok()??;
         serde_json::from_str(&text).ok()
     }
 
@@ -172,7 +191,8 @@ impl TrackCache {
     }
 
     pub fn delete_setting(&self, key: &str) -> rusqlite::Result<()> {
-        self.db.execute("DELETE FROM settings WHERE key = ?", [key])?;
+        self.db
+            .execute("DELETE FROM settings WHERE key = ?", [key])?;
         Ok(())
     }
 
@@ -184,15 +204,27 @@ impl TrackCache {
     /// The analysis of a track, if it was made by the given key detector and loudness meter. Not the current
     /// ones: the key was not analyzed, or by something worse, or the loudness was measured another way; the track
     /// is analyzed again.
-    pub fn get_analysis_by(&self, track_id: &str, codec: &str, key_detector: &str, loudness_meter: &str) -> Option<TrackAnalysis> {
+    pub fn get_analysis_by(
+        &self,
+        track_id: &str,
+        codec: &str,
+        key_detector: &str,
+        loudness_meter: &str,
+    ) -> Option<TrackAnalysis> {
         let text: String = self
             .db
-            .query_row("SELECT analysis FROM tracks WHERE track_id = ? AND codec = ?", [track_id, codec], |row| row.get(0))
+            .query_row(
+                "SELECT analysis FROM tracks WHERE track_id = ? AND codec = ?",
+                [track_id, codec],
+                |row| row.get(0),
+            )
             .optional()
             .ok()??;
         // Written by another version of the program: analyze again.
         let stored: Stored = serde_json::from_str(&text).ok()?;
-        if stored.key_by.as_deref() != Some(key_detector) || stored.loudness_by.as_deref() != Some(loudness_meter) {
+        if stored.key_by.as_deref() != Some(key_detector)
+            || stored.loudness_by.as_deref() != Some(loudness_meter)
+        {
             return None;
         }
         if stored.key < 0 && key_detector == "essentia" {
@@ -212,8 +244,23 @@ impl TrackCache {
         })
     }
 
-    pub fn put_analysis(&self, track_id: &str, codec: &str, title: &str, analysis: &TrackAnalysis, genre: &str) -> rusqlite::Result<()> {
-        self.put_analysis_by(track_id, codec, title, analysis, genre, mix::key_detector(), mix::loudness_meter())
+    pub fn put_analysis(
+        &self,
+        track_id: &str,
+        codec: &str,
+        title: &str,
+        analysis: &TrackAnalysis,
+        genre: &str,
+    ) -> rusqlite::Result<()> {
+        self.put_analysis_by(
+            track_id,
+            codec,
+            title,
+            analysis,
+            genre,
+            mix::key_detector(),
+            mix::loudness_meter(),
+        )
     }
 
     /// Keep the analysis of a track, made by the given key detector and loudness meter.
@@ -242,14 +289,21 @@ impl TrackCache {
 
     /// Keep the genre of a track that is already in the cache.
     pub fn set_genre(&self, track_id: &str, codec: &str, genre: &str) -> rusqlite::Result<()> {
-        self.db.execute("UPDATE tracks SET genre = ? WHERE track_id = ? AND codec = ?", [genre, track_id, codec])?;
+        self.db.execute(
+            "UPDATE tracks SET genre = ? WHERE track_id = ? AND codec = ?",
+            [genre, track_id, codec],
+        )?;
         Ok(())
     }
 
     /// The genre kept for a track, `None` if it isn't cached.
     pub fn get_genre(&self, track_id: &str, codec: &str) -> Option<String> {
         self.db
-            .query_row("SELECT genre FROM tracks WHERE track_id = ? AND codec = ?", [track_id, codec], |row| row.get(0))
+            .query_row(
+                "SELECT genre FROM tracks WHERE track_id = ? AND codec = ?",
+                [track_id, codec],
+                |row| row.get(0),
+            )
             .optional()
             .ok()?
     }
@@ -279,7 +333,10 @@ impl TrackCache {
     /// Count the transitions ever made by kind and by key change.
     pub fn transition_stats(&self) -> rusqlite::Result<TransitionStats> {
         let count = |column: &str| -> rusqlite::Result<Vec<(String, i64)>> {
-            self.db.prepare(&count_by(column))?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect()
+            self.db
+                .prepare(&count_by(column))?
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect()
         };
         let (total, beat_matched) = self.db.query_row(
             "SELECT COUNT(*), COALESCE(SUM(beat_matched), 0) FROM transitions",

@@ -14,7 +14,11 @@ pub struct Engine {
 
 impl Engine {
     /// Start the radio with the options of the command line (the program name not included) and wait until it listens.
-    pub fn start(args: &[String], ffmpeg: Option<PathBuf>, log: Option<&Path>) -> Result<Self, String> {
+    pub fn start(
+        args: &[String],
+        ffmpeg: Option<PathBuf>,
+        log: Option<&Path>,
+    ) -> Result<Self, String> {
         let mut argv = vec!["endlesswave-radio".to_owned()];
         argv.extend(args.iter().cloned());
         if let Some(ffmpeg) = ffmpeg {
@@ -50,7 +54,10 @@ impl Engine {
                 })
             })
             .map_err(|error| error.to_string())?;
-        let mut engine = Self { stop: Some(stop), thread: Some(thread) };
+        let mut engine = Self {
+            stop: Some(stop),
+            thread: Some(thread),
+        };
         // Ready, or ended before it (the port is taken, the cache cannot be opened).
         for _ in 0..200 {
             match listening.recv_timeout(Duration::from_millis(50)) {
@@ -66,7 +73,9 @@ impl Engine {
     }
 
     pub fn is_finished(&self) -> bool {
-        self.thread.as_ref().is_none_or(|thread| thread.is_finished())
+        self.thread
+            .as_ref()
+            .is_none_or(|thread| thread.is_finished())
     }
 
     /// Why the thread ended.
@@ -99,33 +108,56 @@ impl Engine {
 mod tests {
     use super::*;
 
-    /// The radio moves the files of the earlier names in the home folder: a test must not do that to the real one.
-    fn isolated_home() {
-        static ONCE: std::sync::Once = std::sync::Once::new();
-        ONCE.call_once(|| {
-            let home = std::env::temp_dir().join(format!("endlesswave-engine-test-{}", std::process::id()));
-            std::fs::create_dir_all(&home).unwrap();
-            // Safety: before the test starts anything else, and the other tests that set it set it before they start.
-            unsafe { std::env::set_var("HOME", home) };
-        });
+    /// Arguments that keep a test away from the files and the accounts of whoever runs it: a settings file of its own
+    /// (with no token), no cache.
+    fn test_args(port: u16) -> Vec<String> {
+        let config = std::env::temp_dir().join(format!(
+            "endlesswave-engine-test-{}-{port}.json",
+            std::process::id()
+        ));
+        [
+            "--host",
+            "127.0.0.1",
+            "--port",
+            &port.to_string(),
+            "--no-cache",
+            "--config",
+            &config.to_string_lossy(),
+        ]
+        .map(String::from)
+        .to_vec()
     }
 
     #[test]
     fn the_radio_listens_inside_the_app_and_stops() {
-        isolated_home();
-        let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
-        let args: Vec<String> = ["--host", "127.0.0.1", "--port", &port.to_string(), "--no-cache"].map(String::from).to_vec();
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let args = test_args(port);
         let engine = Engine::start(&args, None, None).expect("starts");
-        let body: String = ureq::get(&format!("http://127.0.0.1:{port}/api/queue")).call().expect("answers").body_mut().read_to_string().unwrap();
+        let body: String = ureq::get(&format!("http://127.0.0.1:{port}/api/queue"))
+            .call()
+            .expect("answers")
+            .body_mut()
+            .read_to_string()
+            .unwrap();
         assert!(body.starts_with('{'), "{body}");
         engine.stop(100);
-        assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_err(), "the port is free again");
+        assert!(
+            std::net::TcpStream::connect(("127.0.0.1", port)).is_err(),
+            "the port is free again"
+        );
     }
 
     #[test]
     fn a_panic_ends_the_engine_and_is_told() {
         let thread = std::thread::spawn(|| -> Result<(), String> { panic!("on purpose") });
-        let mut engine = Engine { stop: None, thread: Some(thread) };
+        let mut engine = Engine {
+            stop: None,
+            thread: Some(thread),
+        };
         while !engine.is_finished() {
             std::thread::sleep(Duration::from_millis(10));
         }
@@ -134,10 +166,9 @@ mod tests {
 
     #[test]
     fn a_taken_port_is_told() {
-        isolated_home();
         let taken = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let port = taken.local_addr().unwrap().port();
-        let args: Vec<String> = ["--host", "127.0.0.1", "--port", &port.to_string(), "--no-cache"].map(String::from).to_vec();
+        let args = test_args(port);
         assert!(Engine::start(&args, None, None).is_err());
     }
 }

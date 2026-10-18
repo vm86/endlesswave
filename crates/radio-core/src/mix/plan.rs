@@ -33,7 +33,11 @@ pub fn transition_speed(current_bpm: f64, following: &TrackAnalysis) -> f64 {
     if (speed - 1.0).abs() > MAX_TEMPO_SHIFT {
         return 0.0;
     }
-    if (speed - 1.0).abs() < NEGLIGIBLE_TEMPO_SHIFT { 1.0 } else { speed }
+    if (speed - 1.0).abs() < NEGLIGIBLE_TEMPO_SHIFT {
+        1.0
+    } else {
+        speed
+    }
 }
 
 /// The shorter of the outgoing outro and the incoming intro (samples): how Mixxx's AutoDJ sizes a transition.
@@ -83,7 +87,8 @@ pub fn choose_transition(
         return Transition::FilterSweep;
     }
     let relation = key::key_relation(current.key, following.key);
-    if blend_seconds >= EQ_BLEND_MIN_SECONDS || key::key_quality(relation) == key::KeyQuality::Poor {
+    if blend_seconds >= EQ_BLEND_MIN_SECONDS || key::key_quality(relation) == key::KeyQuality::Poor
+    {
         Transition::EqBlend
     } else {
         Transition::BassSwap
@@ -134,7 +139,9 @@ impl TrackAnalysis {
 }
 
 fn blend_beats(section: Option<i64>, period: f64) -> i64 {
-    let Some(section) = section else { return BEATS_PER_BLEND };
+    let Some(section) = section else {
+        return BEATS_PER_BLEND;
+    };
     let beats = round(section as f64 / period / BLEND_BEATS_STEP as f64) * BLEND_BEATS_STEP;
     beats.clamp(MIN_BLEND_BEATS, MAX_BLEND_BEATS)
 }
@@ -147,7 +154,11 @@ fn first_beat(track: &TrackAnalysis) -> i64 {
 
 /// Plan a blend on the beat, `None` if there is no room for one. `following` is at its own tempo: the blend
 /// glides to it, so it takes `speed` times as much of the following track as of the outgoing one.
-pub fn plan_matched(current: &TrackAnalysis, following: &TrackAnalysis, speed: f64) -> Option<Plan> {
+pub fn plan_matched(
+    current: &TrackAnalysis,
+    following: &TrackAnalysis,
+    speed: f64,
+) -> Option<Plan> {
     let period = current.beat_period();
     let solo = round(MIN_SOLO_SECONDS * f64::from(SAMPLE_RATE));
     let following_start = first_beat(following);
@@ -164,7 +175,8 @@ pub fn plan_matched(current: &TrackAnalysis, following: &TrackAnalysis, speed: f
         }
         // Rounding up to whole bars mustn't reach into the cores.
         let into_outgoing_core = (current_start as f64) < current.outro_start as f64 - period / 2.0;
-        let into_incoming_core = following_start as f64 + length as f64 * speed > following.intro_end as f64 + period / 2.0;
+        let into_incoming_core = following_start as f64 + length as f64 * speed
+            > following.intro_end as f64 + period / 2.0;
         if !(into_outgoing_core || into_incoming_core) {
             break current_start;
         }
@@ -174,8 +186,13 @@ pub fn plan_matched(current: &TrackAnalysis, following: &TrackAnalysis, speed: f
     if current_start < current.start + solo {
         return None;
     }
-    let length = (current.end - current_start).min(((following.end - following_start) as f64 / speed) as i64);
-    Some(Plan { start: current_start, following_start, length })
+    let length = (current.end - current_start)
+        .min(((following.end - following_start) as f64 / speed) as i64);
+    Some(Plan {
+        start: current_start,
+        following_start,
+        length,
+    })
 }
 
 /// Plan a blend that is asked for while the outgoing track is at `position`. It starts on a bar line of the
@@ -194,7 +211,8 @@ pub fn plan_early(
     let (start, following_start, length);
     if beat_matched && current.bpm != 0.0 && following.bpm != 0.0 {
         let period = current.beat_period();
-        let anchor = if (position as f64 - current.head_beat) < current.tail_beat - position as f64 {
+        let anchor = if (position as f64 - current.head_beat) < current.tail_beat - position as f64
+        {
             current.head_beat
         } else {
             current.tail_beat
@@ -208,15 +226,26 @@ pub fn plan_early(
         following_start = following.start;
         length = round(PLAIN_BLEND_SECONDS * f64::from(SAMPLE_RATE));
     }
-    let length = length.min(current.end - start).min(((following.end - following_start) as f64 / speed) as i64);
+    let length = length
+        .min(current.end - start)
+        .min(((following.end - following_start) as f64 / speed) as i64);
     if (length as f64) < MIN_EARLY_BLEND_SECONDS * f64::from(SAMPLE_RATE) {
         return None;
     }
-    Some(Plan { start, following_start, length })
+    Some(Plan {
+        start,
+        following_start,
+        length,
+    })
 }
 
 /// Where the blend starts in each track and how long it lasts.
-pub fn plan_blend(current: &TrackAnalysis, following: &TrackAnalysis, beat_matched: bool, speed: f64) -> Plan {
+pub fn plan_blend(
+    current: &TrackAnalysis,
+    following: &TrackAnalysis,
+    beat_matched: bool,
+    speed: f64,
+) -> Plan {
     if beat_matched && current.bpm != 0.0 && following.bpm != 0.0 {
         if let Some(planned) = plan_matched(current, following, speed) {
             return planned;
@@ -225,10 +254,16 @@ pub fn plan_blend(current: &TrackAnalysis, following: &TrackAnalysis, beat_match
 
     let section = section_length(current, following);
     let seconds = section.map_or(PLAIN_BLEND_SECONDS, |section| {
-        (section as f64 / f64::from(SAMPLE_RATE)).max(MIN_PLAIN_BLEND_SECONDS).min(MAX_PLAIN_BLEND_SECONDS)
+        (section as f64 / f64::from(SAMPLE_RATE))
+            .max(MIN_PLAIN_BLEND_SECONDS)
+            .min(MAX_PLAIN_BLEND_SECONDS)
     });
     let length = round(seconds * f64::from(SAMPLE_RATE))
         .min((current.end - current.start).div_euclid(2))
         .min((following.end - following.start).div_euclid(2));
-    Plan { start: current.end - length, following_start: following.start, length }
+    Plan {
+        start: current.end - length,
+        following_start: following.start,
+        length,
+    }
 }

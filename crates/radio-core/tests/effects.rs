@@ -41,8 +41,15 @@ struct Replay {
 
 impl NoiseSource for Replay {
     fn normal(&mut self, count: usize) -> Vec<f64> {
-        let draw = self.draws.next().expect("more noise asked for than Python drew");
-        assert_eq!(draw.len(), count, "the amount of noise differs from Python's");
+        let draw = self
+            .draws
+            .next()
+            .expect("more noise asked for than Python drew");
+        assert_eq!(
+            draw.len(),
+            count,
+            "the amount of noise differs from Python's"
+        );
         draw
     }
 }
@@ -53,16 +60,27 @@ fn dir() -> PathBuf {
 
 fn read(name: &str, part: &str) -> Option<Vec<f32>> {
     let Ok(bytes) = fs::read(dir().join(format!("{name}.{part}.f32"))) else {
-        assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "{name}: no pieces, run tools/gen_golden.py");
+        assert!(
+            std::env::var_os("GOLDEN_REQUIRED").is_none(),
+            "{name}: no pieces, run tools/gen_golden.py"
+        );
         eprintln!("{name}: no pieces, skipped");
         return None;
     };
-    Some(bytes.chunks_exact(4).map(|b| f32::from_le_bytes(b.try_into().unwrap())).collect())
+    Some(
+        bytes
+            .chunks_exact(4)
+            .map(|b| f32::from_le_bytes(b.try_into().unwrap()))
+            .collect(),
+    )
 }
 
 fn replay(name: &str, draws: &[usize]) -> Replay {
     let bytes = fs::read(dir().join(format!("{name}.noise.f64"))).expect("the noise file");
-    let flat: Vec<f64> = bytes.chunks_exact(8).map(|b| f64::from_le_bytes(b.try_into().unwrap())).collect();
+    let flat: Vec<f64> = bytes
+        .chunks_exact(8)
+        .map(|b| f64::from_le_bytes(b.try_into().unwrap()))
+        .collect();
     let mut parts = Vec::new();
     let mut rest = &flat[..];
     for &n in draws {
@@ -71,13 +89,19 @@ fn replay(name: &str, draws: &[usize]) -> Replay {
         rest = tail;
     }
     assert!(rest.is_empty());
-    Replay { draws: parts.into_iter() }
+    Replay {
+        draws: parts.into_iter(),
+    }
 }
 
 fn snr_db(got: &[f32], want: &[f32]) -> f64 {
     assert_eq!(got.len(), want.len(), "lengths");
     let signal: f64 = want.iter().map(|&w| f64::from(w).powi(2)).sum();
-    let noise: f64 = got.iter().zip(want).map(|(&g, &w)| f64::from(g - w).powi(2)).sum();
+    let noise: f64 = got
+        .iter()
+        .zip(want)
+        .map(|(&g, &w)| f64::from(g - w).powi(2))
+        .sum();
     10.0 * (signal / noise.max(1e-30)).log10()
 }
 
@@ -98,12 +122,18 @@ fn the_effects_the_limiter_and_the_blend_are_the_pythons() {
     let mut compared = 0;
     for case in index.cases {
         let name = case.name.as_str();
-        let Some(want) = read(name, "want") else { continue };
+        let Some(want) = read(name, "want") else {
+            continue;
+        };
         let draws = case.draws.clone().unwrap_or_default();
         let got = match case.function.as_str() {
             "riser" => effects::riser(case.frames.unwrap(), &mut replay(name, &draws)),
             "impact" => effects::impact(case.frames.unwrap(), &mut replay(name, &draws)),
-            "echo_out" => effects::echo_out(&read(name, "in").unwrap(), case.cut.unwrap(), case.level.unwrap()),
+            "echo_out" => effects::echo_out(
+                &read(name, "in").unwrap(),
+                case.cut.unwrap(),
+                case.level.unwrap(),
+            ),
             "limit" => effects::limit(&read(name, "in").unwrap(), effects::LIMIT_CEILING),
             "add_drop" => effects::add_drop(
                 &read(name, "in").unwrap(),
@@ -114,9 +144,15 @@ fn the_effects_the_limiter_and_the_blend_are_the_pythons() {
             ),
             "blend" => {
                 let (out, inc) = (read(name, "out").unwrap(), read(name, "in").unwrap());
-                let (frames, period, level) = (out.len() / 2, case.period.unwrap(), case.effects.unwrap());
+                let (frames, period, level) =
+                    (out.len() / 2, case.period.unwrap(), case.effects.unwrap());
                 let (applied_kind, applied_effect) = case.applied.clone().unwrap();
-                let applied = effects::applied_blend(kind(case.kind.as_deref().unwrap()), frames, period, level);
+                let applied = effects::applied_blend(
+                    kind(case.kind.as_deref().unwrap()),
+                    frames,
+                    period,
+                    level,
+                );
                 assert_eq!(applied.kind, kind(&applied_kind), "{name}: kind");
                 assert_eq!(applied.effect.name(), applied_effect, "{name}: effect");
                 if applied.effect == Effect::None {

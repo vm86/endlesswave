@@ -24,7 +24,9 @@ impl Radio {
         if !candidate.path.exists() {
             return false; // gone, or a link to what is gone
         }
-        let Some(track) = &candidate.track else { return true };
+        let Some(track) = &candidate.track else {
+            return true;
+        };
         if !candidate.path.is_symlink() {
             return true;
         }
@@ -33,7 +35,9 @@ impl Radio {
 
     /// Whether a pool track may be played: its mood and genre are allowed, and its audio is there to be read.
     pub(crate) fn wanted(&self, state: &State, candidate: &Candidate) -> bool {
-        Self::mood_allowed(state, &candidate.mood) && Self::genre_allowed(state, &candidate.genre) && self.reachable(candidate)
+        Self::mood_allowed(state, &candidate.mood)
+            && Self::genre_allowed(state, &candidate.genre)
+            && self.reachable(candidate)
     }
 
     /// Forget the pool tracks of other moods or genres, or out of reach.

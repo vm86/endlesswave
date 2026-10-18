@@ -12,8 +12,8 @@
 
 use std::io::Read;
 use std::num::NonZero;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
-use std::sync::mpsc::{sync_channel, Receiver, RecvTimeoutError, Sender, SyncSender, TryRecvError};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
+use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, SyncSender, TryRecvError, sync_channel};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -100,14 +100,24 @@ struct StateEvent {
 fn set_state(app: &AppHandle, shared: &Shared, state: u8, message: &str) {
     shared.state.store(state, Ordering::SeqCst);
     *shared.message.lock().unwrap() = message.to_string();
-    let _ = app.emit("player", StateEvent { state: state_name(state), message: message.to_string() });
+    let _ = app.emit(
+        "player",
+        StateEvent {
+            state: state_name(state),
+            message: message.to_string(),
+        },
+    );
 }
 
 /// The default output. rodio asks the device for a buffer of 2048 frames; some outputs (AirPods
 /// accept 15..960) refuse it and the sink does not open at all. The device is left to pick its own size.
 fn open_sink() -> Result<rodio::MixerDeviceSink, rodio::DeviceSinkError> {
     DeviceSinkBuilder::from_default_device()
-        .and_then(|builder| builder.with_buffer_size(rodio::cpal::BufferSize::Default).open_stream())
+        .and_then(|builder| {
+            builder
+                .with_buffer_size(rodio::cpal::BufferSize::Default)
+                .open_stream()
+        })
         .or_else(|_| DeviceSinkBuilder::open_default_sink())
 }
 
@@ -122,7 +132,10 @@ impl Audio {
 
         let (commands, command_rx) = std::sync::mpsc::channel();
         let stop = Arc::new(AtomicBool::new(false));
-        *self.session.lock().unwrap() = Some(Session { commands, stop: stop.clone() });
+        *self.session.lock().unwrap() = Some(Session {
+            commands,
+            stop: stop.clone(),
+        });
 
         let (chunk_tx, chunk_rx) = sync_channel::<Chunk>(QUEUE_CHUNKS);
         let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<(u32, u16), String>>();
@@ -356,10 +369,16 @@ fn read_stream(
         return fail("no audio in the stream".into());
     };
     let track_id = track.id;
-    let Some(params) = track.codec_params.as_ref().and_then(|params| params.audio()) else {
+    let Some(params) = track
+        .codec_params
+        .as_ref()
+        .and_then(|params| params.audio())
+    else {
         return fail("no audio in the stream".into());
     };
-    let mut decoder = match symphonia::default::get_codecs().make_audio_decoder(params, &AudioDecoderOptions::default()) {
+    let mut decoder = match symphonia::default::get_codecs()
+        .make_audio_decoder(params, &AudioDecoderOptions::default())
+    {
         Ok(decoder) => decoder,
         Err(error) => return fail(format!("cannot decode the stream: {error}")),
     };

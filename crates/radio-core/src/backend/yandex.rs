@@ -58,7 +58,11 @@ pub struct YandexOptions {
 
 impl Default for YandexOptions {
     fn default() -> Self {
-        Self { api: API.to_owned(), oauth: OAUTH.to_owned(), rate_limit_delays: RATE_LIMIT_DELAYS.to_vec() }
+        Self {
+            api: API.to_owned(),
+            oauth: OAUTH.to_owned(),
+            rate_limit_delays: RATE_LIMIT_DELAYS.to_vec(),
+        }
     }
 }
 
@@ -75,22 +79,33 @@ pub fn has_token(path: &Path) -> bool {
         .ok()
         .and_then(|text| serde_json::from_str::<Value>(&text).ok())
         .and_then(|v| v.get("token").cloned())
-        .is_some_and(|t| t.as_str().is_some_and(|s| !s.is_empty()) || (t.is_boolean() && t == true) || t.is_number())
+        .is_some_and(|t| {
+            t.as_str().is_some_and(|s| !s.is_empty())
+                || (t.is_boolean() && t == true)
+                || t.is_number()
+        })
 }
 
 fn read_settings(path: &Path) -> std::io::Result<Map<String, Value>> {
     let mut settings = Map::new();
     settings.insert("token".to_owned(), Value::Null);
-    settings.insert("from_id".to_owned(), json!(format!("music-{}", uuid::Uuid::new_v4())));
+    settings.insert(
+        "from_id".to_owned(),
+        json!(format!("music-{}", uuid::Uuid::new_v4())),
+    );
     settings.insert("quality".to_owned(), json!("lossless"));
     match std::fs::read_to_string(path) {
         Ok(text) => {
-            let Value::Object(saved) = serde_json::from_str(&text).map_err(std::io::Error::other)? else {
+            let Value::Object(saved) =
+                serde_json::from_str(&text).map_err(std::io::Error::other)?
+            else {
                 return Err(std::io::Error::other("the settings file is not an object"));
             };
             settings.extend(saved);
         }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => save_settings(path, &settings)?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            save_settings(path, &settings)?
+        }
         Err(error) => return Err(error),
     }
     Ok(settings)
@@ -113,7 +128,12 @@ fn save_settings(path: &Path, settings: &Map<String, Value>) -> std::io::Result<
         use std::os::unix::fs::OpenOptionsExt;
         options.mode(0o600);
     }
-    std::io::Write::write_all(&mut options.open(&temp)?, serde_json::to_string(settings).expect("settings are JSON").as_bytes())?;
+    std::io::Write::write_all(
+        &mut options.open(&temp)?,
+        serde_json::to_string(settings)
+            .expect("settings are JSON")
+            .as_bytes(),
+    )?;
     std::fs::rename(temp, path)
 }
 
@@ -135,7 +155,10 @@ struct YError {
 
 impl YError {
     fn other(message: impl Into<String>) -> Self {
-        Self { kind: Kind::Other, message: message.into() }
+        Self {
+            kind: Kind::Other,
+            message: message.into(),
+        }
     }
 }
 
@@ -153,7 +176,11 @@ impl From<YError> for BackendError {
 
 /// Python's `repr()` of bytes: `b'...'`.
 fn bytes_repr(content: &[u8]) -> String {
-    let quote = if content.contains(&b'\'') && !content.contains(&b'"') { b'"' } else { b'\'' };
+    let quote = if content.contains(&b'\'') && !content.contains(&b'"') {
+        b'"'
+    } else {
+        b'\''
+    };
     let mut out = String::from("b");
     out.push(quote as char);
     for &b in content {
@@ -184,7 +211,11 @@ struct Response {
 
 impl Response {
     fn get_error(&self) -> String {
-        format!("{} {}", self.error.as_deref().unwrap_or("None"), self.error_description.as_deref().unwrap_or(""))
+        format!(
+            "{} {}",
+            self.error.as_deref().unwrap_or("None"),
+            self.error_description.as_deref().unwrap_or("")
+        )
     }
 
     fn get_result(self) -> Value {
@@ -194,13 +225,26 @@ impl Response {
 
 /// `_parse` of the library: a body that is not JSON is an error; one that is not an object has no response.
 fn parse(content: &[u8]) -> Result<Option<Response>, YError> {
-    let data: Value = serde_json::from_slice(content).map_err(|_| YError::other("Invalid server response"))?;
-    let Value::Object(object) = &data else { return Ok(None) };
+    let data: Value =
+        serde_json::from_slice(content).map_err(|_| YError::other("Invalid server response"))?;
+    let Value::Object(object) = &data else {
+        return Ok(None);
+    };
     let text = |key: &str| object.get(key).and_then(Value::as_str).map(str::to_owned);
     match object.get("result") {
-        Some(result) if !result.is_null() => Ok(Some(Response { result: Some(result.clone()), error: text("error"), error_description: text("errorDescription"), data })),
+        Some(result) if !result.is_null() => Ok(Some(Response {
+            result: Some(result.clone()),
+            error: text("error"),
+            error_description: text("errorDescription"),
+            data,
+        })),
         // The data are in the root: the response is made of them.
-        _ => Ok(Some(Response { result: Some(data.clone()), error: text("error"), error_description: text("errorDescription"), data })),
+        _ => Ok(Some(Response {
+            result: Some(data.clone()),
+            error: text("error"),
+            error_description: text("errorDescription"),
+            data,
+        })),
     }
 }
 
@@ -268,9 +312,16 @@ pub struct YandexBackend {
 }
 
 impl YandexBackend {
-    pub fn new(settings_path: PathBuf, options: YandexOptions, clock: Arc<dyn Clock>) -> std::io::Result<Arc<Self>> {
+    pub fn new(
+        settings_path: PathBuf,
+        options: YandexOptions,
+        clock: Arc<dyn Clock>,
+    ) -> std::io::Result<Arc<Self>> {
         let settings = read_settings(&settings_path)?;
-        let signed_in = settings.get("token").and_then(Value::as_str).is_some_and(|t| !t.is_empty());
+        let signed_in = settings
+            .get("token")
+            .and_then(Value::as_str)
+            .is_some_and(|t| !t.is_empty());
         let http = reqwest::Client::builder()
             .connect_timeout(Duration::from_secs(5))
             .read_timeout(Duration::from_secs(10))
@@ -303,11 +354,20 @@ impl YandexBackend {
     }
 
     fn token(&self) -> Option<String> {
-        self.st().settings.get("token").and_then(Value::as_str).map(str::to_owned)
+        self.st()
+            .settings
+            .get("token")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
     }
 
     fn setting(&self, key: &str) -> String {
-        self.st().settings.get(key).and_then(Value::as_str).unwrap_or("").to_owned()
+        self.st()
+            .settings
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_owned()
     }
 
     fn from_id(&self) -> String {
@@ -315,8 +375,18 @@ impl YandexBackend {
     }
 
     /// One request of the API: what comes back is the `result` of it.
-    async fn request(&self, method: Method, url: &str, params: &[(&str, String)], body: Body) -> Result<Option<Value>, YError> {
-        let mut request = self.http.request(method.clone(), url).header("X-Yandex-Music-Client", CLIENT_HEADER).header("User-Agent", USER_AGENT);
+    async fn request(
+        &self,
+        method: Method,
+        url: &str,
+        params: &[(&str, String)],
+        body: Body,
+    ) -> Result<Option<Value>, YError> {
+        let mut request = self
+            .http
+            .request(method.clone(), url)
+            .header("X-Yandex-Music-Client", CLIENT_HEADER)
+            .header("User-Agent", USER_AGENT);
         if let Some(token) = self.token().filter(|t| !t.is_empty()) {
             request = request.header("Authorization", format!("OAuth {token}"));
         }
@@ -326,7 +396,9 @@ impl YandexBackend {
         request = match body {
             Body::None => request,
             Body::Form(form) => request.form(&form),
-            Body::Json(json) => request.header("Content-Type", "application/json").body(serde_json::to_vec(&json).expect("a value is JSON")),
+            Body::Json(json) => request
+                .header("Content-Type", "application/json")
+                .body(serde_json::to_vec(&json).expect("a value is JSON")),
         };
         let response = request.send().await.map_err(|e| {
             if e.is_timeout() {
@@ -336,7 +408,13 @@ impl YandexBackend {
             }
         })?;
         let status = response.status().as_u16();
-        let content = response.bytes().await.map_err(|e| if e.is_timeout() { YError::other("Timed out") } else { YError::other(format!("{method} {}: {e}", where_(url))) })?;
+        let content = response.bytes().await.map_err(|e| {
+            if e.is_timeout() {
+                YError::other("Timed out")
+            } else {
+                YError::other(format!("{method} {}: {e}", where_(url)))
+            }
+        })?;
         if status < 400 {
             return Ok(parse(&content)?.map(Response::get_result));
         }
@@ -346,9 +424,15 @@ impl YandexBackend {
             Err(_) => "Unknown HTTPError".to_owned(),
         };
         Err(match status {
-            400 => YError { kind: Kind::BadRequest, message },
+            400 => YError {
+                kind: Kind::BadRequest,
+                message,
+            },
             401 | 403 | 404 | 409 | 413 => YError::other(message),
-            429 => YError { kind: Kind::RateLimit, message },
+            429 => YError {
+                kind: Kind::RateLimit,
+                message,
+            },
             502 => YError::other("Bad Gateway"),
             _ => YError::other(format!("{message} ({status}): {}", bytes_repr(&content))),
         })
@@ -381,10 +465,23 @@ impl YandexBackend {
             use rand::RngExt as _;
             let alphanumeric = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
             let mut rng = rand::rng();
-            (0..10).map(|_| alphanumeric[rng.random_range(0..alphanumeric.len())] as char).collect()
+            (0..10)
+                .map(|_| alphanumeric[rng.random_range(0..alphanumeric.len())] as char)
+                .collect()
         };
-        let form = vec![("client_id", CLIENT_ID.to_owned()), ("device_id", device_id), ("device_name", DEVICE_NAME.to_owned())];
-        let code = self.request(Method::POST, &format!("{}/device/code", self.options.oauth), &[], Body::Form(form)).await?;
+        let form = vec![
+            ("client_id", CLIENT_ID.to_owned()),
+            ("device_id", device_id),
+            ("device_name", DEVICE_NAME.to_owned()),
+        ];
+        let code = self
+            .request(
+                Method::POST,
+                &format!("{}/device/code", self.options.oauth),
+                &[],
+                Body::Form(form),
+            )
+            .await?;
         let field = |name: &str| code.as_ref().and_then(|c| c.get(name));
         let (Some(device_code), Some(user_code), Some(url)) = (
             field("device_code").and_then(Value::as_str),
@@ -393,7 +490,10 @@ impl YandexBackend {
         ) else {
             return Err(YError::other("failed to parse device code response"));
         };
-        let (interval, total) = (field("interval").and_then(Value::as_f64).unwrap_or(5.0), field("expires_in").and_then(Value::as_f64).unwrap_or(300.0));
+        let (interval, total) = (
+            field("interval").and_then(Value::as_f64).unwrap_or(5.0),
+            field("expires_in").and_then(Value::as_f64).unwrap_or(300.0),
+        );
         {
             let mut state = self.st();
             state.auth_url = Some(url.to_owned());
@@ -408,19 +508,35 @@ impl YandexBackend {
                 ("client_id", CLIENT_ID.to_owned()),
                 ("client_secret", CLIENT_SECRET.to_owned()),
             ];
-            match self.request(Method::POST, &format!("{}/token", self.options.oauth), &[], Body::Form(form)).await {
+            match self
+                .request(
+                    Method::POST,
+                    &format!("{}/token", self.options.oauth),
+                    &[],
+                    Body::Form(form),
+                )
+                .await
+            {
                 Ok(token) => {
-                    if let Some(token) = token.as_ref().and_then(|t| t.get("access_token")).and_then(Value::as_str) {
+                    if let Some(token) = token
+                        .as_ref()
+                        .and_then(|t| t.get("access_token"))
+                        .and_then(Value::as_str)
+                    {
                         return Ok(token.to_owned());
                     }
                     return Err(YError::other("no access token in the response"));
                 }
                 // The user has not entered the code yet.
-                Err(error) if error.kind == Kind::BadRequest && error.message.contains("authorization_pending") => {}
+                Err(error)
+                    if error.kind == Kind::BadRequest
+                        && error.message.contains("authorization_pending") => {}
                 Err(error) => return Err(error),
             }
             if Instant::now() >= deadline {
-                return Err(YError::other(format!("timed out after {total}s waiting for user confirmation")));
+                return Err(YError::other(format!(
+                    "timed out after {total}s waiting for user confirmation"
+                )));
             }
             tokio::time::sleep(Duration::from_secs_f64(interval)).await;
         }
@@ -461,17 +577,35 @@ impl YandexBackend {
 
     // ---- The calls the radio makes ------------------------------------------------------------------------------------
 
-    async fn rotor_station_tracks(&self, station: &str, queue: Option<&str>) -> Result<Option<Value>, YError> {
+    async fn rotor_station_tracks(
+        &self,
+        station: &str,
+        queue: Option<&str>,
+    ) -> Result<Option<Value>, YError> {
         // (the library gives `queue` instead of `settings2`, not with it)
         let params = match queue {
             Some(queue) if !queue.is_empty() && queue != "0" => vec![("queue", queue.to_owned())],
             _ => vec![("settings2", "True".to_owned())],
         };
-        self.request(Method::GET, &format!("{}/rotor/station/{station}/tracks", self.options.api), &params, Body::None).await
+        self.request(
+            Method::GET,
+            &format!("{}/rotor/station/{station}/tracks", self.options.api),
+            &params,
+            Body::None,
+        )
+        .await
     }
 
     /// Feedback about what is heard: `radioStarted`, `trackStarted`, `trackFinished`, `skip`.
-    async fn rotor_station_feedback(&self, station: &str, kind: &str, from: Option<&str>, batch_id: &str, total_played_seconds: f64, track_id: Option<&str>) -> Result<bool, YError> {
+    async fn rotor_station_feedback(
+        &self,
+        station: &str,
+        kind: &str,
+        from: Option<&str>,
+        batch_id: &str,
+        total_played_seconds: f64,
+        track_id: Option<&str>,
+    ) -> Result<bool, YError> {
         let mut data = Map::new();
         data.insert("type".to_owned(), json!(kind));
         data.insert("timestamp".to_owned(), json!(self.clock.wall()));
@@ -484,15 +618,45 @@ impl YandexBackend {
         if total_played_seconds != 0.0 {
             data.insert("totalPlayedSeconds".to_owned(), json!(total_played_seconds));
         }
-        let params: Vec<(&str, String)> = if batch_id.is_empty() { Vec::new() } else { vec![("batch-id", batch_id.to_owned())] };
-        let result = self.request(Method::POST, &format!("{}/rotor/station/{station}/feedback", self.options.api), &params, Body::Json(Value::Object(data))).await?;
+        let params: Vec<(&str, String)> = if batch_id.is_empty() {
+            Vec::new()
+        } else {
+            vec![("batch-id", batch_id.to_owned())]
+        };
+        let result = self
+            .request(
+                Method::POST,
+                &format!("{}/rotor/station/{station}/feedback", self.options.api),
+                &params,
+                Body::Json(Value::Object(data)),
+            )
+            .await?;
         Ok(result.as_ref().and_then(Value::as_str) == Some("ok"))
     }
 
     /// `_send_feedback`: feedback that fails is told in the log and nothing else.
-    async fn send_feedback(&self, track_id: &str, kind: &str, station: &str, batch_id: &str, total_played_seconds: f64) {
-        tracing::debug!("Feedback send, track id: {track_id}, feedback: {kind}, station id: {station}, batch_id: {batch_id}, seconds {total_played_seconds}");
-        if let Err(error) = self.rotor_station_feedback(station, kind, Some(&self.from_id()), batch_id, total_played_seconds, Some(track_id)).await {
+    async fn send_feedback(
+        &self,
+        track_id: &str,
+        kind: &str,
+        station: &str,
+        batch_id: &str,
+        total_played_seconds: f64,
+    ) {
+        tracing::debug!(
+            "Feedback send, track id: {track_id}, feedback: {kind}, station id: {station}, batch_id: {batch_id}, seconds {total_played_seconds}"
+        );
+        if let Err(error) = self
+            .rotor_station_feedback(
+                station,
+                kind,
+                Some(&self.from_id()),
+                batch_id,
+                total_played_seconds,
+                Some(track_id),
+            )
+            .await
+        {
             tracing::error!("Error send feedback: {error}");
         }
     }
@@ -501,10 +665,25 @@ impl YandexBackend {
     async fn get_download_info(&self, track_id: &str) -> Result<Option<DownloadInfo>, YError> {
         let timestamp = self.clock.wall() as i64;
         let quality = self.setting("quality");
-        let codecs = if quality == "lossless" { LOSSLESS_CODECS } else { CODECS };
-        let params = [("ts", timestamp.to_string()), ("trackId", track_id.to_owned()), ("quality", quality), ("codecs", codecs.to_owned()), ("transports", "raw".to_owned())];
-        let signed: String = params.iter().map(|(_, v)| v.as_str()).collect::<String>().replace(',', "");
-        let mut mac = <Hmac<Sha256> as KeyInit>::new_from_slice(SIGN_KEY.as_bytes()).expect("a key of any size");
+        let codecs = if quality == "lossless" {
+            LOSSLESS_CODECS
+        } else {
+            CODECS
+        };
+        let params = [
+            ("ts", timestamp.to_string()),
+            ("trackId", track_id.to_owned()),
+            ("quality", quality),
+            ("codecs", codecs.to_owned()),
+            ("transports", "raw".to_owned()),
+        ];
+        let signed: String = params
+            .iter()
+            .map(|(_, v)| v.as_str())
+            .collect::<String>()
+            .replace(',', "");
+        let mut mac = <Hmac<Sha256> as KeyInit>::new_from_slice(SIGN_KEY.as_bytes())
+            .expect("a key of any size");
         mac.update(signed.as_bytes());
         let sign = base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes());
         let mut params = params.to_vec();
@@ -512,21 +691,48 @@ impl YandexBackend {
 
         let response = self
             .retry_on_rate_limit(|| async {
-                let _slot = self.info_slots.acquire().await.expect("the semaphore is never closed");
-                self.request(Method::GET, &format!("{}/get-file-info", self.options.api), &params, Body::None).await
+                let _slot = self
+                    .info_slots
+                    .acquire()
+                    .await
+                    .expect("the semaphore is never closed");
+                self.request(
+                    Method::GET,
+                    &format!("{}/get-file-info", self.options.api),
+                    &params,
+                    Body::None,
+                )
+                .await
             })
             .await?;
-        let info = response.as_ref().and_then(|r| r.get("downloadInfo")).filter(|i| i.is_object());
+        let info = response
+            .as_ref()
+            .and_then(|r| r.get("downloadInfo"))
+            .filter(|i| i.is_object());
         let Some(info) = info else {
             tracing::warn!("Track {track_id}: no downloadInfo in response: {response:?}");
             return Ok(None);
         };
         let text = |key: &str| info.get(key).and_then(Value::as_str).map(str::to_owned);
-        let (Some(codec), Some(bitrate)) = (text("codec"), info.get("bitrate").and_then(Value::as_i64)) else {
+        let (Some(codec), Some(bitrate)) =
+            (text("codec"), info.get("bitrate").and_then(Value::as_i64))
+        else {
             return Err(YError::other("downloadInfo has no codec or bitrate"));
         };
-        let urls = info.get("urls").and_then(Value::as_array).map(|u| u.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect()).unwrap_or_default();
-        Ok(Some(DownloadInfo { codec, bitrate, urls }))
+        let urls = info
+            .get("urls")
+            .and_then(Value::as_array)
+            .map(|u| {
+                u.iter()
+                    .filter_map(|v| v.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default();
+        Ok(Some(DownloadInfo {
+            codec,
+            bitrate,
+            urls,
+        }))
     }
 }
 
@@ -560,25 +766,66 @@ struct StationTrack {
 impl StationTrack {
     fn of(track: &Value) -> Self {
         let id = id_text(track.get("id"));
-        let albums = track.get("albums").and_then(Value::as_array).cloned().unwrap_or_default();
+        let albums = track
+            .get("albums")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         let track_id = match albums.first() {
             Some(album) => format!("{id}:{}", id_text(album.get("id"))),
             None => id,
         };
-        let genre = albums.iter().find_map(|a| a.get("genre").and_then(Value::as_str).filter(|g| !g.is_empty()).map(|g| g.trim().to_owned())).unwrap_or_default();
+        let genre = albums
+            .iter()
+            .find_map(|a| {
+                a.get("genre")
+                    .and_then(Value::as_str)
+                    .filter(|g| !g.is_empty())
+                    .map(|g| g.trim().to_owned())
+            })
+            .unwrap_or_default();
         let cover = ["coverUri", "ogImage"]
             .into_iter()
-            .find_map(|key| track.get(key).and_then(Value::as_str).filter(|c| !c.is_empty()))
-            .map_or_else(String::new, |uri| if uri.starts_with("http") { uri.to_owned() } else { format!("https://{uri}") });
+            .find_map(|key| {
+                track
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .filter(|c| !c.is_empty())
+            })
+            .map_or_else(String::new, |uri| {
+                if uri.starts_with("http") {
+                    uri.to_owned()
+                } else {
+                    format!("https://{uri}")
+                }
+            });
         Self {
             id: id_text(track.get("id")),
             track_id,
-            title: track.get("title").and_then(Value::as_str).unwrap_or("").to_owned(),
-            artists: track.get("artists").and_then(Value::as_array).into_iter().flatten().filter_map(|a| a.get("name").and_then(Value::as_str)).filter(|n| !n.is_empty()).map(str::to_owned).collect(),
+            title: track
+                .get("title")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned(),
+            artists: track
+                .get("artists")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(|a| a.get("name").and_then(Value::as_str))
+                .filter(|n| !n.is_empty())
+                .map(str::to_owned)
+                .collect(),
             genre,
             cover,
-            duration_ms: track.get("durationMs").and_then(Value::as_f64).unwrap_or(0.0),
-            available: track.get("available").and_then(Value::as_bool).unwrap_or(false),
+            duration_ms: track
+                .get("durationMs")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0),
+            available: track
+                .get("available")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
         }
     }
 }
@@ -592,7 +839,11 @@ impl MusicBackend for YandexBackend {
     /// The auth page and the code for it, while there's no token yet.
     fn auth_prompt(&self) -> AuthPrompt {
         let state = self.st();
-        AuthPrompt { url: state.auth_url.clone(), code: state.user_code.clone(), fields: Vec::new() }
+        AuthPrompt {
+            url: state.auth_url.clone(),
+            code: state.user_code.clone(),
+            fields: Vec::new(),
+        }
     }
 
     fn default_station(&self) -> String {
@@ -626,7 +877,9 @@ impl MusicBackend for YandexBackend {
     }
 
     async fn authorize(&self, _values: &HashMap<String, String>) -> Result<(), AuthError> {
-        Err(AuthError("Yandex signs in by the code on its page".to_owned()))
+        Err(AuthError(
+            "Yandex signs in by the code on its page".to_owned(),
+        ))
     }
 
     fn supports_moods(&self) -> bool {
@@ -634,12 +887,23 @@ impl MusicBackend for YandexBackend {
     }
 
     /// One batch of station tracks, ready to be downloaded.
-    async fn station_batch(&self, station_id: &str, exclude_track_ids: &HashSet<String>) -> Result<Vec<Track>, BackendError> {
+    async fn station_batch(
+        &self,
+        station_id: &str,
+        exclude_track_ids: &HashSet<String>,
+    ) -> Result<Vec<Track>, BackendError> {
         let queue = self.st().last_track.clone();
-        let Some(station_tracks) = self.rotor_station_tracks(station_id, queue.as_deref()).await? else {
+        let Some(station_tracks) = self
+            .rotor_station_tracks(station_id, queue.as_deref())
+            .await?
+        else {
             return Err(BackendError(format!("No tracks for station {station_id}")));
         };
-        let batch_id = station_tracks.get("batchId").and_then(Value::as_str).unwrap_or("").to_owned();
+        let batch_id = station_tracks
+            .get("batchId")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_owned();
 
         let changed = {
             let mut state = self.st();
@@ -651,10 +915,22 @@ impl MusicBackend for YandexBackend {
             changed
         };
         if changed {
-            self.rotor_station_feedback(station_id, "radioStarted", Some(&self.from_id()), &batch_id, 0.0, None).await?;
+            self.rotor_station_feedback(
+                station_id,
+                "radioStarted",
+                Some(&self.from_id()),
+                &batch_id,
+                0.0,
+                None,
+            )
+            .await?;
         }
 
-        let sequence = station_tracks.get("sequence").and_then(Value::as_array).cloned().unwrap_or_default();
+        let sequence = station_tracks
+            .get("sequence")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         let candidates: Vec<StationTrack> = sequence
             .iter()
             .filter_map(|item| item.get("track").filter(|t| t.is_object()))
@@ -663,22 +939,44 @@ impl MusicBackend for YandexBackend {
             .collect();
 
         // The edges of the batch: the first track has begun, the last one is over.
-        let tracks_of = |item: Option<&Value>| item.and_then(|i| i.get("track")).filter(|t| t.is_object()).map(StationTrack::of);
+        let tracks_of = |item: Option<&Value>| {
+            item.and_then(|i| i.get("track"))
+                .filter(|t| t.is_object())
+                .map(StationTrack::of)
+        };
         let (first, last) = (tracks_of(sequence.first()), tracks_of(sequence.last()));
         if sequence.is_empty() {
             return Err(BackendError("the batch has no tracks".to_owned()));
         }
         if let Some(first) = first {
-            self.send_feedback(&first.track_id, "trackStarted", station_id, &batch_id, 0.0).await;
+            self.send_feedback(&first.track_id, "trackStarted", station_id, &batch_id, 0.0)
+                .await;
         }
         if let Some(last) = last {
-            self.send_feedback(&last.track_id, "trackFinished", station_id, &batch_id, last.duration_ms / 1000.0).await;
+            self.send_feedback(
+                &last.track_id,
+                "trackFinished",
+                station_id,
+                &batch_id,
+                last.duration_ms / 1000.0,
+            )
+            .await;
             self.st().last_track = Some(last.track_id);
         }
 
-        let loaded = futures_util::future::join_all(candidates.iter().map(|track| self.get_download_info(&track.id))).await;
+        let loaded = futures_util::future::join_all(
+            candidates
+                .iter()
+                .map(|track| self.get_download_info(&track.id)),
+        )
+        .await;
         // Tracks come with the mood the station was set to when they came.
-        let mood = self.st().mood.clone().filter(|m| m != "all").unwrap_or_default();
+        let mood = self
+            .st()
+            .mood
+            .clone()
+            .filter(|m| m != "all")
+            .unwrap_or_default();
         let mut tracks = Vec::new();
         for (track, info) in candidates.into_iter().zip(loaded) {
             let Some(info) = info? else { continue };
@@ -700,29 +998,81 @@ impl MusicBackend for YandexBackend {
     }
 
     async fn download(&self, track: &Track, path: &Path) -> Result<(), BackendError> {
-        let Some(info) = self.get_download_info(&track.track_id).await? else { return Err(BackendError(format!("no download links for {}", track.track_id))) };
-        tracing::debug!("Track {}, download info: codec {}, bitrate {}", track.track_id, info.codec, info.bitrate);
+        let Some(info) = self.get_download_info(&track.track_id).await? else {
+            return Err(BackendError(format!(
+                "no download links for {}",
+                track.track_id
+            )));
+        };
+        tracing::debug!(
+            "Track {}, download info: codec {}, bitrate {}",
+            track.track_id,
+            info.codec,
+            info.bitrate
+        );
         if track.bitrate_in_kbps != info.bitrate {
-            tracing::warn!("Track {}, bitrate not match: {} != {}", track.track_id, track.bitrate_in_kbps, info.bitrate);
-            return Err(BackendError(format!("no download links for {}", track.track_id)));
+            tracing::warn!(
+                "Track {}, bitrate not match: {} != {}",
+                track.track_id,
+                track.bitrate_in_kbps,
+                info.bitrate
+            );
+            return Err(BackendError(format!(
+                "no download links for {}",
+                track.track_id
+            )));
         }
         if track.codec != info.codec {
-            tracing::warn!("Track {}, codec not match: {} != {}", track.track_id, track.codec, info.codec);
-            return Err(BackendError(format!("no download links for {}", track.track_id)));
+            tracing::warn!(
+                "Track {}, codec not match: {} != {}",
+                track.track_id,
+                track.codec,
+                info.codec
+            );
+            return Err(BackendError(format!(
+                "no download links for {}",
+                track.track_id
+            )));
         }
-        let Some(link) = info.urls.first() else { return Err(BackendError(format!("no download links for {}", track.track_id))) };
-        let fail = |error: &dyn std::fmt::Display| BackendError(format!("download of {} from {}: {error}", track.track_id, where_(link)));
-        let response = self.http.get(link).send().await.map_err(|e| fail(&e))?.error_for_status().map_err(|e| fail(&e))?;
+        let Some(link) = info.urls.first() else {
+            return Err(BackendError(format!(
+                "no download links for {}",
+                track.track_id
+            )));
+        };
+        let fail = |error: &dyn std::fmt::Display| {
+            BackendError(format!(
+                "download of {} from {}: {error}",
+                track.track_id,
+                where_(link)
+            ))
+        };
+        let response = self
+            .http
+            .get(link)
+            .send()
+            .await
+            .map_err(|e| fail(&e))?
+            .error_for_status()
+            .map_err(|e| fail(&e))?;
         let mut file = tokio::fs::File::create(path).await.map_err(|e| fail(&e))?;
         let mut stream = response.bytes_stream();
         use futures_util::StreamExt as _;
         while let Some(chunk) = stream.next().await {
-            file.write_all(&chunk.map_err(|e| fail(&e))?).await.map_err(|e| fail(&e))?;
+            file.write_all(&chunk.map_err(|e| fail(&e))?)
+                .await
+                .map_err(|e| fail(&e))?;
         }
         file.flush().await.map_err(|e| fail(&e))
     }
 
-    async fn feedback_track(&self, track: &Track, feedback: Feedback, station_id: &str, total_played_seconds: f64) -> Result<(), BackendError> {
+    async fn feedback_track(
+        &self,
+        track: &Track,
+        feedback: Feedback,
+        station_id: &str,
+        total_played_seconds: f64,
+    ) -> Result<(), BackendError> {
         if track.batch_id.is_empty() {
             return Ok(());
         }
@@ -731,22 +1081,65 @@ impl MusicBackend for YandexBackend {
             Feedback::Finished => "trackFinished",
             Feedback::Skipped => "skip",
         };
-        self.send_feedback(&track.track_id, kind, station_id, &track.batch_id, total_played_seconds).await;
+        self.send_feedback(
+            &track.track_id,
+            kind,
+            station_id,
+            &track.batch_id,
+            total_played_seconds,
+        )
+        .await;
         Ok(())
     }
 
     /// The station's (mood_energy, diversity, language).
-    async fn station_settings(&self, station_id: &str) -> Result<(String, String, String), BackendError> {
-        let info = self.request(Method::GET, &format!("{}/rotor/station/{station_id}/info", self.options.api), &[], Body::None).await?;
-        let current = info.as_ref().and_then(|i| i.as_array()).and_then(|a| a.first()).and_then(|r| r.get("settings2")).filter(|s| s.is_object());
-        let Some(current) = current else { return Ok(("all".to_owned(), "default".to_owned(), "any".to_owned())) };
-        let text = |key: &str, default: &str| current.get(key).and_then(Value::as_str).filter(|v| !v.is_empty()).unwrap_or(default).to_owned();
-        Ok((text("moodEnergy", "all"), text("diversity", "default"), text("language", "any")))
+    async fn station_settings(
+        &self,
+        station_id: &str,
+    ) -> Result<(String, String, String), BackendError> {
+        let info = self
+            .request(
+                Method::GET,
+                &format!("{}/rotor/station/{station_id}/info", self.options.api),
+                &[],
+                Body::None,
+            )
+            .await?;
+        let current = info
+            .as_ref()
+            .and_then(|i| i.as_array())
+            .and_then(|a| a.first())
+            .and_then(|r| r.get("settings2"))
+            .filter(|s| s.is_object());
+        let Some(current) = current else {
+            return Ok(("all".to_owned(), "default".to_owned(), "any".to_owned()));
+        };
+        let text = |key: &str, default: &str| {
+            current
+                .get(key)
+                .and_then(Value::as_str)
+                .filter(|v| !v.is_empty())
+                .unwrap_or(default)
+                .to_owned()
+        };
+        Ok((
+            text("moodEnergy", "all"),
+            text("diversity", "default"),
+            text("language", "any"),
+        ))
     }
 
     /// Change the station's settings. They are kept on the account.
-    async fn set_station_settings(&self, station_id: &str, mood_energy: &str, diversity: &str, language: &str) -> Result<(), BackendError> {
-        tracing::info!("Station {station_id}: mood {mood_energy}, tracks {diversity}, language {language}");
+    async fn set_station_settings(
+        &self,
+        station_id: &str,
+        mood_energy: &str,
+        diversity: &str,
+        language: &str,
+    ) -> Result<(), BackendError> {
+        tracing::info!(
+            "Station {station_id}: mood {mood_energy}, tracks {diversity}, language {language}"
+        );
         let mut data = Map::new();
         data.insert("moodEnergy".to_owned(), json!(mood_energy));
         data.insert("diversity".to_owned(), json!(diversity));
@@ -754,7 +1147,14 @@ impl MusicBackend for YandexBackend {
         if !language.is_empty() {
             data.insert("language".to_owned(), json!(language));
         }
-        let result = self.request(Method::POST, &format!("{}/rotor/station/{station_id}/settings3", self.options.api), &[], Body::Json(Value::Object(data))).await?;
+        let result = self
+            .request(
+                Method::POST,
+                &format!("{}/rotor/station/{station_id}/settings3", self.options.api),
+                &[],
+                Body::Json(Value::Object(data)),
+            )
+            .await?;
         if result.as_ref().and_then(Value::as_str) != Some("ok") {
             tracing::warn!("The station did not accept the new settings");
             return Ok(());

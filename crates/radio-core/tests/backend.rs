@@ -51,8 +51,13 @@ fn a_track_of_python_is_read_and_written_back() {
         assert_eq!(serde_json::to_value(&track).unwrap(), asdict);
     }
     // A track kept by an older version has fewer fields.
-    let old: Track = serde_json::from_str(r#"{"track_id":"1","title":"T","artists":["A","B"],"codec":"mp3"}"#).unwrap();
-    assert_eq!((old.bitrate_in_kbps, old.genre.as_str(), old.mood.as_str()), (0, "", ""));
+    let old: Track =
+        serde_json::from_str(r#"{"track_id":"1","title":"T","artists":["A","B"],"codec":"mp3"}"#)
+            .unwrap();
+    assert_eq!(
+        (old.bitrate_in_kbps, old.genre.as_str(), old.mood.as_str()),
+        (0, "", "")
+    );
 }
 
 #[tokio::test]
@@ -60,7 +65,10 @@ async fn the_fake_backend_answers_and_logs_as_the_python_one_does() {
     let library = json("library.json");
     let files = dir().join("library");
     if !files.join("t0.wav").exists() {
-        assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "no library, run tools/gen_golden.py");
+        assert!(
+            std::env::var_os("GOLDEN_REQUIRED").is_none(),
+            "no library, run tools/gen_golden.py"
+        );
         eprintln!("no library: skipped");
         return;
     }
@@ -70,13 +78,28 @@ async fn the_fake_backend_answers_and_logs_as_the_python_one_does() {
         .iter()
         .map(|entry| {
             let mut asdict = entry.clone();
-            let file = files.join(asdict.as_object_mut().unwrap().remove("file").unwrap().as_str().unwrap());
-            FakeTrack { track: serde_json::from_value(asdict).unwrap(), file }
+            let file = files.join(
+                asdict
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("file")
+                    .unwrap()
+                    .as_str()
+                    .unwrap(),
+            );
+            FakeTrack {
+                track: serde_json::from_value(asdict).unwrap(),
+                file,
+            }
         })
         .collect();
     let backend = FakeBackend::new(
         tracks,
-        FakeOptions { supports_moods: true, fail_downloads: HashSet::from(["t5".to_owned()]), ..FakeOptions::default() },
+        FakeOptions {
+            supports_moods: true,
+            fail_downloads: HashSet::from(["t5".to_owned()]),
+            ..FakeOptions::default()
+        },
     );
     assert!(backend.authorized() && backend.supports_moods());
     assert_eq!(backend.auth_prompt(), AuthPrompt::default());
@@ -89,9 +112,25 @@ async fn the_fake_backend_answers_and_logs_as_the_python_one_does() {
     for step in golden["results"].as_array().unwrap() {
         match step["op"].as_str().unwrap() {
             "batch" => {
-                let exclude: HashSet<String> = step["exclude"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
-                let got: Vec<String> = backend.station_batch("fake", &exclude).await.unwrap().into_iter().map(|t| t.track_id).collect();
-                let want: Vec<&str> = step["ids"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+                let exclude: HashSet<String> = step["exclude"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_str().unwrap().to_owned())
+                    .collect();
+                let got: Vec<String> = backend
+                    .station_batch("fake", &exclude)
+                    .await
+                    .unwrap()
+                    .into_iter()
+                    .map(|t| t.track_id)
+                    .collect();
+                let want: Vec<&str> = step["ids"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_str().unwrap())
+                    .collect();
                 assert_eq!(got, want, "batch excluding {exclude:?}");
             }
             "download" => {
@@ -100,7 +139,10 @@ async fn the_fake_backend_answers_and_logs_as_the_python_one_does() {
                 let done = backend.download(&track(id), &path).await.is_ok();
                 assert_eq!(done, step["ok"].as_bool().unwrap(), "download {id}");
                 if done {
-                    assert_eq!(fs::metadata(&path).unwrap().len(), step["size"].as_u64().unwrap());
+                    assert_eq!(
+                        fs::metadata(&path).unwrap().len(),
+                        step["size"].as_u64().unwrap()
+                    );
                 }
             }
             "feedback" => {
@@ -109,20 +151,42 @@ async fn the_fake_backend_answers_and_logs_as_the_python_one_does() {
                     "finished" => Feedback::Finished,
                     _ => Feedback::Skipped,
                 };
-                backend.feedback_track(&track(step["id"].as_str().unwrap()), kind, "fake", step["seconds"].as_f64().unwrap()).await.unwrap();
+                backend
+                    .feedback_track(
+                        &track(step["id"].as_str().unwrap()),
+                        kind,
+                        "fake",
+                        step["seconds"].as_f64().unwrap(),
+                    )
+                    .await
+                    .unwrap();
             }
             "settings" => {
-                let triple = |v: &Value| -> Vec<String> { v.as_array().unwrap().iter().map(|s| s.as_str().unwrap().to_owned()).collect() };
+                let triple = |v: &Value| -> Vec<String> {
+                    v.as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|s| s.as_str().unwrap().to_owned())
+                        .collect()
+                };
                 let before = backend.station_settings("fake").await.unwrap();
                 assert_eq!(vec![before.0, before.1, before.2], triple(&step["before"]));
-                backend.set_station_settings("fake", "calm", "default", "russian").await.unwrap();
+                backend
+                    .set_station_settings("fake", "calm", "default", "russian")
+                    .await
+                    .unwrap();
                 let after = backend.station_settings("fake").await.unwrap();
                 assert_eq!(vec![after.0, after.1, after.2], triple(&step["after"]));
             }
             other => panic!("{other}"),
         }
     }
-    let want: Vec<String> = golden["calls"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
+    let want: Vec<String> = golden["calls"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_owned())
+        .collect();
     assert_eq!(backend.calls(), want);
 }
 

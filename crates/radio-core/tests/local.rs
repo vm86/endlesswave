@@ -45,7 +45,8 @@ fn copy_tree(from: &Path, to: &Path) {
 /// Hide where the folder is, as the stand does.
 fn plain(text: &str, root: &Path) -> String {
     let resolved = root.canonicalize().unwrap_or_else(|_| root.to_owned());
-    text.replace(&resolved.display().to_string(), "<root>").replace(&root.display().to_string(), "<root>")
+    text.replace(&resolved.display().to_string(), "<root>")
+        .replace(&root.display().to_string(), "<root>")
 }
 
 fn id_of(root: &Path, relative: &str) -> String {
@@ -54,11 +55,18 @@ fn id_of(root: &Path, relative: &str) -> String {
 
 fn first_difference(got: &Value, want: &Value, path: &str) -> Option<String> {
     match (got, want) {
-        (Value::Object(a), Value::Object(b)) => a
-            .keys()
-            .chain(b.keys())
-            .find_map(|key| first_difference(a.get(key).unwrap_or(&Value::Null), b.get(key).unwrap_or(&Value::Null), &format!("{path}.{key}"))),
-        (Value::Array(a), Value::Array(b)) if a.len() == b.len() => a.iter().zip(b).enumerate().find_map(|(i, (x, y))| first_difference(x, y, &format!("{path}[{i}]"))),
+        (Value::Object(a), Value::Object(b)) => a.keys().chain(b.keys()).find_map(|key| {
+            first_difference(
+                a.get(key).unwrap_or(&Value::Null),
+                b.get(key).unwrap_or(&Value::Null),
+                &format!("{path}.{key}"),
+            )
+        }),
+        (Value::Array(a), Value::Array(b)) if a.len() == b.len() => a
+            .iter()
+            .zip(b)
+            .enumerate()
+            .find_map(|(i, (x, y))| first_difference(x, y, &format!("{path}[{i}]"))),
         _ if got == want => None,
         _ => Some(format!("{path}: {got} against {want}")),
     }
@@ -75,34 +83,74 @@ fn expected() -> Option<(Value, PathBuf)> {
         skip("no folder of music, run tools/gen_golden.py");
         return None;
     }
-    if !std::process::Command::new("ffmpeg").arg("-version").output().is_ok_and(|o| o.status.success()) {
+    if !std::process::Command::new("ffmpeg")
+        .arg("-version")
+        .output()
+        .is_ok_and(|o| o.status.success())
+    {
         skip("no ffmpeg");
         return None;
     }
-    Some((serde_json::from_str(&fs::read_to_string(dir().join("expected.json")).unwrap()).unwrap(), music))
+    Some((
+        serde_json::from_str(&fs::read_to_string(dir().join("expected.json")).unwrap()).unwrap(),
+        music,
+    ))
 }
 
 #[test]
 fn the_files_and_the_tags_are_read_as_python_reads_them() {
-    let Some((golden, music)) = expected() else { return };
+    let Some((golden, music)) = expected() else {
+        return;
+    };
     // the files the scan finds, by path and id
     let found = scan(&music).unwrap();
-    let mut files: Vec<(String, String)> =
-        found.iter().map(|(id, path)| (path.strip_prefix(&music).unwrap().components().map(|c| c.as_os_str().to_string_lossy()).collect::<Vec<_>>().join("/"), id.clone())).collect();
+    let mut files: Vec<(String, String)> = found
+        .iter()
+        .map(|(id, path)| {
+            (
+                path.strip_prefix(&music)
+                    .unwrap()
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join("/"),
+                id.clone(),
+            )
+        })
+        .collect();
     files.sort();
-    let want: Vec<(String, String)> = golden["files"].as_array().unwrap().iter().map(|f| (f[0].as_str().unwrap().to_owned(), f[1].as_str().unwrap().to_owned())).collect();
+    let want: Vec<(String, String)> = golden["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| {
+            (
+                f[0].as_str().unwrap().to_owned(),
+                f[1].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect();
     assert_eq!(files, want);
 
     for case in golden["parse_tags"].as_array().unwrap() {
-        let tags: BTreeMap<String, String> = parse_tags(case["text"].as_str().unwrap()).into_iter().collect();
-        let wanted: BTreeMap<String, String> = case["tags"].as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned())).collect();
+        let tags: BTreeMap<String, String> = parse_tags(case["text"].as_str().unwrap())
+            .into_iter()
+            .collect();
+        let wanted: BTreeMap<String, String> = case["tags"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned()))
+            .collect();
         assert_eq!(tags, wanted, "tags of {:?}", case["text"]);
     }
 }
 
 #[tokio::test]
 async fn the_local_backend_answers_as_the_python_one_does() {
-    let Some((golden, music)) = expected() else { return };
+    let Some((golden, music)) = expected() else {
+        return;
+    };
     let tracks = golden["tracks"].as_object().unwrap();
     let scratch = std::env::temp_dir().join(format!("radio-core-local-{}", std::process::id()));
     let _ = fs::remove_dir_all(&scratch);
@@ -117,42 +165,94 @@ async fn the_local_backend_answers_as_the_python_one_does() {
         let clock = Arc::new(ManualClock::new(1000.0));
         let chosen: Arc<Mutex<Vec<String>>> = Arc::default();
         let sink = chosen.clone();
-        let backend = LocalBackend::new(None, Some(Box::new(move |d| sink.lock().unwrap().push(d.to_owned()))), clock.clone())
-            .with_batch_size(scenario["batch_size"].as_u64().unwrap_or(3) as usize)
-            .with_seed(5);
+        let backend = LocalBackend::new(
+            None,
+            Some(Box::new(move |d| sink.lock().unwrap().push(d.to_owned()))),
+            clock.clone(),
+        )
+        .with_batch_size(scenario["batch_size"].as_u64().unwrap_or(3) as usize)
+        .with_seed(5);
 
-        for (n, (step, want)) in scenario["steps"].as_array().unwrap().iter().zip(scenario["results"].as_array().unwrap()).enumerate() {
+        for (n, (step, want)) in scenario["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(scenario["results"].as_array().unwrap())
+            .enumerate()
+        {
             let mut got = json!({});
             let mut error: Option<String> = None;
             match step["op"].as_str().unwrap() {
                 "authorize" => {
-                    let typed = step["directory"].as_str().unwrap().replace("<root>", &root.display().to_string());
-                    match backend.authorize(&HashMap::from([("directory".to_owned(), typed)])).await {
-                        Ok(()) => got["chosen"] = json!(chosen.lock().unwrap().iter().map(|c| plain(c, &root)).collect::<Vec<_>>()),
+                    let typed = step["directory"]
+                        .as_str()
+                        .unwrap()
+                        .replace("<root>", &root.display().to_string());
+                    match backend
+                        .authorize(&HashMap::from([("directory".to_owned(), typed)]))
+                        .await
+                    {
+                        Ok(()) => {
+                            got["chosen"] = json!(
+                                chosen
+                                    .lock()
+                                    .unwrap()
+                                    .iter()
+                                    .map(|c| plain(c, &root))
+                                    .collect::<Vec<_>>()
+                            )
+                        }
                         Err(e) => error = Some(plain(&format!("AuthError: {}", e.0), &root)),
                     }
                 }
                 "authorize_raw" => {
-                    let values: HashMap<String, String> = step["values"].as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned())).collect();
-                    error = backend.authorize(&values).await.err().map(|e| plain(&format!("AuthError: {}", e.0), &root));
+                    let values: HashMap<String, String> = step["values"]
+                        .as_object()
+                        .unwrap()
+                        .iter()
+                        .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned()))
+                        .collect();
+                    error = backend
+                        .authorize(&values)
+                        .await
+                        .err()
+                        .map(|e| plain(&format!("AuthError: {}", e.0), &root));
                 }
                 "batch" => {
-                    let mut exclude: HashSet<String> = step["exclude"].as_array().into_iter().flatten().map(|r| id_of(&root, r.as_str().unwrap())).collect();
+                    let mut exclude: HashSet<String> = step["exclude"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .map(|r| id_of(&root, r.as_str().unwrap()))
+                        .collect();
                     if step["exclude_all"].as_bool().unwrap_or(false) {
                         exclude = scan(&root).unwrap().into_keys().collect();
                     }
-                    match backend.station_batch(step["station"].as_str().unwrap_or("shuffle"), &exclude).await {
+                    match backend
+                        .station_batch(step["station"].as_str().unwrap_or("shuffle"), &exclude)
+                        .await
+                    {
                         Ok(batch) => {
                             // Where the choice is not forced, it is the size and the tracks that are compared.
-                            let mut list: Vec<Value> = batch.iter().map(|t| serde_json::to_value(t).unwrap()).collect();
+                            let mut list: Vec<Value> = batch
+                                .iter()
+                                .map(|t| serde_json::to_value(t).unwrap())
+                                .collect();
                             list.sort_by_key(|t| t["track_id"].as_str().unwrap().to_owned());
                             if step["deterministic"].as_bool().unwrap_or(false) {
                                 got["tracks"] = json!(list);
                             } else {
-                                assert_eq!(list.len(), want["tracks"].as_array().unwrap().len(), "{name}, step {n}: how many");
+                                assert_eq!(
+                                    list.len(),
+                                    want["tracks"].as_array().unwrap().len(),
+                                    "{name}, step {n}: how many"
+                                );
                                 for track in &list {
                                     let id = track["track_id"].as_str().unwrap();
-                                    assert_eq!(track, &tracks[id], "{name}, step {n}: the track {id}");
+                                    assert_eq!(
+                                        track, &tracks[id],
+                                        "{name}, step {n}: the track {id}"
+                                    );
                                 }
                                 got["tracks"] = want["tracks"].clone();
                             }
@@ -162,8 +262,20 @@ async fn the_local_backend_answers_as_the_python_one_does() {
                 }
                 "download" => {
                     let track = match step["path"].as_str() {
-                        Some(path) => Track { track_id: id_of(&root, path), title: step["title"].as_str().unwrap().to_owned(), artists: vec!["x".into()], codec: "mp3".into(), ..blank() },
-                        None => Track { track_id: step["id"].as_str().unwrap().to_owned(), title: "Gone".into(), artists: vec!["x".into()], codec: "mp3".into(), ..blank() },
+                        Some(path) => Track {
+                            track_id: id_of(&root, path),
+                            title: step["title"].as_str().unwrap().to_owned(),
+                            artists: vec!["x".into()],
+                            codec: "mp3".into(),
+                            ..blank()
+                        },
+                        None => Track {
+                            track_id: step["id"].as_str().unwrap().to_owned(),
+                            title: "Gone".into(),
+                            artists: vec!["x".into()],
+                            codec: "mp3".into(),
+                            ..blank()
+                        },
                     };
                     let target = work.join(step["name"].as_str().unwrap());
                     match backend.download(&track, &target).await {
@@ -209,5 +321,17 @@ async fn the_local_backend_answers_as_the_python_one_does() {
 }
 
 fn blank() -> Track {
-    Track { track_id: String::new(), title: String::new(), artists: vec![], codec: String::new(), bitrate_in_kbps: 0, genre: String::new(), cover: String::new(), batch_id: String::new(), mood: String::new(), source: String::new(), native_id: String::new() }
+    Track {
+        track_id: String::new(),
+        title: String::new(),
+        artists: vec![],
+        codec: String::new(),
+        bitrate_in_kbps: 0,
+        genre: String::new(),
+        cover: String::new(),
+        batch_id: String::new(),
+        mood: String::new(),
+        source: String::new(),
+        native_id: String::new(),
+    }
 }

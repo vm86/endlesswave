@@ -35,8 +35,18 @@ pub struct BackendSpec {
 }
 
 impl BackendSpec {
-    pub fn new(id: &str, name: &str, create: impl Fn() -> Arc<dyn MusicBackend> + Send + Sync + 'static) -> Self {
-        Self { id: id.to_owned(), name: name.to_owned(), create: Box::new(create), configured: Box::new(|| false), plain_ids: false }
+    pub fn new(
+        id: &str,
+        name: &str,
+        create: impl Fn() -> Arc<dyn MusicBackend> + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            id: id.to_owned(),
+            name: name.to_owned(),
+            create: Box::new(create),
+            configured: Box::new(|| false),
+            plain_ids: false,
+        }
     }
 
     pub fn configured(mut self, configured: impl Fn() -> bool + Send + Sync + 'static) -> Self {
@@ -97,14 +107,22 @@ impl MultiBackend {
         clock: Arc<dyn Clock>,
     ) -> Arc<Self> {
         let me = Arc::new(Self {
-            specs: specs.into_iter().map(|spec| (spec.id.clone(), spec)).collect(),
+            specs: specs
+                .into_iter()
+                .map(|spec| (spec.id.clone(), spec))
+                .collect(),
             stations,
             on_change,
             clock,
             state: Mutex::new(State::default()),
             changed_event: Notify::new(),
         });
-        let start: Vec<String> = me.specs.values().filter(|spec| enabled.contains(&spec.id) || (auto && (spec.configured)())).map(|spec| spec.id.clone()).collect();
+        let start: Vec<String> = me
+            .specs
+            .values()
+            .filter(|spec| enabled.contains(&spec.id) || (auto && (spec.configured)()))
+            .map(|spec| spec.id.clone())
+            .collect();
         for id in start {
             me.start(&id);
         }
@@ -118,13 +136,26 @@ impl MultiBackend {
     fn start(&self, id: &str) {
         let spec = &self.specs[id];
         let backend = (spec.create)();
-        let station = self.stations.get(id).filter(|s| !s.is_empty()).cloned().unwrap_or_else(|| backend.default_station());
+        let station = self
+            .stations
+            .get(id)
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .unwrap_or_else(|| backend.default_station());
         if !backend.authorized() {
             backend.start_auth();
         }
         self.st().running.insert(
             id.to_owned(),
-            Running { id: id.to_owned(), name: spec.name.clone(), plain_ids: spec.plain_ids, backend, station, failures: 0, rest_until: 0.0 },
+            Running {
+                id: id.to_owned(),
+                name: spec.name.clone(),
+                plain_ids: spec.plain_ids,
+                backend,
+                station,
+                failures: 0,
+                rest_until: 0.0,
+            },
         );
         self.changed_event.notify_waiters();
         tracing::info!("Music backend on: {}", spec.name);
@@ -150,8 +181,16 @@ impl MultiBackend {
     fn usable(&self) -> Vec<Owner> {
         let now = self.clock.monotonic();
         let state = self.st();
-        let signed_in: Vec<&Running> = state.running.values().filter(|r| r.backend.authorized()).collect();
-        let rested: Vec<&Running> = signed_in.iter().copied().filter(|r| now >= r.rest_until).collect();
+        let signed_in: Vec<&Running> = state
+            .running
+            .values()
+            .filter(|r| r.backend.authorized())
+            .collect();
+        let rested: Vec<&Running> = signed_in
+            .iter()
+            .copied()
+            .filter(|r| now >= r.rest_until)
+            .collect();
         // All are resting: try the one that rests the shortest, rather than sit idle.
         let mut chosen: Vec<&Running> = if rested.is_empty() {
             let mut resting = signed_in;
@@ -170,9 +209,15 @@ impl MultiBackend {
     fn failed(&self, id: &str, error: &BackendError) {
         let now = self.clock.monotonic();
         let mut state = self.st();
-        let Some(running) = state.running.get_mut(id) else { return };
+        let Some(running) = state.running.get_mut(id) else {
+            return;
+        };
         running.failures += 1;
-        tracing::warn!("{} failed ({} in a row): {error}", running.name, running.failures);
+        tracing::warn!(
+            "{} failed ({} in a row): {error}",
+            running.name,
+            running.failures
+        );
         if running.failures >= FAILURES_TO_REST {
             let extra = running.failures - FAILURES_TO_REST;
             let rest = (REST_SECONDS * 2f64.powi(extra as i32)).min(MAX_REST_SECONDS);
@@ -216,7 +261,11 @@ impl MultiBackend {
             return track_ids.clone();
         }
         let stamp = format!("{}:", owner.id);
-        track_ids.iter().filter_map(|i| i.strip_prefix(&stamp)).map(str::to_owned).collect()
+        track_ids
+            .iter()
+            .filter_map(|i| i.strip_prefix(&stamp))
+            .map(str::to_owned)
+            .collect()
     }
 
     fn stamp(owner: &Owner, track: Track) -> Track {
@@ -231,12 +280,22 @@ impl MultiBackend {
 
     /// The backends that are on, signed in, and steer a station by the mood.
     fn steering(&self) -> Vec<Owner> {
-        self.st().running.values().filter(|r| r.backend.authorized() && r.backend.supports_moods()).map(owner).collect()
+        self.st()
+            .running
+            .values()
+            .filter(|r| r.backend.authorized() && r.backend.supports_moods())
+            .map(owner)
+            .collect()
     }
 }
 
 fn owner(running: &Running) -> Owner {
-    Owner { id: running.id.clone(), plain_ids: running.plain_ids, backend: Arc::clone(&running.backend), station: running.station.clone() }
+    Owner {
+        id: running.id.clone(),
+        plain_ids: running.plain_ids,
+        backend: Arc::clone(&running.backend),
+        station: running.station.clone(),
+    }
 }
 
 #[async_trait]
@@ -246,11 +305,20 @@ impl MusicBackend for MultiBackend {
     }
 
     fn auth_prompt(&self) -> AuthPrompt {
-        self.st().running.values().find(|r| !r.backend.authorized()).map_or_else(AuthPrompt::default, |r| r.backend.auth_prompt())
+        self.st()
+            .running
+            .values()
+            .find(|r| !r.backend.authorized())
+            .map_or_else(AuthPrompt::default, |r| r.backend.auth_prompt())
     }
 
     fn default_station(&self) -> String {
-        self.st().running.values().map(|r| format!("{}: {}", r.id, r.station)).collect::<Vec<_>>().join(", ")
+        self.st()
+            .running
+            .values()
+            .map(|r| format!("{}: {}", r.id, r.station))
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 
     fn supports_moods(&self) -> bool {
@@ -273,7 +341,8 @@ impl MusicBackend for MultiBackend {
             if self.authorized() {
                 return;
             }
-            let mut waits: Vec<std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>> = Vec::new();
+            let mut waits: Vec<std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>> =
+                Vec::new();
             for running in self.running() {
                 let backend = Arc::clone(&running.backend);
                 waits.push(Box::pin(async move { backend.wait_authorized().await }));
@@ -292,14 +361,28 @@ impl MusicBackend for MultiBackend {
         Err(AuthError("nothing to sign in to".to_owned()))
     }
 
-    async fn station_batch(&self, _station_id: &str, exclude_track_ids: &HashSet<String>) -> Result<Vec<Track>, BackendError> {
+    async fn station_batch(
+        &self,
+        _station_id: &str,
+        exclude_track_ids: &HashSet<String>,
+    ) -> Result<Vec<Track>, BackendError> {
         let mut last_error: Option<BackendError> = None;
         for running in self.usable() {
-            match running.backend.station_batch(&running.station, &Self::known_to(&running, exclude_track_ids)).await {
+            match running
+                .backend
+                .station_batch(
+                    &running.station,
+                    &Self::known_to(&running, exclude_track_ids),
+                )
+                .await
+            {
                 Ok(batch) => {
                     self.worked(&running.id);
                     self.st().last = running.id.clone();
-                    return Ok(batch.into_iter().map(|track| Self::stamp(&running, track)).collect());
+                    return Ok(batch
+                        .into_iter()
+                        .map(|track| Self::stamp(&running, track))
+                        .collect());
                 }
                 Err(error) => {
                     self.failed(&running.id, &error);
@@ -325,23 +408,50 @@ impl MusicBackend for MultiBackend {
         }
     }
 
-    async fn feedback_track(&self, track: &Track, feedback: Feedback, _station_id: &str, total_played_seconds: f64) -> Result<(), BackendError> {
+    async fn feedback_track(
+        &self,
+        track: &Track,
+        feedback: Feedback,
+        _station_id: &str,
+        total_played_seconds: f64,
+    ) -> Result<(), BackendError> {
         let running = self.owner_of(track)?;
-        running.backend.feedback_track(&Self::native(track), feedback, &running.station, total_played_seconds).await
+        running
+            .backend
+            .feedback_track(
+                &Self::native(track),
+                feedback,
+                &running.station,
+                total_played_seconds,
+            )
+            .await
     }
 
-    async fn station_settings(&self, _station_id: &str) -> Result<(String, String, String), BackendError> {
+    async fn station_settings(
+        &self,
+        _station_id: &str,
+    ) -> Result<(String, String, String), BackendError> {
         match self.steering().first() {
             None => Ok(("all".to_owned(), "default".to_owned(), "any".to_owned())),
             Some(first) => first.backend.station_settings(&first.station).await,
         }
     }
 
-    async fn set_station_settings(&self, _station_id: &str, mood_energy: &str, diversity: &str, language: &str) -> Result<(), BackendError> {
+    async fn set_station_settings(
+        &self,
+        _station_id: &str,
+        mood_energy: &str,
+        diversity: &str,
+        language: &str,
+    ) -> Result<(), BackendError> {
         let steering = self.steering();
         let mut errors: Vec<BackendError> = Vec::new();
         for running in &steering {
-            if let Err(error) = running.backend.set_station_settings(&running.station, mood_energy, diversity, language).await {
+            if let Err(error) = running
+                .backend
+                .set_station_settings(&running.station, mood_energy, diversity, language)
+                .await
+            {
                 tracing::warn!("{}: no new station settings", running.id);
                 errors.push(error);
             }
@@ -363,8 +473,19 @@ impl MusicBackend for MultiBackend {
     fn unavailable(&self) -> Vec<String> {
         let now = self.clock.monotonic();
         let state = self.st();
-        let mut gone: Vec<String> = self.specs.keys().filter(|i| !state.running.contains_key(*i)).cloned().collect();
-        gone.extend(state.running.values().filter(|r| !r.backend.authorized() || now < r.rest_until).map(|r| r.id.clone()));
+        let mut gone: Vec<String> = self
+            .specs
+            .keys()
+            .filter(|i| !state.running.contains_key(*i))
+            .cloned()
+            .collect();
+        gone.extend(
+            state
+                .running
+                .values()
+                .filter(|r| !r.backend.authorized() || now < r.rest_until)
+                .map(|r| r.id.clone()),
+        );
         gone
     }
 }
@@ -387,7 +508,9 @@ impl BackendSet for MultiBackend {
         if !self.specs.contains_key(id) {
             return Err(format!("unknown music backend {}", crate::api::py_repr(id)));
         }
-        let Some(running) = self.st().running.shift_remove(id) else { return Ok(()) };
+        let Some(running) = self.st().running.shift_remove(id) else {
+            return Ok(());
+        };
         running.backend.aclose().await;
         self.changed_event.notify_waiters();
         self.changed();
@@ -428,9 +551,18 @@ impl BackendSet for MultiBackend {
     }
 
     /// Sign in to one of the backends that are on.
-    async fn authorize_backend(&self, id: &str, values: &HashMap<String, String>) -> Result<(), AuthError> {
+    async fn authorize_backend(
+        &self,
+        id: &str,
+        values: &HashMap<String, String>,
+    ) -> Result<(), AuthError> {
         let running = self.st().running.get(id).map(owner);
-        let Some(running) = running else { return Err(AuthError(format!("music backend {} is not on", crate::api::py_repr(id)))) };
+        let Some(running) = running else {
+            return Err(AuthError(format!(
+                "music backend {} is not on",
+                crate::api::py_repr(id)
+            )));
+        };
         running.backend.authorize(values).await
     }
 }

@@ -19,7 +19,9 @@ use std::{
 use tokio::sync::{Notify, Semaphore};
 
 /// What counts as music (the extension is also what ffmpeg is given).
-pub const AUDIO_SUFFIXES: [&str; 9] = ["mp3", "flac", "m4a", "aac", "ogg", "opus", "wav", "aiff", "wma"];
+pub const AUDIO_SUFFIXES: [&str; 9] = [
+    "mp3", "flac", "m4a", "aac", "ogg", "opus", "wav", "aiff", "wma",
+];
 /// The station that takes tracks from the whole folder; any other is a subfolder of it.
 pub const ALL_STATION: &str = "shuffle";
 pub const BATCH_SIZE: usize = 5;
@@ -45,7 +47,9 @@ pub fn scan(root: &Path) -> std::io::Result<HashMap<String, PathBuf>> {
             }
             let suffix = path.extension().map(|e| e.to_string_lossy().to_lowercase());
             // What is hidden is not music (macOS leaves "._track.mp3" files).
-            if name.starts_with('.') || !suffix.is_some_and(|s| AUDIO_SUFFIXES.contains(&s.as_str())) {
+            if name.starts_with('.')
+                || !suffix.is_some_and(|s| AUDIO_SUFFIXES.contains(&s.as_str()))
+            {
                 continue;
             }
             if let Ok(relative) = path.strip_prefix(root) {
@@ -61,8 +65,16 @@ pub fn scan(root: &Path) -> std::io::Result<HashMap<String, PathBuf>> {
 
 /// Make an id that stays the same for a file, and is safe as a name.
 pub fn track_id(relative: &Path) -> String {
-    let posix = relative.components().map(|c| c.as_os_str().to_string_lossy()).collect::<Vec<_>>().join("/");
-    Sha1::digest(posix.as_bytes()).iter().take(8).map(|b| format!("{b:02x}")).collect()
+    let posix = relative
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/");
+    Sha1::digest(posix.as_bytes())
+        .iter()
+        .take(8)
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 /// Python's `str.splitlines()`.
@@ -71,7 +83,18 @@ fn splitlines(text: &str) -> Vec<&str> {
     let mut start = 0;
     let mut chars = text.char_indices().peekable();
     while let Some((at, c)) = chars.next() {
-        if matches!(c, '\n' | '\r' | '\x0b' | '\x0c' | '\x1c' | '\x1d' | '\x1e' | '\u{85}' | '\u{2028}' | '\u{2029}') {
+        if matches!(
+            c,
+            '\n' | '\r'
+                | '\x0b'
+                | '\x0c'
+                | '\x1c'
+                | '\x1d'
+                | '\x1e'
+                | '\u{85}'
+                | '\u{2028}'
+                | '\u{2029}'
+        ) {
             lines.push(&text[start..at]);
             start = at + c.len_utf8();
             if c == '\r' && chars.peek().is_some_and(|&(_, next)| next == '\n') {
@@ -90,7 +113,9 @@ fn splitlines(text: &str) -> Vec<&str> {
 pub fn parse_tags(text: &str) -> HashMap<String, String> {
     let mut tags = HashMap::new();
     for line in splitlines(text).into_iter().skip(1) {
-        let Some((key, value)) = line.split_once('=') else { continue };
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
         if line.starts_with(';') {
             continue;
         }
@@ -116,11 +141,17 @@ pub fn parse_tags(text: &str) -> HashMap<String, String> {
 fn folder(typed: &str) -> Option<PathBuf> {
     let expanded = if let Some(rest) = typed.strip_prefix('~') {
         let home = std::env::var_os("HOME")?;
-        if rest.is_empty() || rest.starts_with('/') { PathBuf::from(home).join(rest.trim_start_matches('/')) } else { PathBuf::from(typed) }
+        if rest.is_empty() || rest.starts_with('/') {
+            PathBuf::from(home).join(rest.trim_start_matches('/'))
+        } else {
+            PathBuf::from(typed)
+        }
     } else {
         PathBuf::from(typed)
     };
-    expanded.is_dir().then(|| expanded.canonicalize().unwrap_or(expanded))
+    expanded
+        .is_dir()
+        .then(|| expanded.canonicalize().unwrap_or(expanded))
 }
 
 fn link_or_copy(source: &Path, path: &Path) -> std::io::Result<()> {
@@ -153,7 +184,11 @@ pub struct LocalBackend {
 }
 
 impl LocalBackend {
-    pub fn new(directory: Option<PathBuf>, on_directory: Option<Box<dyn Fn(&str) + Send + Sync>>, clock: Arc<dyn Clock>) -> Self {
+    pub fn new(
+        directory: Option<PathBuf>,
+        on_directory: Option<Box<dyn Fn(&str) + Send + Sync>>,
+        clock: Arc<dyn Clock>,
+    ) -> Self {
         Self {
             directory: Mutex::new(directory),
             on_directory,
@@ -161,7 +196,10 @@ impl LocalBackend {
             rng: Mutex::new(StdRng::from_rng(&mut rand::rng())),
             clock,
             ffmpeg: PathBuf::from("ffmpeg"),
-            library: Mutex::new(Library { files: None, scanned_at: 0.0 }),
+            library: Mutex::new(Library {
+                files: None,
+                scanned_at: 0.0,
+            }),
             changed: Notify::new(),
             probes: Semaphore::new(PROBES_AT_ONCE),
         }
@@ -188,12 +226,18 @@ impl LocalBackend {
     }
 
     fn setting_fields() -> Vec<AuthField> {
-        vec![AuthField { name: DIRECTORY.to_owned(), label: "Folder with the music".to_owned(), secret: false }]
+        vec![AuthField {
+            name: DIRECTORY.to_owned(),
+            label: "Folder with the music".to_owned(),
+            secret: false,
+        }]
     }
 
     /// List the files of the folder, again when the list is old.
     async fn library(&self) -> Result<Arc<HashMap<String, PathBuf>>, BackendError> {
-        let Some(directory) = self.directory() else { return Err(BackendError("no folder with music is chosen".to_owned())) };
+        let Some(directory) = self.directory() else {
+            return Err(BackendError("no folder with music is chosen".to_owned()));
+        };
         let known = {
             let library = self.library.lock().expect("not poisoned");
             let stale = self.clock.monotonic() - library.scanned_at >= RESCAN_SECONDS;
@@ -205,8 +249,18 @@ impl LocalBackend {
         let root = directory.clone();
         let files = match tokio::task::spawn_blocking(move || scan(&root)).await {
             Ok(Ok(files)) => Arc::new(files),
-            Ok(Err(error)) => return Err(BackendError(format!("cannot read {}: {error}", directory.display()))),
-            Err(error) => return Err(BackendError(format!("cannot read {}: {error}", directory.display()))),
+            Ok(Err(error)) => {
+                return Err(BackendError(format!(
+                    "cannot read {}: {error}",
+                    directory.display()
+                )));
+            }
+            Err(error) => {
+                return Err(BackendError(format!(
+                    "cannot read {}: {error}",
+                    directory.display()
+                )));
+            }
         };
         {
             let mut library = self.library.lock().expect("not poisoned");
@@ -218,10 +272,16 @@ impl LocalBackend {
     }
 
     async fn tags(&self, path: &Path) -> std::io::Result<HashMap<String, String>> {
-        let _turn = self.probes.acquire().await.expect("the semaphore is never closed");
+        let _turn = self
+            .probes
+            .acquire()
+            .await
+            .expect("the semaphore is never closed");
         let native = {
             let path = path.to_owned();
-            tokio::task::spawn_blocking(move || tags_native(&path)).await.map_err(std::io::Error::other)?
+            tokio::task::spawn_blocking(move || tags_native(&path))
+                .await
+                .map_err(std::io::Error::other)?
         };
         // A file without tags that symphonia knows (a WAV with a RIFF INFO list, say) is asked of ffmpeg, if there is one.
         let native = match native {
@@ -247,20 +307,45 @@ impl LocalBackend {
 
     async fn track(&self, root: &Path, file_id: &str, path: &Path) -> std::io::Result<Track> {
         let tags = self.tags(path).await?;
-        let artist = tags.get("album_artist").filter(|a| !a.is_empty()).or_else(|| tags.get("artist").filter(|a| !a.is_empty()));
+        let artist = tags
+            .get("album_artist")
+            .filter(|a| !a.is_empty())
+            .or_else(|| tags.get("artist").filter(|a| !a.is_empty()));
         let folder = match path.parent() {
-            Some(parent) if parent != root => parent.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+            Some(parent) if parent != root => parent
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default(),
             _ => String::new(),
         };
-        let artist = artist.cloned().filter(|a| !a.is_empty()).or_else(|| Some(folder).filter(|f| !f.is_empty())).unwrap_or_else(|| UNKNOWN_ARTIST.to_owned());
-        let title = tags.get("title").filter(|t| !t.is_empty()).cloned().unwrap_or_else(|| path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default());
+        let artist = artist
+            .cloned()
+            .filter(|a| !a.is_empty())
+            .or_else(|| Some(folder).filter(|f| !f.is_empty()))
+            .unwrap_or_else(|| UNKNOWN_ARTIST.to_owned());
+        let title = tags
+            .get("title")
+            .filter(|t| !t.is_empty())
+            .cloned()
+            .unwrap_or_else(|| {
+                path.file_stem()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_default()
+            });
         Ok(Track {
             track_id: file_id.to_owned(),
             title,
             artists: vec![artist],
-            codec: path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default(),
+            codec: path
+                .extension()
+                .map(|e| e.to_string_lossy().to_lowercase())
+                .unwrap_or_default(),
             bitrate_in_kbps: 0,
-            genre: tags.get("genre").cloned().unwrap_or_default().to_lowercase(),
+            genre: tags
+                .get("genre")
+                .cloned()
+                .unwrap_or_default()
+                .to_lowercase(),
             cover: String::new(),
             batch_id: String::new(),
             mood: String::new(),
@@ -284,14 +369,23 @@ pub fn tags_native(path: &Path) -> Option<HashMap<String, String>> {
         hint.with_extension(extension);
     }
     let mut format = symphonia::default::get_probe()
-        .probe(&hint, MediaSourceStream::new(Box::new(file), Default::default()), FormatOptions::default(), MetadataOptions::default())
+        .probe(
+            &hint,
+            MediaSourceStream::new(Box::new(file), Default::default()),
+            FormatOptions::default(),
+            MetadataOptions::default(),
+        )
         .ok()?;
     let mut metadata = format.metadata();
     while !metadata.is_latest() {
         metadata.pop();
     }
     let mut tags = HashMap::new();
-    for tag in metadata.current().into_iter().flat_map(|revision| revision.media.tags.iter()) {
+    for tag in metadata
+        .current()
+        .into_iter()
+        .flat_map(|revision| revision.media.tags.iter())
+    {
         let (key, value) = match &tag.std {
             Some(StandardTag::Artist(v)) => ("artist", v),
             Some(StandardTag::AlbumArtist(v)) => ("album_artist", v),
@@ -308,8 +402,13 @@ pub fn tags_native(path: &Path) -> Option<HashMap<String, String>> {
 #[async_trait]
 impl MusicBackend for LocalBackend {
     fn settings(&self) -> Option<(HashMap<String, String>, Vec<AuthField>)> {
-        let directory = self.directory().map_or_else(String::new, |d| d.display().to_string());
-        Some((HashMap::from([(DIRECTORY.to_owned(), directory)]), Self::setting_fields()))
+        let directory = self
+            .directory()
+            .map_or_else(String::new, |d| d.display().to_string());
+        Some((
+            HashMap::from([(DIRECTORY.to_owned(), directory)]),
+            Self::setting_fields(),
+        ))
     }
 
     /// Signing in is choosing the folder.
@@ -318,7 +417,11 @@ impl MusicBackend for LocalBackend {
     }
 
     fn auth_prompt(&self) -> AuthPrompt {
-        AuthPrompt { url: None, code: None, fields: Self::setting_fields() }
+        AuthPrompt {
+            url: None,
+            code: None,
+            fields: Self::setting_fields(),
+        }
     }
 
     fn default_station(&self) -> String {
@@ -342,13 +445,22 @@ impl MusicBackend for LocalBackend {
 
     /// Choose the folder (again, too); keep it in the settings.
     async fn authorize(&self, values: &HashMap<String, String>) -> Result<(), AuthError> {
-        let typed = values.get(DIRECTORY).map_or("", String::as_str).trim().to_owned();
+        let typed = values
+            .get(DIRECTORY)
+            .map_or("", String::as_str)
+            .trim()
+            .to_owned();
         if typed.is_empty() {
             return Err(AuthError("type the folder with the music".to_owned()));
         }
         let probe = typed.clone();
-        let directory = tokio::task::spawn_blocking(move || folder(&probe)).await.ok().flatten();
-        let Some(directory) = directory else { return Err(AuthError(format!("{typed} is not a folder"))) };
+        let directory = tokio::task::spawn_blocking(move || folder(&probe))
+            .await
+            .ok()
+            .flatten();
+        let Some(directory) = directory else {
+            return Err(AuthError(format!("{typed} is not a folder")));
+        };
         *self.directory.lock().expect("not poisoned") = Some(directory.clone());
         self.library.lock().expect("not poisoned").files = None;
         if let Some(on_directory) = &self.on_directory {
@@ -364,11 +476,19 @@ impl MusicBackend for LocalBackend {
     }
 
     /// A few tracks at random, unheard ones if there are any.
-    async fn station_batch(&self, station_id: &str, exclude_track_ids: &HashSet<String>) -> Result<Vec<Track>, BackendError> {
+    async fn station_batch(
+        &self,
+        station_id: &str,
+        exclude_track_ids: &HashSet<String>,
+    ) -> Result<Vec<Track>, BackendError> {
         let files = self.library().await?;
         let root = self.directory();
         let Some(root) = root.filter(|_| !files.is_empty()) else {
-            return Err(BackendError(format!("no audio files in {}", self.directory().map_or_else(|| "None".to_owned(), |d| d.display().to_string()))));
+            return Err(BackendError(format!(
+                "no audio files in {}",
+                self.directory()
+                    .map_or_else(|| "None".to_owned(), |d| d.display().to_string())
+            )));
         };
         let mut ids: Vec<&String> = files.keys().collect();
         // (sorted, so that a seed gives the same choice)
@@ -380,13 +500,22 @@ impl MusicBackend for LocalBackend {
                 return Err(BackendError(format!("no audio files in {}", sub.display())));
             }
         }
-        let fresh: Vec<&String> = ids.iter().copied().filter(|i| !exclude_track_ids.contains(*i)).collect();
+        let fresh: Vec<&String> = ids
+            .iter()
+            .copied()
+            .filter(|i| !exclude_track_ids.contains(*i))
+            .collect();
         let pool = if fresh.is_empty() { &ids } else { &fresh };
         let chosen: Vec<String> = {
             let mut rng = self.rng.lock().expect("not poisoned");
-            pool.sample(&mut *rng, self.batch_size.min(pool.len())).map(|i| (*i).clone()).collect()
+            pool.sample(&mut *rng, self.batch_size.min(pool.len()))
+                .map(|i| (*i).clone())
+                .collect()
         };
-        let found = futures_util::future::join_all(chosen.iter().map(|id| self.track(&root, id, &files[id]))).await;
+        let found = futures_util::future::join_all(
+            chosen.iter().map(|id| self.track(&root, id, &files[id])),
+        )
+        .await;
         let tracks: Vec<Track> = found.into_iter().filter_map(Result::ok).collect();
         if tracks.is_empty() {
             return Err(BackendError("none of the tracks could be read".to_owned()));
@@ -398,26 +527,52 @@ impl MusicBackend for LocalBackend {
     async fn download(&self, track: &Track, path: &Path) -> Result<(), BackendError> {
         let files = self.library().await?;
         let source = files.get(&track.track_id).filter(|s| s.is_file()).cloned();
-        let Some(source) = source else { return Err(BackendError(format!("{} is not in the folder any more", track.title))) };
+        let Some(source) = source else {
+            return Err(BackendError(format!(
+                "{} is not in the folder any more",
+                track.title
+            )));
+        };
         let (from, to) = (source.clone(), path.to_owned());
         match tokio::task::spawn_blocking(move || link_or_copy(&from, &to)).await {
             Ok(Ok(())) => Ok(()),
-            Ok(Err(error)) => Err(BackendError(format!("cannot read {}: {error}", source.display()))),
-            Err(error) => Err(BackendError(format!("cannot read {}: {error}", source.display()))),
+            Ok(Err(error)) => Err(BackendError(format!(
+                "cannot read {}: {error}",
+                source.display()
+            ))),
+            Err(error) => Err(BackendError(format!(
+                "cannot read {}: {error}",
+                source.display()
+            ))),
         }
     }
 
     /// Tell nobody: a folder has none to be told.
-    async fn feedback_track(&self, _track: &Track, _feedback: Feedback, _station_id: &str, _total_played_seconds: f64) -> Result<(), BackendError> {
+    async fn feedback_track(
+        &self,
+        _track: &Track,
+        _feedback: Feedback,
+        _station_id: &str,
+        _total_played_seconds: f64,
+    ) -> Result<(), BackendError> {
         Ok(())
     }
 
-    async fn station_settings(&self, _station_id: &str) -> Result<(String, String, String), BackendError> {
+    async fn station_settings(
+        &self,
+        _station_id: &str,
+    ) -> Result<(String, String, String), BackendError> {
         Ok(("all".to_owned(), "default".to_owned(), "any".to_owned()))
     }
 
     /// Change nothing: a folder has no settings.
-    async fn set_station_settings(&self, _station_id: &str, _mood_energy: &str, _diversity: &str, _language: &str) -> Result<(), BackendError> {
+    async fn set_station_settings(
+        &self,
+        _station_id: &str,
+        _mood_energy: &str,
+        _diversity: &str,
+        _language: &str,
+    ) -> Result<(), BackendError> {
         Ok(())
     }
 

@@ -38,7 +38,10 @@ fn golden() -> Value {
 }
 
 fn sha1(data: &[u8]) -> String {
-    Sha1::digest(data).iter().map(|b| format!("{b:02x}")).collect()
+    Sha1::digest(data)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 fn u(value: &Value) -> usize {
@@ -62,7 +65,10 @@ fn frames_of(first: usize, count: usize) -> Vec<Frame> {
     (0..count)
         .map(|i| {
             let n = first + i;
-            Frame { t: n as f64 * 0.033, bands: [(n % 100) as f64 / 100.0; 12] }
+            Frame {
+                t: n as f64 * 0.033,
+                bands: [(n % 100) as f64 / 100.0; 12],
+            }
         })
         .collect()
 }
@@ -76,10 +82,25 @@ struct World {
 
 impl World {
     fn new(data: HashMap<&'static str, Vec<u8>>) -> Self {
-        let streams = Streams { mp3: Broadcaster::new(Config::mp3()), flac: Some(Broadcaster::new(Config::flac())), ogg: Some(Broadcaster::new(Config::ogg())) };
+        let streams = Streams {
+            mp3: Broadcaster::new(Config::mp3()),
+            flac: Some(Broadcaster::new(Config::flac())),
+            ogg: Some(Broadcaster::new(Config::ogg())),
+        };
         let feed = SpectrumFeed::new();
-        let app = router(Api { radio: radio(), backends: None, streams: streams.clone(), spectrum: Some(feed.clone()), starts: Arc::new(StartPositions::new()) });
-        Self { data, streams, feed, app }
+        let app = router(Api {
+            radio: radio(),
+            backends: None,
+            streams: streams.clone(),
+            spectrum: Some(feed.clone()),
+            starts: Arc::new(StartPositions::new()),
+        });
+        Self {
+            data,
+            streams,
+            feed,
+            app,
+        }
     }
 
     fn hub(&self, name: &str) -> &Arc<Broadcaster> {
@@ -96,7 +117,13 @@ impl World {
         let (hub, data) = (self.hub(name), &self.data[name]);
         let mut start = u(&op["from"]);
         if start == 0 && name != "mp3" {
-            let length = if name == "flac" { frames::flac_header_length(data) } else { frames::ogg_header_length(data) }.unwrap().unwrap();
+            let length = if name == "flac" {
+                frames::flac_header_length(data)
+            } else {
+                frames::ogg_header_length(data)
+            }
+            .unwrap()
+            .unwrap();
             hub.set_header(data[..length].to_vec());
             start = length;
         }
@@ -114,7 +141,11 @@ impl World {
 async fn read(body: &mut Body, wanted: usize) -> Vec<u8> {
     let mut got = Vec::new();
     while got.len() < wanted {
-        let frame = tokio::time::timeout(Duration::from_secs(120), body.frame()).await.expect("the data came").expect("the body goes on").unwrap();
+        let frame = tokio::time::timeout(Duration::from_secs(120), body.frame())
+            .await
+            .expect("the data came")
+            .expect("the body goes on")
+            .unwrap();
         if let Ok(data) = frame.into_data() {
             got.extend_from_slice(&data);
         }
@@ -129,7 +160,10 @@ async fn the_listener_of_a_stream_gets_what_python_serves() {
         match fs::read(dir().join(format!("{name}.bin"))) {
             Ok(bytes) => data.insert(name, bytes),
             Err(_) => {
-                assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "{name}: run tools/gen_golden.py");
+                assert!(
+                    std::env::var_os("GOLDEN_REQUIRED").is_none(),
+                    "{name}: run tools/gen_golden.py"
+                );
                 eprintln!("{name}: no stream, skipped");
                 return;
             }
@@ -138,7 +172,10 @@ async fn the_listener_of_a_stream_gets_what_python_serves() {
     for scenario in golden()["scenarios"].as_array().unwrap() {
         let name = scenario["name"].as_str().unwrap();
         let world = World::new(data.clone());
-        world.streams.mp3.set_title(scenario["title"].as_str().unwrap_or(""));
+        world
+            .streams
+            .mp3
+            .set_title(scenario["title"].as_str().unwrap_or(""));
         for op in scenario["setup"].as_array().unwrap() {
             world.publish(op);
         }
@@ -153,16 +190,36 @@ async fn the_listener_of_a_stream_gets_what_python_serves() {
             for (key, value) in call["headers"].as_object().into_iter().flatten() {
                 request = request.header(key, value.as_str().unwrap());
             }
-            let response = world.app.clone().oneshot(request.body(Body::empty()).unwrap()).await.unwrap();
-            assert_eq!(u64::from(response.status().as_u16()), call["status"].as_u64().unwrap(), "{what}: status");
+            let response = world
+                .app
+                .clone()
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(
+                u64::from(response.status().as_u16()),
+                call["status"].as_u64().unwrap(),
+                "{what}: status"
+            );
             // the headers that Python sent, with its values, and no others of the kind
             let wanted = call["response_headers"].as_object().unwrap();
             for (key, want) in wanted {
                 let got = response.headers().get(key).and_then(|v| v.to_str().ok());
                 assert_eq!(got, want.as_str(), "{what}: the header {key}");
             }
-            for key in ["content-type", "cache-control", "icy-name", "icy-metaint", "access-control-allow-origin", "x-accel-buffering"] {
-                assert_eq!(response.headers().contains_key(key), wanted.contains_key(key), "{what}: the header {key} is there or not");
+            for key in [
+                "content-type",
+                "cache-control",
+                "icy-name",
+                "icy-metaint",
+                "access-control-allow-origin",
+                "x-accel-buffering",
+            ] {
+                assert_eq!(
+                    response.headers().contains_key(key),
+                    wanted.contains_key(key),
+                    "{what}: the header {key} is there or not"
+                );
             }
             let mut body = response.into_body();
             let reads = call["reads"].as_array().unwrap();
@@ -173,16 +230,26 @@ async fn the_listener_of_a_stream_gets_what_python_serves() {
             }
             for (n, (step, read_result)) in steps.iter().zip(reads).enumerate() {
                 match step {
-                    Some(op) if op.is_array() => world.feed.publish(frames_of(u(&op[0]), u(&op[1]))),
+                    Some(op) if op.is_array() => {
+                        world.feed.publish(frames_of(u(&op[0]), u(&op[1])))
+                    }
                     Some(op) => world.publish(op),
                     None => {}
                 }
                 let want_bytes = u(&read_result["bytes"]);
                 let got = read(&mut body, want_bytes).await;
                 assert_eq!(got.len(), want_bytes, "{what}: read {n}: bytes");
-                assert_eq!(sha1(&got), read_result["sha1"].as_str().unwrap(), "{what}: read {n}: sha1");
+                assert_eq!(
+                    sha1(&got),
+                    read_result["sha1"].as_str().unwrap(),
+                    "{what}: read {n}: sha1"
+                );
                 if let Some(text) = read_result["text"].as_str() {
-                    assert_eq!(String::from_utf8(got).unwrap(), text, "{what}: read {n}: the events");
+                    assert_eq!(
+                        String::from_utf8(got).unwrap(),
+                        text,
+                        "{what}: read {n}: the events"
+                    );
                 }
             }
         }
@@ -193,17 +260,44 @@ async fn the_listener_of_a_stream_gets_what_python_serves() {
 #[tokio::test]
 async fn what_is_not_served_is_not_found_as_in_python() {
     let golden = golden();
-    let streams = Streams { mp3: Broadcaster::new(Config::mp3()), flac: None, ogg: None };
-    let app = router(Api { radio: radio(), backends: None, streams, spectrum: None, starts: Arc::new(StartPositions::new()) });
+    let streams = Streams {
+        mp3: Broadcaster::new(Config::mp3()),
+        flac: None,
+        ogg: None,
+    };
+    let app = router(Api {
+        radio: radio(),
+        backends: None,
+        streams,
+        spectrum: None,
+        starts: Arc::new(StartPositions::new()),
+    });
     for absent in golden["absent"].as_array().unwrap() {
         let path = absent["path"].as_str().unwrap();
         // Without a radio the Python server has no API at all; here the radio is always there.
         if path == "/api/queue" {
             continue;
         }
-        let response = app.clone().oneshot(Request::builder().uri(path).body(Body::empty()).unwrap()).await.unwrap();
-        assert_eq!(u64::from(response.status().as_u16()), absent["status"].as_u64().unwrap(), "{path}");
-        let text = String::from_utf8(response.into_body().collect().await.unwrap().to_bytes().to_vec()).unwrap();
+        let response = app
+            .clone()
+            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(
+            u64::from(response.status().as_u16()),
+            absent["status"].as_u64().unwrap(),
+            "{path}"
+        );
+        let text = String::from_utf8(
+            response
+                .into_body()
+                .collect()
+                .await
+                .unwrap()
+                .to_bytes()
+                .to_vec(),
+        )
+        .unwrap();
         if path != "/" {
             assert_eq!(text, absent["text"].as_str().unwrap(), "{path}");
         }
@@ -218,11 +312,24 @@ async fn the_spectrum_waits_for_the_page_and_keeps_the_connection_alive() {
     world.feed.publish(frames_of(0, 10));
 
     // a page that never connects its stream: five seconds, then "position": null
-    let response = world.app.clone().oneshot(Request::builder().uri("/api/spectrum?l=ghost").body(Body::empty()).unwrap()).await.unwrap();
+    let response = world
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/spectrum?l=ghost")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
     let mut body = response.into_body();
     let started = tokio::time::Instant::now();
     let first = read(&mut body, 1).await;
-    assert_eq!(String::from_utf8(first).unwrap(), "event: start\ndata: {\"position\": null}\n\n");
+    assert_eq!(
+        String::from_utf8(first).unwrap(),
+        "event: start\ndata: {\"position\": null}\n\n"
+    );
     assert_eq!(started.elapsed(), Duration::from_secs(5));
 
     // then nothing for fifteen seconds: a comment to show the connection is alive
@@ -237,12 +344,36 @@ async fn the_spectrum_waits_for_the_page_and_keeps_the_connection_alive() {
         world.streams.mp3.set_fed(at as f64 / 40000.0);
         world.streams.mp3.publish(Bytes::from(vec![0u8; 4096]));
     }
-    let stream = world.app.clone().oneshot(Request::builder().uri("/stream?l=page").body(Body::empty()).unwrap()).await.unwrap();
+    let stream = world
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/stream?l=page")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
     let _stream_body = stream.into_body();
-    let response = world.app.clone().oneshot(Request::builder().uri("/api/spectrum?l=page").body(Body::empty()).unwrap()).await.unwrap();
+    let response = world
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/spectrum?l=page")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
     let mut body = response.into_body();
     let started = tokio::time::Instant::now();
     let first = read(&mut body, 1).await;
-    assert!(String::from_utf8(first).unwrap().starts_with("event: start\ndata: {\"position\": "));
+    assert!(
+        String::from_utf8(first)
+            .unwrap()
+            .starts_with("event: start\ndata: {\"position\": ")
+    );
     assert!(started.elapsed() < Duration::from_secs(1));
 }

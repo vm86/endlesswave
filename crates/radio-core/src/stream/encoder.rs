@@ -28,7 +28,16 @@ impl Format {
         match self {
             Self::Mp3 => &["-c:a", "libmp3lame", "-b:a", "320k", "-f", "mp3"],
             // 16 bit with a triangular dither: what the CD does with a finer mix.
-            Self::Flac => &["-af", "aresample=dither_method=triangular", "-sample_fmt", "s16", "-c:a", "flac", "-f", "flac"],
+            Self::Flac => &[
+                "-af",
+                "aresample=dither_method=triangular",
+                "-sample_fmt",
+                "s16",
+                "-c:a",
+                "flac",
+                "-f",
+                "flac",
+            ],
             // The same FLAC in Ogg pages, which are made as often as the muxer allows.
             Self::Ogg => &[
                 "-af",
@@ -82,7 +91,19 @@ impl FfmpegEncoder {
     /// Start ffmpeg and publish what it writes to `hub`.
     pub fn start(ffmpeg: &Path, format: Format, hub: Arc<Broadcaster>) -> io::Result<Self> {
         let mut child = Command::new(ffmpeg)
-            .args(["-nostdin", "-v", "error", "-f", "f32le", "-ac", &CHANNELS.to_string(), "-ar", &SAMPLE_RATE.to_string(), "-i", "pipe:0"])
+            .args([
+                "-nostdin",
+                "-v",
+                "error",
+                "-f",
+                "f32le",
+                "-ac",
+                &CHANNELS.to_string(),
+                "-ar",
+                &SAMPLE_RATE.to_string(),
+                "-i",
+                "pipe:0",
+            ])
             .args(format.output_args())
             .args(["-flush_packets", "1", "pipe:1"])
             .stdin(Stdio::piped())
@@ -92,7 +113,11 @@ impl FfmpegEncoder {
         let (Some(stdin), Some(stdout)) = (child.stdin.take(), child.stdout.take()) else {
             return Err(io::Error::other("ffmpeg has no pipes"));
         };
-        Ok(Self { child, stdin, forward: tokio::spawn(forward(stdout, hub)) })
+        Ok(Self {
+            child,
+            stdin,
+            forward: tokio::spawn(forward(stdout, hub)),
+        })
     }
 
     /// No more of the mix: let ffmpeg write the rest and end. Waits until it has.

@@ -26,11 +26,19 @@ fn skip(why: &str) -> bool {
 
 fn pcm() -> Option<Vec<f32>> {
     let bytes = fs::read(dir().join("pcm.f32")).ok()?;
-    Some(bytes.chunks_exact(4).map(|b| f32::from_le_bytes(b.try_into().unwrap())).collect())
+    Some(
+        bytes
+            .chunks_exact(4)
+            .map(|b| f32::from_le_bytes(b.try_into().unwrap()))
+            .collect(),
+    )
 }
 
 fn has_ffmpeg() -> bool {
-    std::process::Command::new(ffmpeg()).arg("-version").output().is_ok_and(|o| o.status.success())
+    std::process::Command::new(ffmpeg())
+        .arg("-version")
+        .output()
+        .is_ok_and(|o| o.status.success())
 }
 
 /// Run the mix through an encoder, in pieces of a quarter of a second like the radio makes them, and give the whole
@@ -48,12 +56,19 @@ async fn encode(format: Format, pcm: &[f32]) -> Vec<u8> {
         stream.extend_from_slice(&chunk);
     }
     // (a listener who was there before the header was known has it first now)
-    if stream.starts_with(&hub.header()) { stream } else { [hub.header(), stream].concat() }
+    if stream.starts_with(&hub.header()) {
+        stream
+    } else {
+        [hub.header(), stream].concat()
+    }
 }
 
 #[tokio::test]
 async fn mp3_and_flac_are_the_streams_python_makes() {
-    let Some(pcm) = pcm() else { skip("no mix, run tools/gen_golden.py"); return };
+    let Some(pcm) = pcm() else {
+        skip("no mix, run tools/gen_golden.py");
+        return;
+    };
     if !has_ffmpeg() {
         skip("no ffmpeg");
         return;
@@ -68,7 +83,10 @@ async fn mp3_and_flac_are_the_streams_python_makes() {
 
 #[tokio::test]
 async fn ogg_is_made_of_pages_as_python_makes_it() {
-    let Some(pcm) = pcm() else { skip("no mix, run tools/gen_golden.py"); return };
+    let Some(pcm) = pcm() else {
+        skip("no mix, run tools/gen_golden.py");
+        return;
+    };
     if !has_ffmpeg() {
         skip("no ffmpeg");
         return;
@@ -87,12 +105,18 @@ async fn ogg_is_made_of_pages_as_python_makes_it() {
         sizes
     };
     assert_eq!(pages(&got), pages(&want));
-    assert_eq!(frames::ogg_header_length(&got), frames::ogg_header_length(&want));
+    assert_eq!(
+        frames::ogg_header_length(&got),
+        frames::ogg_header_length(&want)
+    );
 }
 
 #[tokio::test]
 async fn a_listener_who_joins_gets_the_header_first_and_starts_on_a_frame() {
-    let Some(pcm) = pcm() else { skip("no mix, run tools/gen_golden.py"); return };
+    let Some(pcm) = pcm() else {
+        skip("no mix, run tools/gen_golden.py");
+        return;
+    };
     if !has_ffmpeg() {
         skip("no ffmpeg");
         return;

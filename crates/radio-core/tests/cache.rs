@@ -78,7 +78,10 @@ fn expected() -> Expected {
 fn copy_of(name: &str) -> Option<PathBuf> {
     let source = dir().join(name);
     if !source.exists() {
-        assert!(std::env::var_os("GOLDEN_REQUIRED").is_none(), "{name}: run tools/gen_golden.py");
+        assert!(
+            std::env::var_os("GOLDEN_REQUIRED").is_none(),
+            "{name}: run tools/gen_golden.py"
+        );
         eprintln!("{name}: not made, skipped");
         return None;
     }
@@ -98,42 +101,84 @@ fn map(pairs: Vec<(String, i64)>) -> BTreeMap<String, i64> {
 }
 
 fn same_stats(got: &radio_core::cache::TransitionStats, want: &Stats) {
-    assert_eq!((got.total, got.beat_matched), (want.total, want.beat_matched));
+    assert_eq!(
+        (got.total, got.beat_matched),
+        (want.total, want.beat_matched)
+    );
     // The counts are equal; of equal counts the order is up to SQLite.
     assert_eq!(map(got.by_type.clone()), want.by_type);
     assert_eq!(map(got.by_key.clone()), want.by_key);
     assert_eq!(map(got.by_effect.clone()), want.by_effect);
     let q = &got.by_quality;
-    assert_eq!((q.good, q.fair, q.poor, q.unknown), (want.by_quality.good, want.by_quality.fair, want.by_quality.poor, want.by_quality.unknown));
+    assert_eq!(
+        (q.good, q.fair, q.poor, q.unknown),
+        (
+            want.by_quality.good,
+            want.by_quality.fair,
+            want.by_quality.poor,
+            want.by_quality.unknown
+        )
+    );
     let counts: Vec<i64> = got.by_type.iter().map(|(_, n)| *n).collect();
-    assert!(counts.windows(2).all(|w| w[0] >= w[1]), "the most common first: {counts:?}");
+    assert!(
+        counts.windows(2).all(|w| w[0] >= w[1]),
+        "the most common first: {counts:?}"
+    );
 }
 
 #[test]
 fn a_cache_of_the_python_radio_reads_the_same() {
-    let Some(path) = copy_of("python.db") else { return };
+    let Some(path) = copy_of("python.db") else {
+        return;
+    };
     let want = expected().main;
     let cache = TrackCache::open(&path).unwrap();
 
     for a in &want.analyses {
-        let got = cache.get_analysis_by(&a.track_id, &a.codec, &want.key_detector, &want.loudness_meter);
+        let got = cache.get_analysis_by(
+            &a.track_id,
+            &a.codec,
+            &want.key_detector,
+            &want.loudness_meter,
+        );
         assert_eq!(got, a.analysis, "analysis of {} {}", a.track_id, a.codec);
-        assert_eq!(cache.get_genre(&a.track_id, &a.codec), a.genre, "genre of {} {}", a.track_id, a.codec);
+        assert_eq!(
+            cache.get_genre(&a.track_id, &a.codec),
+            a.genre,
+            "genre of {} {}",
+            a.track_id,
+            a.codec
+        );
         // Made by another detector than this build has: the track is analyzed again, as Python does.
         if want.key_detector != radio_core::mix::key_detector() {
             assert_eq!(cache.get_analysis(&a.track_id, &a.codec), None);
         }
     }
-    assert!(want.analyses.iter().any(|a| a.analysis.is_none()) && want.analyses.iter().any(|a| a.analysis.is_some()));
+    assert!(
+        want.analyses.iter().any(|a| a.analysis.is_none())
+            && want.analyses.iter().any(|a| a.analysis.is_some())
+    );
     for (key, value) in &want.settings {
-        assert_eq!(cache.get_setting(key).unwrap_or(Value::Null), *value, "setting {key}");
+        assert_eq!(
+            cache.get_setting(key).unwrap_or(Value::Null),
+            *value,
+            "setting {key}"
+        );
     }
     same_stats(&cache.transition_stats().unwrap(), &want.stats);
     assert_eq!(cache.key_pairs().unwrap(), want.key_pairs);
     assert_eq!(cache.known_genres().unwrap(), want.known_genres);
     for (limit, ids) in &want.recently_played {
-        let got: BTreeSet<String> = cache.recently_played(limit.parse().unwrap()).unwrap().into_iter().collect();
-        assert_eq!(got, ids.iter().cloned().collect::<BTreeSet<_>>(), "played, limit {limit}");
+        let got: BTreeSet<String> = cache
+            .recently_played(limit.parse().unwrap())
+            .unwrap()
+            .into_iter()
+            .collect();
+        assert_eq!(
+            got,
+            ids.iter().cloned().collect::<BTreeSet<_>>(),
+            "played, limit {limit}"
+        );
     }
 }
 
@@ -144,25 +189,46 @@ fn the_oldest_rows_go_first_as_in_python() {
     let path = scratch("rust-prune.db");
     let _ = fs::remove_file(&path);
     let cache = TrackCache::open(&path).unwrap().with_max_rows(5);
-    let analysis = TrackAnalysis { bpm: 120.0, head_beat: 1.0, tail_beat: 2.0, start: 0, end: 10, loudness_db: -10.0, intro_end: -1, outro_start: -1, key: 3 };
+    let analysis = TrackAnalysis {
+        bpm: 120.0,
+        head_beat: 1.0,
+        tail_beat: 2.0,
+        start: 0,
+        end: 10,
+        loudness_db: -10.0,
+        intro_end: -1,
+        outro_start: -1,
+        key: 3,
+    };
     for i in 0..9 {
-        cache.put_analysis(&format!("p:{i}"), "mp3", "P", &analysis, "").unwrap();
+        cache
+            .put_analysis(&format!("p:{i}"), "mp3", "P", &analysis, "")
+            .unwrap();
         // the clock of SQLite rows is a float of seconds: let it tick
         std::thread::sleep(std::time::Duration::from_millis(2));
     }
-    let kept: Vec<String> = (0..9).map(|i| format!("p:{i}")).filter(|id| cache.get_genre(id, "mp3").is_some()).collect();
+    let kept: Vec<String> = (0..9)
+        .map(|i| format!("p:{i}"))
+        .filter(|id| cache.get_genre(id, "mp3").is_some())
+        .collect();
     assert_eq!(kept, want);
 }
 
 #[test]
 fn a_cache_of_the_first_version_gets_the_columns_it_lacks() {
-    let Some(path) = copy_of("old.db") else { return };
+    let Some(path) = copy_of("old.db") else {
+        return;
+    };
     let want = expected().old;
     let cache = TrackCache::open(&path).unwrap();
     let columns = |table: &str| -> Vec<String> {
         let db = rusqlite::Connection::open(&path).unwrap();
         let mut statement = db.prepare(&format!("PRAGMA table_info({table})")).unwrap();
-        statement.query_map([], |row| row.get(1)).unwrap().map(Result::unwrap).collect()
+        statement
+            .query_map([], |row| row.get(1))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect()
     };
     assert_eq!(columns("tracks"), want.tracks);
     assert_eq!(columns("transitions"), want.transitions);
@@ -187,7 +253,10 @@ fn sample(i: usize) -> TrackAnalysis {
 
 #[test]
 fn a_cache_that_rust_wrote_is_read_by_the_python_radio() {
-    let (Some(radio), Some(python)) = (std::env::var_os("YAMUSIC_RADIO"), std::env::var_os("RADIO_PYTHON")) else {
+    let (Some(radio), Some(python)) = (
+        std::env::var_os("YAMUSIC_RADIO"),
+        std::env::var_os("RADIO_PYTHON"),
+    ) else {
         eprintln!("YAMUSIC_RADIO and RADIO_PYTHON are not set: skipped");
         return;
     };
@@ -196,9 +265,29 @@ fn a_cache_that_rust_wrote_is_read_by_the_python_radio() {
     let cache = TrackCache::open(&path).unwrap();
     // As the Python radio with Essentia made them, so that it takes them.
     for i in 0..10 {
-        cache.put_analysis_by(&format!("r:{i}"), "mp3", &format!("Song {i}"), &sample(i), ["house", "", "techno"][i % 3], "essentia", "ebu r128").unwrap();
+        cache
+            .put_analysis_by(
+                &format!("r:{i}"),
+                "mp3",
+                &format!("Song {i}"),
+                &sample(i),
+                ["house", "", "techno"][i % 3],
+                "essentia",
+                "ebu r128",
+            )
+            .unwrap();
     }
-    cache.put_analysis_by("r:0", "flac", "Song 0", &sample(0), "dub", "chroma profiles", "ebu r128").unwrap();
+    cache
+        .put_analysis_by(
+            "r:0",
+            "flac",
+            "Song 0",
+            &sample(0),
+            "dub",
+            "chroma profiles",
+            "ebu r128",
+        )
+        .unwrap();
     cache.set_genre("r:2", "mp3", "электро").unwrap();
     for i in [4, 1, 7] {
         cache.mark_played(&format!("r:{i}"), "mp3").unwrap();
@@ -224,28 +313,68 @@ fn a_cache_that_rust_wrote_is_read_by_the_python_radio() {
     }
     drop(cache);
 
-    let output = Command::new(python).args(["-I", "tools/check_cache.py"]).arg(&path).env("YAMUSIC_RADIO", radio).current_dir(env!("CARGO_MANIFEST_DIR")).output().unwrap();
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let output = Command::new(python)
+        .args(["-I", "tools/check_cache.py"])
+        .arg(&path)
+        .env("YAMUSIC_RADIO", radio)
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let seen: Value = serde_json::from_slice(&output.stdout).unwrap();
 
     for a in seen["analyses"].as_array().unwrap() {
-        let (id, codec) = (a["track_id"].as_str().unwrap(), a["codec"].as_str().unwrap());
+        let (id, codec) = (
+            a["track_id"].as_str().unwrap(),
+            a["codec"].as_str().unwrap(),
+        );
         let i: usize = id[2..].parse().unwrap();
         // r:3 has no key: Python (with Essentia) makes it again; r:0 flac was written by another detector.
         let analysed = !(i == 3 || codec == "flac");
-        let want = if analysed { serde_json::to_value(sample(i)).unwrap() } else { Value::Null };
+        let want = if analysed {
+            serde_json::to_value(sample(i)).unwrap()
+        } else {
+            Value::Null
+        };
         assert_eq!(a["analysis"], want, "{id} {codec}");
     }
-    let genre = |id: &str, codec: &str| seen["analyses"].as_array().unwrap().iter().find(|a| a["track_id"] == id && a["codec"] == codec).unwrap()["genre"].clone();
+    let genre = |id: &str, codec: &str| {
+        seen["analyses"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["track_id"] == id && a["codec"] == codec)
+            .unwrap()["genre"]
+            .clone()
+    };
     assert_eq!(genre("r:2", "mp3"), "электро");
     assert_eq!(genre("r:0", "flac"), "dub");
-    assert_eq!(seen["settings"], json!({"moods": ["calm", "fun"], "text": "тест ✓", "gone": null}));
+    assert_eq!(
+        seen["settings"],
+        json!({"moods": ["calm", "fun"], "text": "тест ✓", "gone": null})
+    );
     assert_eq!(seen["stats"]["total"], 12);
     assert_eq!(seen["stats"]["beat_matched"], 6);
-    assert_eq!(seen["stats"]["by_effect"], json!({"none": 4, "drop": 4, "echo": 4}));
-    assert_eq!(seen["stats"]["by_quality"], json!({"good": 3, "fair": 3, "poor": 3, "unknown": 3}));
+    assert_eq!(
+        seen["stats"]["by_effect"],
+        json!({"none": 4, "drop": 4, "echo": 4})
+    );
+    assert_eq!(
+        seen["stats"]["by_quality"],
+        json!({"good": 3, "fair": 3, "poor": 3, "unknown": 3})
+    );
     assert_eq!(seen["recently_played"], json!(["r:1", "r:4", "r:7"]));
-    let rust_pairs: Vec<Value> = TrackCache::open(&path).unwrap().key_pairs().unwrap().into_iter().map(|(a, b, n)| json!([a, b, n])).collect();
+    let rust_pairs: Vec<Value> = TrackCache::open(&path)
+        .unwrap()
+        .key_pairs()
+        .unwrap()
+        .into_iter()
+        .map(|(a, b, n)| json!([a, b, n]))
+        .collect();
     assert_eq!(Value::Array(rust_pairs), seen["key_pairs"]);
     let _: &Path = &path;
 }

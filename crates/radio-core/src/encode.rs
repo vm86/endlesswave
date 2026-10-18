@@ -51,7 +51,10 @@ pub struct Options {
 
 impl Default for Options {
     fn default() -> Self {
-        Self { pacing_lead: PACING_LEAD_SECONDS, restart: Duration::from_secs_f64(RESTART_SECONDS) }
+        Self {
+            pacing_lead: PACING_LEAD_SECONDS,
+            restart: Duration::from_secs_f64(RESTART_SECONDS),
+        }
     }
 }
 
@@ -142,7 +145,8 @@ impl<E: Encoder + Send> PieceSink for Sink<E> {
             }
         }
         state.produced += (piece.pcm.len() / CHANNELS) as f64 / f64::from(SAMPLE_RATE);
-        let ahead = state.produced - (self.clock.monotonic() - state.started) - self.options.pacing_lead;
+        let ahead =
+            state.produced - (self.clock.monotonic() - state.started) - self.options.pacing_lead;
         drop(state);
         if ahead > 0.0 {
             tokio::time::sleep(Duration::from_secs_f64(ahead)).await;
@@ -194,10 +198,18 @@ where
         hubs,
         spectrum,
         options,
-        state: Mutex::new(State { encoders, analyzer: SpectrumAnalyzer::new(), started: clock.monotonic(), produced: 0.0, failure: None }),
+        state: Mutex::new(State {
+            encoders,
+            analyzer: SpectrumAnalyzer::new(),
+            started: clock.monotonic(),
+            produced: 0.0,
+            failure: None,
+        }),
     };
     let ended = mix(radio, clock, effects_level, noise, &sink).await;
-    let State { encoders, failure, .. } = sink.state.into_inner();
+    let State {
+        encoders, failure, ..
+    } = sink.state.into_inner();
     for encoder in encoders {
         encoder.stop().await;
     }
@@ -239,7 +251,10 @@ pub async fn encode_forever<E, F>(
         match ended {
             Ok(()) => return,
             Err(error) => {
-                tracing::error!("{error}, starting it again in {} s", options.restart.as_secs_f64());
+                tracing::error!(
+                    "{error}, starting it again in {} s",
+                    options.restart.as_secs_f64()
+                );
                 tokio::time::sleep(options.restart).await;
             }
         }

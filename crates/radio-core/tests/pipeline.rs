@@ -66,7 +66,11 @@ fn deck(case: &DeckCase) -> Deck {
 }
 
 fn same(got: BlendPlan, want: &Plan, what: &str) {
-    assert_eq!((got.start, got.following_start, got.length), (want.start, want.following_start, want.length), "{what}");
+    assert_eq!(
+        (got.start, got.following_start, got.length),
+        (want.start, want.following_start, want.length),
+        "{what}"
+    );
     assert_eq!(got.speed, want.speed, "{what}: speed");
 }
 
@@ -84,21 +88,38 @@ fn the_plans_are_where_python_makes_them() {
         match (&got_early, &case.early) {
             (Some(got), Some(want)) => same(*got, want, &format!("{what}: early")),
             (None, None) => refused += 1,
-            (got, want) => panic!("{what}: early {got:?} against {:?}", want.as_ref().map(|w| (w.start, w.length))),
+            (got, want) => panic!(
+                "{what}: early {got:?} against {:?}",
+                want.as_ref().map(|w| (w.start, w.length))
+            ),
         }
         early += usize::from(got_early.is_some());
 
         let planned = plan_blend(&current, &mut following, case.position);
         same(planned, &case.plan, &what);
-        assert_eq!(following.beat_matched, case.matched_after, "{what}: beat matched after");
+        assert_eq!(
+            following.beat_matched, case.matched_after,
+            "{what}: beat matched after"
+        );
         empty += usize::from(planned.length == 0);
         unmatched += usize::from(case.following.beat_matched && !following.beat_matched);
 
-        assert_eq!(beat_period(&current, &following, case.grid.as_deref()), case.beat_period, "{what}: beat period");
-        assert_eq!(followed_until(&planned, &following), case.followed_until, "{what}: followed until");
+        assert_eq!(
+            beat_period(&current, &following, case.grid.as_deref()),
+            case.beat_period,
+            "{what}: beat period"
+        );
+        assert_eq!(
+            followed_until(&planned, &following),
+            case.followed_until,
+            "{what}: followed until"
+        );
     }
     // The cases must be of every kind, or the test says little.
-    assert!(early > 100 && refused > 5 && empty > 0 && unmatched > 0, "early {early}, refused {refused}, empty {empty}, unmatched {unmatched}");
+    assert!(
+        early > 100 && refused > 5 && empty > 0 && unmatched > 0,
+        "early {early}, refused {refused}, empty {empty}, unmatched {unmatched}"
+    );
 }
 
 #[test]

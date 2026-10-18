@@ -21,7 +21,9 @@ pub struct SystemClock {
 impl SystemClock {
     /// Must be made inside a tokio runtime when the time is to be paused (an `Instant` needs the clock of one).
     pub fn new() -> Self {
-        Self { start: tokio::time::Instant::now() }
+        Self {
+            start: tokio::time::Instant::now(),
+        }
     }
 }
 
@@ -37,7 +39,9 @@ impl Clock for SystemClock {
     }
 
     fn wall(&self) -> f64 {
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64())
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0.0, |d| d.as_secs_f64())
     }
 }
 
@@ -49,7 +53,9 @@ pub struct ManualClock {
 
 impl ManualClock {
     pub fn new(start: f64) -> Self {
-        Self { now: Mutex::new(start) }
+        Self {
+            now: Mutex::new(start),
+        }
     }
 
     pub fn advance(&self, seconds: f64) {

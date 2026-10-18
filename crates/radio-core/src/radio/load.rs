@@ -3,14 +3,12 @@
 //! `_replay_oldest`, `_mark_played`, `next_deck`, `_unpick`, `_restart_next`.
 
 use super::{
-    Candidate, EXTRA_TRACKS, MAX_EMPTY_BATCHES, MAX_EXTRA_TRACKS, MAX_OFF_GENRE_BATCHES, MAX_PLAYED_REMEMBERED,
-    Played, REPLENISH_RETRY_SECONDS, Radio,
+    Candidate, EXTRA_TRACKS, MAX_EMPTY_BATCHES, MAX_EXTRA_TRACKS, MAX_OFF_GENRE_BATCHES,
+    MAX_PLAYED_REMEMBERED, Played, REPLENISH_RETRY_SECONDS, Radio,
 };
 use crate::{
     backend::{BackendError, Track},
-    mix::{
-        self, TrackAnalysis, choose, decode, plan,
-    },
+    mix::{self, TrackAnalysis, choose, decode, plan},
     pipeline::{Deck, DeckError},
 };
 use std::{collections::HashSet, path::PathBuf, time::Duration};
@@ -37,13 +35,21 @@ impl Radio {
     pub(crate) async fn set_mood(&self, mood: &str) -> Result<(), BackendError> {
         let (saved, current, language) = {
             let state = self.st();
-            (state.saved_settings.clone(), state.mood.clone(), state.language.clone())
+            (
+                state.saved_settings.clone(),
+                state.mood.clone(),
+                state.language.clone(),
+            )
         };
-        let Some((_, diversity, _)) = saved else { return Ok(()) };
+        let Some((_, diversity, _)) = saved else {
+            return Ok(());
+        };
         if mood == current {
             return Ok(());
         }
-        self.backend.set_station_settings(&self.station_id(), mood, &diversity, &language).await?;
+        self.backend
+            .set_station_settings(&self.station_id(), mood, &diversity, &language)
+            .await?;
         self.st().mood = mood.to_owned();
         Ok(())
     }
@@ -51,7 +57,12 @@ impl Radio {
     /// Download and analyze `count` tracks the radio hasn't had yet. Returns how many were added: 0 when the station only
     /// repeats tracks that were already seen. With `if_empty`, nothing is loaded if somebody else has filled the pool in
     /// the meantime.
-    pub(crate) async fn load(&self, count: usize, if_empty: bool, mood: &str) -> Result<usize, BackendError> {
+    pub(crate) async fn load(
+        &self,
+        count: usize,
+        if_empty: bool,
+        mood: &str,
+    ) -> Result<usize, BackendError> {
         let _guard = self.load_lock.lock().await;
         self.drop_unwanted();
         if if_empty && !self.st().pool.is_empty() {
@@ -61,14 +72,19 @@ impl Radio {
         let (mut empty_batches, mut off_genre_batches, mut off_mood_batches) = (0, 0, 0);
         let steer = {
             let state = self.st();
-            self.backend.supports_moods() && (self.config.mood_arc || !state.allowed_moods.is_empty())
+            self.backend.supports_moods()
+                && (self.config.mood_arc || !state.allowed_moods.is_empty())
         };
         if steer {
             // Tracks loaded now are played about when the pool has been worked through: aim for the mood wanted then, as
             // far as the moods allowed go.
             let wanted = {
                 let state = self.st();
-                let mood = if mood.is_empty() { choose::mood_for(state.position + state.pool.len() as i64) } else { mood };
+                let mood = if mood.is_empty() {
+                    choose::mood_for(state.position + state.pool.len() as i64)
+                } else {
+                    mood
+                };
                 let allowed: Vec<&str> = state.allowed_moods.iter().map(String::as_str).collect();
                 choose::nearest_mood(mood, &allowed).to_owned()
             };
@@ -83,14 +99,28 @@ impl Radio {
                 let state = self.st();
                 state.seen.union(&state.off_genre).cloned().collect()
             };
-            let batch = self.backend.station_batch(&self.station_id(), &exclude).await?;
+            let batch = self
+                .backend
+                .station_batch(&self.station_id(), &exclude)
+                .await?;
             let (fresh, wanted_genre) = {
                 let mut state = self.st();
-                let fresh: Vec<Track> =
-                    batch.into_iter().filter(|t| !state.seen.contains(&t.track_id) && !state.off_genre.contains(&t.track_id)).collect();
-                let wanted_genre: Vec<Track> = fresh.iter().filter(|t| Self::genre_allowed(&state, &t.genre)).cloned().collect();
-                let off: Vec<String> =
-                    fresh.iter().filter(|t| !wanted_genre.iter().any(|w| w == *t)).map(|t| t.track_id.clone()).collect();
+                let fresh: Vec<Track> = batch
+                    .into_iter()
+                    .filter(|t| {
+                        !state.seen.contains(&t.track_id) && !state.off_genre.contains(&t.track_id)
+                    })
+                    .collect();
+                let wanted_genre: Vec<Track> = fresh
+                    .iter()
+                    .filter(|t| Self::genre_allowed(&state, &t.genre))
+                    .cloned()
+                    .collect();
+                let off: Vec<String> = fresh
+                    .iter()
+                    .filter(|t| !wanted_genre.iter().any(|w| w == *t))
+                    .map(|t| t.track_id.clone())
+                    .collect();
                 state.off_genre.extend(off);
                 (fresh, wanted_genre)
             };
@@ -108,7 +138,8 @@ impl Radio {
                 state.seen.extend(fresh.iter().map(|t| t.track_id.clone()));
                 (state.pool.len(), state.off_mood)
             };
-            futures_util::future::join_all(fresh.into_iter().map(|track| self.prepare(track))).await;
+            futures_util::future::join_all(fresh.into_iter().map(|track| self.prepare(track)))
+                .await;
             let (now, off_mood) = {
                 let state = self.st();
                 (state.pool.len(), state.off_mood)
@@ -136,7 +167,8 @@ impl Radio {
         let size = size.unwrap_or(self.config.pool_size);
         while self.st().pool.len() < size {
             let mut wanted = size - self.st().pool.len();
-            let steered = self.backend.supports_moods() && (self.config.mood_arc || !self.st().allowed_moods.is_empty());
+            let steered = self.backend.supports_moods()
+                && (self.config.mood_arc || !self.st().allowed_moods.is_empty());
             if steered {
                 // A few at a time: each round has its own mood.
                 wanted = wanted.min(EXTRA_TRACKS);
@@ -171,24 +203,45 @@ impl Radio {
 
     /// Download one track, analyze it (or take its analysis from the cache) and put it in the pool.
     pub(crate) async fn prepare(&self, track: Track) {
-        let slot = self.slots.acquire().await.expect("the semaphore is never closed");
+        let slot = self
+            .slots
+            .acquire()
+            .await
+            .expect("the semaphore is never closed");
         let title = format!("{} - {}", track.artists.join(", "), track.title);
-        let path = self.workdir.join(format!("{}.{}", track.track_id, track.codec));
+        let path = self
+            .workdir
+            .join(format!("{}.{}", track.track_id, track.codec));
         let made: Result<(TrackAnalysis, String), String> = async {
-            self.backend.download(&track, &path).await.map_err(|e| e.to_string())?;
+            self.backend
+                .download(&track, &path)
+                .await
+                .map_err(|e| e.to_string())?;
             let analysis = match self.cached_analysis(&track) {
                 Some(analysis) => analysis,
                 None => {
                     // One at a time: it takes a few times the track in memory.
-                    let _turn = self.analyzing.acquire().await.expect("the semaphore is never closed");
-                    let pcm = decode::decode_file_async(&self.config.ffmpeg, &path).await.map_err(|e| e.to_string())?;
-                    let analysis = tokio::task::spawn_blocking(move || mix::analyze(&pcm)).await.map_err(|e| e.to_string())?;
+                    let _turn = self
+                        .analyzing
+                        .acquire()
+                        .await
+                        .expect("the semaphore is never closed");
+                    let pcm = decode::decode_file_async(&self.config.ffmpeg, &path)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    let analysis = tokio::task::spawn_blocking(move || mix::analyze(&pcm))
+                        .await
+                        .map_err(|e| e.to_string())?;
                     self.store_analysis(&track, &title, &analysis);
                     analysis
                 }
             };
             self.store_genre(&track);
-            let mood = if track.mood.is_empty() { choose::mood_of(&analysis).to_owned() } else { track.mood.clone() };
+            let mood = if track.mood.is_empty() {
+                choose::mood_of(&analysis).to_owned()
+            } else {
+                track.mood.clone()
+            };
             Ok((analysis, mood))
         }
         .await;
@@ -211,7 +264,15 @@ impl Radio {
             "Ready: {title} ({:.1} BPM, {:.1} dB, key {})",
             analysis.bpm,
             analysis.loudness_db,
-            if analysis.key >= 0 { format!("{} {}", mix::key::camelot_code(analysis.key), mix::key::key_name(analysis.key)) } else { "?".to_owned() }
+            if analysis.key >= 0 {
+                format!(
+                    "{} {}",
+                    mix::key::camelot_code(analysis.key),
+                    mix::key::key_name(analysis.key)
+                )
+            } else {
+                "?".to_owned()
+            }
         );
         let genre = track.genre.clone();
         self.st().pool.push(Candidate {
@@ -232,7 +293,8 @@ impl Radio {
 
     fn store_analysis(&self, track: &Track, title: &str, analysis: &TrackAnalysis) {
         if let Some(cache) = self.cache() {
-            let _ = cache.put_analysis(&track.track_id, &track.codec, title, analysis, &track.genre);
+            let _ =
+                cache.put_analysis(&track.track_id, &track.codec, title, analysis, &track.genre);
         }
     }
 
@@ -248,8 +310,15 @@ impl Radio {
     /// The best next track of the pool and what its transition costs.
     fn choose_from_pool(&self, current: Option<&TrackAnalysis>) -> (usize, f64) {
         let state = self.st();
-        let entries: Vec<choose::Entry> =
-            state.pool.iter().map(|c| choose::Entry { analysis: c.analysis.clone(), artists: c.artists.clone(), mood: c.mood.clone() }).collect();
+        let entries: Vec<choose::Entry> = state
+            .pool
+            .iter()
+            .map(|c| choose::Entry {
+                analysis: c.analysis.clone(),
+                artists: c.artists.clone(),
+                mood: c.mood.clone(),
+            })
+            .collect();
         let history: Vec<HashSet<String>> = state.history.iter().cloned().collect();
         let index = choose::choose_next(current, &entries, &history, state.position);
         let cost = choose::step_cost(current, &entries[index], &history, state.position);
@@ -258,12 +327,18 @@ impl Radio {
 
     /// Take the track to play next out of the pool. If nothing in the pool fits, a few more tracks are loaded to choose
     /// from. If the station has nothing new at all, the track that was played the longest ago is played again.
-    pub(crate) async fn pick(&self, current: Option<&TrackAnalysis>) -> Result<Candidate, DeckError> {
+    pub(crate) async fn pick(
+        &self,
+        current: Option<&TrackAnalysis>,
+    ) -> Result<Candidate, DeckError> {
         let mut extra = 0;
         let index = loop {
             self.drop_unwanted();
             if self.st().pool.is_empty() {
-                let loaded = self.load(EXTRA_TRACKS, true, "").await.map_err(|e| DeckError(e.to_string()))?;
+                let loaded = self
+                    .load(EXTRA_TRACKS, true, "")
+                    .await
+                    .map_err(|e| DeckError(e.to_string()))?;
                 if loaded == 0 {
                     return self.replay_oldest().await;
                 }
@@ -281,7 +356,10 @@ impl Radio {
             }
             let (title, mood) = {
                 let state = self.st();
-                (state.pool[index].title.clone(), choose::mood_for(state.position))
+                (
+                    state.pool[index].title.clone(),
+                    choose::mood_for(state.position),
+                )
             };
             tracing::info!("Nothing fits well (best: {title}, cost {cost:.1}), loading more");
             let added = self
@@ -305,14 +383,21 @@ impl Radio {
 
     /// Download again the track that was played the longest ago.
     async fn replay_oldest(&self) -> Result<Candidate, DeckError> {
-        let played: Vec<(String, Played)> = self.st().played.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+        let played: Vec<(String, Played)> = self
+            .st()
+            .played
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
         let playing = self.st().playing_id.clone();
         let played_all = &played;
         for (track_id, played) in played_all {
             if *track_id == playing && played_all.len() > 1 {
                 continue;
             }
-            let path = self.workdir.join(format!("{track_id}-again.{}", played.track.codec));
+            let path = self
+                .workdir
+                .join(format!("{track_id}-again.{}", played.track.codec));
             if let Err(error) = self.backend.download(&played.track, &path).await {
                 tracing::error!("Cannot repeat {}: {error}", played.title);
                 let _ = std::fs::remove_file(&path);
@@ -339,14 +424,21 @@ impl Radio {
             state.history.pop_front();
         }
         state.position += 1;
-        let Some(track) = &candidate.track else { return };
+        let Some(track) = &candidate.track else {
+            return;
+        };
         state.playing_id = track.track_id.clone();
         drop(state);
         if let Some(cache) = self.cache() {
             let _ = cache.mark_played(&track.track_id, &track.codec);
         }
         let mut state = self.st();
-        let played = Played { track: track.clone(), title: candidate.title.clone(), analysis: candidate.analysis.clone(), artists: candidate.artists.clone() };
+        let played = Played {
+            track: track.clone(),
+            title: candidate.title.clone(),
+            analysis: candidate.analysis.clone(),
+            artists: candidate.artists.clone(),
+        };
         // move_to_end: a track played again is the newest.
         state.played.shift_remove(&track.track_id);
         state.played.insert(track.track_id.clone(), played);
@@ -365,7 +457,9 @@ impl Radio {
 
             let speed = current.map_or(0.0, |c| plan::transition_speed(c.bpm, &candidate.analysis));
             let mut guard = UnlinkOnDrop(Some(candidate.path.clone()));
-            let pcm = decode::decode_file_async(&self.config.ffmpeg, &candidate.path).await.map_err(|e| DeckError(e.to_string()))?;
+            let pcm = decode::decode_file_async(&self.config.ffmpeg, &candidate.path)
+                .await
+                .map_err(|e| DeckError(e.to_string()))?;
             guard.disarm();
             let deck = Deck {
                 title: candidate.title.as_str().into(),
@@ -387,8 +481,16 @@ impl Radio {
                 "Next: {} ({:.1} BPM, key {}{})",
                 deck.title,
                 deck.analysis.bpm,
-                if deck.analysis.key >= 0 { mix::key::camelot_code(deck.analysis.key) } else { "?".to_owned() },
-                if speed != 0.0 { format!(", tempo glides by {:.1}%", (speed - 1.0).abs() * 100.0) } else { String::new() }
+                if deck.analysis.key >= 0 {
+                    mix::key::camelot_code(deck.analysis.key)
+                } else {
+                    "?".to_owned()
+                },
+                if speed != 0.0 {
+                    format!(", tempo glides by {:.1}%", (speed - 1.0).abs() * 100.0)
+                } else {
+                    String::new()
+                }
             );
             self.st().next = Some(deck.clone());
             self.save_playlist();
@@ -406,7 +508,11 @@ impl Radio {
         state.position = (state.position - 1).max(0);
         if let Some(track) = &source.track {
             state.played.shift_remove(&track.track_id);
-            state.playing_id = state.now.as_ref().and_then(|d| d.track.as_ref()).map_or_else(String::new, |t| t.track_id.clone());
+            state.playing_id = state
+                .now
+                .as_ref()
+                .and_then(|d| d.track.as_ref())
+                .map_or_else(String::new, |t| t.track_id.clone());
         }
         if source.path.exists() {
             state.pool.push(source.clone());
@@ -431,6 +537,11 @@ impl Radio {
     /// The index in the pool of the first track that was put in place by hand.
     pub(crate) fn first_pinned(&self) -> Option<usize> {
         let state = self.st();
-        state.order.iter().find_map(|id| state.pool.iter().position(|c| c.track.as_ref().is_some_and(|t| &t.track_id == id)))
+        state.order.iter().find_map(|id| {
+            state
+                .pool
+                .iter()
+                .position(|c| c.track.as_ref().is_some_and(|t| &t.track_id == id))
+        })
     }
 }

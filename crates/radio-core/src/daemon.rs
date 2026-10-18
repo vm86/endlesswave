@@ -42,11 +42,19 @@ fn absolute(value: &str) -> PathBuf {
         None if value == "~" => home(),
         None => PathBuf::from(value),
     };
-    std::fs::canonicalize(&expanded).unwrap_or_else(|_| if expanded.is_absolute() { expanded } else { std::env::current_dir().unwrap_or_default().join(expanded) })
+    std::fs::canonicalize(&expanded).unwrap_or_else(|_| {
+        if expanded.is_absolute() {
+            expanded
+        } else {
+            std::env::current_dir().unwrap_or_default().join(expanded)
+        }
+    })
 }
 
 #[derive(Parser, Debug, Clone)]
-#[command(about = "DJ radio: take tracks from Yandex Music and/or a local folder, beat-match them into one endless mix and stream it as MP3, FLAC and Ogg over HTTP (needs ffmpeg)")]
+#[command(
+    about = "DJ radio: take tracks from Yandex Music and/or a local folder, beat-match them into one endless mix and stream it as MP3, FLAC and Ogg over HTTP (needs ffmpeg)"
+)]
 pub struct Options {
     /// Enable debugging output
     #[arg(long)]
@@ -107,37 +115,59 @@ pub struct Options {
 type SharedCache = Arc<Mutex<TrackCache>>;
 
 fn saved_directory(cache: Option<&SharedCache>) -> Option<PathBuf> {
-    let saved = cache?.lock().expect("not poisoned").get_setting(SETTING_LOCAL_DIRECTORY);
+    let saved = cache?
+        .lock()
+        .expect("not poisoned")
+        .get_setting(SETTING_LOCAL_DIRECTORY);
     saved.and_then(|v| v.as_str().filter(|s| !s.is_empty()).map(PathBuf::from))
 }
 
 /// List the music services the radio can take its tracks from. The one place to change to play from another service: add
 /// a `BackendSpec` that makes any `MusicBackend`.
-pub fn backend_specs(options: &Options, cache: Option<&SharedCache>, clock: Arc<dyn Clock>) -> Vec<BackendSpec> {
+pub fn backend_specs(
+    options: &Options,
+    cache: Option<&SharedCache>,
+    clock: Arc<dyn Clock>,
+) -> Vec<BackendSpec> {
     let directory = options.local_dir.clone().or_else(|| saved_directory(cache));
     let config = options.config.clone();
     let yandex_clock = clock.clone();
     let shown = directory.clone();
     let remember = cache.cloned();
+    let ffmpeg = options.ffmpeg.clone();
     vec![
         BackendSpec::new("yandex", "Yandex Music", {
             let config = config.clone();
             move || {
-                YandexBackend::new(config.clone(), YandexOptions::default(), yandex_clock.clone()).expect("the settings file of the Yandex backend can be read") as Arc<dyn MusicBackend>
+                YandexBackend::new(
+                    config.clone(),
+                    YandexOptions::default(),
+                    yandex_clock.clone(),
+                )
+                .expect("the settings file of the Yandex backend can be read")
+                    as Arc<dyn MusicBackend>
             }
         })
         .configured(move || yandex::has_token(&config)),
         BackendSpec::new("local", "Local folder", {
             let directory = directory.clone();
             move || {
-                let on_directory: Option<Box<dyn Fn(&str) + Send + Sync>> = remember.clone().map(|cache| {
-                    Box::new(move |chosen: &str| {
-                        if let Err(error) = cache.lock().expect("not poisoned").put_setting(SETTING_LOCAL_DIRECTORY, &json!(chosen)) {
-                            tracing::error!("Could not keep the folder: {error}");
-                        }
-                    }) as Box<dyn Fn(&str) + Send + Sync>
-                });
-                Arc::new(LocalBackend::new(directory.clone(), on_directory, clock.clone())) as Arc<dyn MusicBackend>
+                let on_directory: Option<Box<dyn Fn(&str) + Send + Sync>> =
+                    remember.clone().map(|cache| {
+                        Box::new(move |chosen: &str| {
+                            if let Err(error) = cache
+                                .lock()
+                                .expect("not poisoned")
+                                .put_setting(SETTING_LOCAL_DIRECTORY, &json!(chosen))
+                            {
+                                tracing::error!("Could not keep the folder: {error}");
+                            }
+                        }) as Box<dyn Fn(&str) + Send + Sync>
+                    });
+                Arc::new(
+                    LocalBackend::new(directory.clone(), on_directory, clock.clone())
+                        .with_ffmpeg(ffmpeg.clone()),
+                ) as Arc<dyn MusicBackend>
             }
         })
         .configured(move || shown.as_deref().is_some_and(Path::is_dir)),
@@ -148,7 +178,11 @@ pub fn backend_specs(options: &Options, cache: Option<&SharedCache>, clock: Arc<
 pub fn last_backends(cache: Option<&SharedCache>) -> Option<Vec<String>> {
     let cache = cache?.lock().expect("not poisoned");
     match cache.get_setting(SETTING_BACKENDS) {
-        Some(Value::Array(ids)) => Some(ids.iter().filter_map(|i| i.as_str().map(str::to_owned)).collect()),
+        Some(Value::Array(ids)) => Some(
+            ids.iter()
+                .filter_map(|i| i.as_str().map(str::to_owned))
+                .collect(),
+        ),
         _ => match cache.get_setting(SETTING_BACKEND) {
             Some(Value::String(old)) => Some(vec![old]),
             _ => None,
@@ -161,7 +195,9 @@ pub fn stations(values: &[String], first: &str) -> HashMap<String, String> {
     let mut stations = HashMap::new();
     for value in values {
         match value.split_once('=') {
-            Some((id, station)) if BACKEND_IDS.contains(&id) => stations.insert(id.to_owned(), station.to_owned()),
+            Some((id, station)) if BACKEND_IDS.contains(&id) => {
+                stations.insert(id.to_owned(), station.to_owned())
+            }
             _ => stations.insert(first.to_owned(), value.clone()),
         };
     }
@@ -173,7 +209,12 @@ pub fn tracks_dir(options: &Options) -> Option<PathBuf> {
     if options.no_cache || options.no_keep_tracks {
         return None;
     }
-    Some(options.tracks_dir.clone().unwrap_or_else(|| crate::paths::tracks_dir_of(&options.cache)))
+    Some(
+        options
+            .tracks_dir
+            .clone()
+            .unwrap_or_else(|| crate::paths::tracks_dir_of(&options.cache)),
+    )
 }
 
 /// The options of the command line, from the given arguments (the first is the name of the program).
@@ -190,13 +231,35 @@ pub fn init_logging(debug: bool, file: Option<&Path>) {
     // (symphonia warns of every m4a it probes: the 4 bytes before "ftyp")
     let quiet = "symphonia_core=error,symphonia_format_isomp4=error,symphonia_bundle_mp3=error,symphonia_bundle_flac=error,symphonia_format_ogg=error,symphonia_format_riff=error,symphonia_metadata=error,symphonia_codec_aac=error";
     let level = format!("{},{quiet}", if debug { "debug" } else { "info" });
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| level.as_str().into());
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| level.as_str().into());
     let builder = tracing_subscriber::fmt().with_env_filter(filter);
-    let file = file.and_then(|path| std::fs::OpenOptions::new().create(true).append(true).open(path).ok());
+    let file = file.and_then(|path| {
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .ok()
+    });
     let _ = match file {
-        Some(file) => builder.with_writer(Mutex::new(file)).with_ansi(false).try_init(),
+        Some(file) => builder
+            .with_writer(Mutex::new(file))
+            .with_ansi(false)
+            .try_init(),
         None => builder.try_init(),
     };
+}
+
+/// Move the files of the earlier names (yamusic-radio) to the app's own and tell what was done. Before `run`: it opens them.
+pub fn migrate_files() {
+    match crate::paths::migrate_legacy(&crate::paths::home()) {
+        Ok(done) => done
+            .iter()
+            .for_each(|line| tracing::info!("Migration: {line}")),
+        Err(error) => {
+            tracing::error!("Migration of the files of the earlier version failed: {error}")
+        }
+    }
 }
 
 /// Run the daemon until `shutdown` is done. `ready` gets the address of the server.
@@ -205,32 +268,54 @@ pub async fn run(
     ready: Option<tokio::sync::oneshot::Sender<std::net::SocketAddr>>,
     shutdown: impl std::future::Future<Output = ()> + Send + 'static,
 ) -> std::io::Result<()> {
-    // Files of the earlier names (yamusic-radio) move to the app's own before anything is opened.
-    match crate::paths::migrate_legacy(&crate::paths::home()) {
-        Ok(done) => done.iter().for_each(|line| tracing::info!("Migration: {line}")),
-        Err(error) => tracing::error!("Migration of the files of the earlier version failed: {error}"),
-    }
     let clock: Arc<dyn Clock> = Arc::new(SystemClock::new());
     // Two connections to one file: the radio owns one, the settings of the backends use the other.
     let open = || TrackCache::open(&options.cache).map_err(std::io::Error::other);
-    let (radio_cache, settings) = if options.no_cache { (None, None) } else { (Some(open()?), Some(Arc::new(Mutex::new(open()?)))) };
+    let (radio_cache, settings) = if options.no_cache {
+        (None, None)
+    } else {
+        (Some(open()?), Some(Arc::new(Mutex::new(open()?))))
+    };
     // What the last run was using, unless the command line says otherwise.
     if let (Some(cache), Some(dir)) = (&settings, &options.local_dir) {
-        let _ = cache.lock().expect("not poisoned").put_setting(SETTING_LOCAL_DIRECTORY, &json!(dir.to_string_lossy()));
+        let _ = cache
+            .lock()
+            .expect("not poisoned")
+            .put_setting(SETTING_LOCAL_DIRECTORY, &json!(dir.to_string_lossy()));
     }
     let specs = backend_specs(&options, settings.as_ref(), clock.clone());
     let first = specs[0].id.clone();
     let last = last_backends(settings.as_ref());
-    let asked: Vec<String> = options.backend.iter().cloned().chain(options.local_dir.iter().map(|_| "local".to_owned())).collect();
-    let enabled: Vec<String> = asked.iter().cloned().chain(last.iter().flatten().cloned()).collect();
+    let asked: Vec<String> = options
+        .backend
+        .iter()
+        .cloned()
+        .chain(options.local_dir.iter().map(|_| "local".to_owned()))
+        .collect();
+    let enabled: Vec<String> = asked
+        .iter()
+        .cloned()
+        .chain(last.iter().flatten().cloned())
+        .collect();
     let on_change = settings.clone().map(|cache| {
         Box::new(move |ids: &[String]| {
-            if let Err(error) = cache.lock().expect("not poisoned").put_setting(SETTING_BACKENDS, &json!(ids)) {
+            if let Err(error) = cache
+                .lock()
+                .expect("not poisoned")
+                .put_setting(SETTING_BACKENDS, &json!(ids))
+            {
                 tracing::error!("Could not keep the backends: {error}");
             }
         }) as Box<dyn Fn(&[String]) + Send + Sync>
     });
-    let multi = MultiBackend::new(specs, &enabled, last.is_none(), stations(&options.station, &first), on_change, clock);
+    let multi = MultiBackend::new(
+        specs,
+        &enabled,
+        last.is_none(),
+        stations(&options.station, &first),
+        on_change,
+        clock,
+    );
     if !asked.is_empty() {
         multi.persist(); // what the command line turned on is kept, too
     }
@@ -263,7 +348,14 @@ mod tests {
 
     #[test]
     fn stations_go_to_their_backend_or_to_the_first() {
-        let got = stations(&["local=shuffle".into(), "user:onyourwave".into(), "bogus=x".into()], "yandex");
+        let got = stations(
+            &[
+                "local=shuffle".into(),
+                "user:onyourwave".into(),
+                "bogus=x".into(),
+            ],
+            "yandex",
+        );
         assert_eq!(got["local"], "shuffle");
         // "bogus=x" is no backend's: the whole of it is a station of the first
         assert_eq!(got["yandex"], "bogus=x");
@@ -273,7 +365,10 @@ mod tests {
     #[test]
     fn the_waiting_tracks_are_next_to_the_cache() {
         let mut options = Options::parse_from(["x", "--cache", "/data/radio.db"]);
-        assert_eq!(tracks_dir(&options), Some(PathBuf::from("/data/radio-tracks")));
+        assert_eq!(
+            tracks_dir(&options),
+            Some(PathBuf::from("/data/radio-tracks"))
+        );
         options.tracks_dir = Some("/t".into());
         assert_eq!(tracks_dir(&options), Some(PathBuf::from("/t")));
         options.no_keep_tracks = true;
@@ -287,9 +382,17 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("daemon-test-{}", std::process::id()));
         let cache: SharedCache = Arc::new(Mutex::new(TrackCache::open(&dir.join("c.db")).unwrap()));
         assert_eq!(last_backends(Some(&cache)), None);
-        cache.lock().unwrap().put_setting(SETTING_BACKEND, &json!("local")).unwrap();
+        cache
+            .lock()
+            .unwrap()
+            .put_setting(SETTING_BACKEND, &json!("local"))
+            .unwrap();
         assert_eq!(last_backends(Some(&cache)), Some(vec!["local".to_owned()]));
-        cache.lock().unwrap().put_setting(SETTING_BACKENDS, &json!(["yandex", 3])).unwrap();
+        cache
+            .lock()
+            .unwrap()
+            .put_setting(SETTING_BACKENDS, &json!(["yandex", 3]))
+            .unwrap();
         assert_eq!(last_backends(Some(&cache)), Some(vec!["yandex".to_owned()]));
         let _ = std::fs::remove_dir_all(dir);
     }

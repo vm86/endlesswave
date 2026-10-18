@@ -25,9 +25,16 @@ fn essentia() {
     collect(&root.join("essentia"), &mut sources);
     sources.retain(|path| {
         let name = path.to_string_lossy();
-        !(name.contains("audiocontext") || name.contains("yaml") || name.contains("jsonconvert") || name.contains("extractor_"))
+        !(name.contains("audiocontext")
+            || name.contains("yaml")
+            || name.contains("jsonconvert")
+            || name.contains("extractor_"))
     });
-    for line in fs::read_to_string("native/sources.txt").unwrap().lines().filter(|l| !l.is_empty()) {
+    for line in fs::read_to_string("native/sources.txt")
+        .unwrap()
+        .lines()
+        .filter(|l| !l.is_empty())
+    {
         sources.push(root.join(line));
     }
     sources.push(root.join("3rdparty/kiss_fft130/kiss_fft.c"));
@@ -53,18 +60,28 @@ fn essentia() {
             build.include(root.join(dir));
         }
         build.include("native").include(eigen);
-        build.define("EIGEN_MPL2_ONLY", None).define("EIGEN_PERMANENTLY_DISABLE_STUPID_WARNINGS", None);
+        build
+            .define("EIGEN_MPL2_ONLY", None)
+            .define("EIGEN_PERMANENTLY_DISABLE_STUPID_WARNINGS", None);
         build.define("__STDC_CONSTANT_MACROS", None);
         build.define("HAVE_KISS", None); // FFT by KissFFT
     }
-    let (c_files, cpp_files): (Vec<_>, Vec<_>) = sources.iter().partition(|p| p.extension().is_some_and(|e| e == "c"));
-    cpp.files(cpp_files).file("native/essentia_algorithms_reg.cpp").file("native/shim.cpp").compile("essentia_part");
+    let (c_files, cpp_files): (Vec<_>, Vec<_>) = sources
+        .iter()
+        .partition(|p| p.extension().is_some_and(|e| e == "c"));
+    cpp.files(cpp_files)
+        .file("native/essentia_algorithms_reg.cpp")
+        .file("native/shim.cpp")
+        .compile("essentia_part");
     c.files(c_files).compile("essentia_kiss");
 }
 
 #[cfg(feature = "essentia")]
 fn collect(dir: &std::path::Path, found: &mut Vec<std::path::PathBuf>) {
-    let mut entries: Vec<_> = std::fs::read_dir(dir).unwrap().map(|e| e.unwrap().path()).collect();
+    let mut entries: Vec<_> = std::fs::read_dir(dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .collect();
     entries.sort();
     for path in entries {
         if path.is_dir() {

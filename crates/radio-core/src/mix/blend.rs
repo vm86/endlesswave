@@ -18,7 +18,9 @@ const EQ_HIGH_HZ: f64 = 2500.0;
 const EQ_MIDS_SWAP: (f32, f32) = (0.20, 0.50);
 const EQ_HIGHS_SWAP: (f32, f32) = (0.15, 0.85);
 /// Cutoffs of the filtered copies a sweep moves between, low to high.
-const SWEEP_CUTOFFS_HZ: [f64; 10] = [150.0, 250.0, 400.0, 650.0, 1000.0, 1600.0, 2600.0, 4200.0, 7000.0, 12000.0];
+const SWEEP_CUTOFFS_HZ: [f64; 10] = [
+    150.0, 250.0, 400.0, 650.0, 1000.0, 1600.0, 2600.0, 4200.0, 7000.0, 12000.0,
+];
 /// Share of the blend after which the sweeps are done.
 const SWEEP_DONE_AT: f32 = 0.85;
 /// Spectrum padding, so that the circular FFT filter doesn't wrap around.
@@ -29,7 +31,9 @@ pub(crate) fn linspace(end: f64, count: usize) -> Vec<f32> {
     match count {
         0 => Vec::new(),
         1 => vec![0.0],
-        _ => (0..count).map(|i| (end * i as f64 / (count - 1) as f64) as f32).collect(),
+        _ => (0..count)
+            .map(|i| (end * i as f64 / (count - 1) as f64) as f32)
+            .collect(),
     }
 }
 
@@ -40,7 +44,10 @@ pub fn crossfade(outgoing: &[f32], incoming: &[f32]) -> Vec<f32> {
     for (frame, &angle) in fade.iter().enumerate() {
         let (out_gain, in_gain) = (angle.cos(), angle.sin());
         for c in 0..CHANNELS {
-            blended.push(outgoing[frame * CHANNELS + c] * out_gain + incoming[frame * CHANNELS + c] * in_gain);
+            blended.push(
+                outgoing[frame * CHANNELS + c] * out_gain
+                    + incoming[frame * CHANNELS + c] * in_gain,
+            );
         }
     }
     blended
@@ -66,25 +73,40 @@ impl Spectrum {
                     *x = frame[c];
                 }
                 let mut output = forward.make_output_vec();
-                forward.process(&mut input, &mut output).expect("sizes are right");
+                forward
+                    .process(&mut input, &mut output)
+                    .expect("sizes are right");
                 output
             })
             .collect();
-        Self { size, frames, channels }
+        Self {
+            size,
+            frames,
+            channels,
+        }
     }
 
     /// Zero-phase low-pass (4th order Butterworth magnitude), stereo, interleaved (`_lowpass`).
     pub fn lowpass(&self, cutoff: f64) -> Vec<f32> {
         let inverse = RealFftPlanner::<f32>::new().plan_fft_inverse(self.size);
         let gain: Vec<f64> = (0..=self.size / 2)
-            .map(|k| 1.0 / (1.0 + (k as f64 * f64::from(SAMPLE_RATE) / self.size as f64 / cutoff).powi(8)).sqrt())
+            .map(|k| {
+                1.0 / (1.0
+                    + (k as f64 * f64::from(SAMPLE_RATE) / self.size as f64 / cutoff).powi(8))
+                .sqrt()
+            })
             .collect();
         let mut result = vec![0.0f32; self.frames * CHANNELS];
         for (c, spectrum) in self.channels.iter().enumerate() {
-            let mut filtered: Vec<Complex<f32>> =
-                spectrum.iter().zip(&gain).map(|(bin, &g)| bin * g as f32).collect();
+            let mut filtered: Vec<Complex<f32>> = spectrum
+                .iter()
+                .zip(&gain)
+                .map(|(bin, &g)| bin * g as f32)
+                .collect();
             let mut output = inverse.make_output_vec();
-            inverse.process(&mut filtered, &mut output).expect("sizes are right");
+            inverse
+                .process(&mut filtered, &mut output)
+                .expect("sizes are right");
             for (frame, &x) in output.iter().take(self.frames).enumerate() {
                 result[frame * CHANNELS + c] = x / self.size as f32;
             }
@@ -110,7 +132,10 @@ pub fn swap_point(frames: usize, beat_period: f64, beat_grid: Option<&[f64]>) ->
     if beat_period == 0.0 {
         return (middle, f64::from(SAMPLE_RATE) / 4.0);
     }
-    ((middle / beat_period).round_ties_even() * beat_period, beat_period / 2.0)
+    (
+        (middle / beat_period).round_ties_even() * beat_period,
+        beat_period / 2.0,
+    )
 }
 
 /// Angle of an equal-power fade that is done in 2 * ramp around `swap` (`_handover`).
@@ -124,7 +149,9 @@ fn handover(frames: usize, (point, ramp): (f64, f64)) -> Vec<f32> {
 fn fade_angle(frames: usize, window: (f32, f32)) -> Vec<f32> {
     linspace(1.0, frames)
         .into_iter()
-        .map(|progress| ((progress - window.0) / (window.1 - window.0)).clamp(0.0, 1.0) * HALF_PI_32)
+        .map(|progress| {
+            ((progress - window.0) / (window.1 - window.0)).clamp(0.0, 1.0) * HALF_PI_32
+        })
         .collect()
 }
 
@@ -136,16 +163,29 @@ fn gains(angles: &[f32]) -> impl Iterator<Item = (f32, f32)> + '_ {
 /// Blend the highs, hand the bass over in one go in the middle. Two basslines at once turn the low end to mud,
 /// so the outgoing bass stays until the swap point and the incoming one only starts there. The swap is on a
 /// beat when the beat period is known (or `swap` says where, see `swap_point`).
-pub fn bass_swap(outgoing: &[f32], incoming: &[f32], beat_period: f64, swap: Option<(f64, f64)>) -> Vec<f32> {
+pub fn bass_swap(
+    outgoing: &[f32],
+    incoming: &[f32],
+    beat_period: f64,
+    swap: Option<(f64, f64)>,
+) -> Vec<f32> {
     let frames = outgoing.len() / CHANNELS;
     let (out_spec, in_spec) = (Spectrum::new(outgoing), Spectrum::new(incoming));
-    let (out_low, in_low) = (out_spec.lowpass(CROSSOVER_HZ), in_spec.lowpass(CROSSOVER_HZ));
+    let (out_low, in_low) = (
+        out_spec.lowpass(CROSSOVER_HZ),
+        in_spec.lowpass(CROSSOVER_HZ),
+    );
 
-    let low_angle = handover(frames, swap.unwrap_or_else(|| swap_point(frames, beat_period, None)));
+    let low_angle = handover(
+        frames,
+        swap.unwrap_or_else(|| swap_point(frames, beat_period, None)),
+    );
     let high_angle = linspace(HALF_PI, frames);
 
     let mut result = vec![0.0f32; outgoing.len()];
-    for (frame, ((low_cos, low_sin), (high_cos, high_sin))) in gains(&low_angle).zip(gains(&high_angle)).enumerate() {
+    for (frame, ((low_cos, low_sin), (high_cos, high_sin))) in
+        gains(&low_angle).zip(gains(&high_angle)).enumerate()
+    {
         for c in 0..CHANNELS {
             let i = frame * CHANNELS + c;
             result[i] = out_low[i] * low_cos
@@ -160,19 +200,32 @@ pub fn bass_swap(outgoing: &[f32], incoming: &[f32], beat_period: f64, swap: Opt
 /// Hand the bass, the mids and the highs over one band at a time, like a DJ with three EQ knobs: the incoming
 /// track comes in over the outgoing bass, the mids change hands first (where voices and leads live), then the
 /// bass on a beat in the middle, while the highs cross over most of the blend.
-pub fn eq_blend(outgoing: &[f32], incoming: &[f32], beat_period: f64, swap: Option<(f64, f64)>) -> Vec<f32> {
+pub fn eq_blend(
+    outgoing: &[f32],
+    incoming: &[f32],
+    beat_period: f64,
+    swap: Option<(f64, f64)>,
+) -> Vec<f32> {
     let frames = outgoing.len() / CHANNELS;
     let (out_spec, in_spec) = (Spectrum::new(outgoing), Spectrum::new(incoming));
-    let (out_low, in_low) = (out_spec.lowpass(CROSSOVER_HZ), in_spec.lowpass(CROSSOVER_HZ));
+    let (out_low, in_low) = (
+        out_spec.lowpass(CROSSOVER_HZ),
+        in_spec.lowpass(CROSSOVER_HZ),
+    );
     let (out_body, in_body) = (out_spec.lowpass(EQ_HIGH_HZ), in_spec.lowpass(EQ_HIGH_HZ));
 
-    let low = handover(frames, swap.unwrap_or_else(|| swap_point(frames, beat_period, None)));
+    let low = handover(
+        frames,
+        swap.unwrap_or_else(|| swap_point(frames, beat_period, None)),
+    );
     let mid = fade_angle(frames, EQ_MIDS_SWAP);
     let high = fade_angle(frames, EQ_HIGHS_SWAP);
 
     let mut result = vec![0.0f32; outgoing.len()];
     let angles = gains(&low).zip(gains(&mid)).zip(gains(&high));
-    for (frame, (((low_cos, low_sin), (mid_cos, mid_sin)), (high_cos, high_sin))) in angles.enumerate() {
+    for (frame, (((low_cos, low_sin), (mid_cos, mid_sin)), (high_cos, high_sin))) in
+        angles.enumerate()
+    {
         for c in 0..CHANNELS {
             let i = frame * CHANNELS + c;
             result[i] = out_low[i] * low_cos
@@ -196,7 +249,10 @@ pub(crate) fn sweep(pcm: &[f32], position: &[f32], high_pass: bool) -> Vec<f32> 
     let levels = SWEEP_CUTOFFS_HZ.len();
     let mut result = vec![0.0f32; pcm.len()];
     for point in 0..=levels {
-        let weight: Vec<f32> = position.iter().map(|&p| (1.0 - (p - point as f32).abs()).clamp(0.0, 1.0)).collect();
+        let weight: Vec<f32> = position
+            .iter()
+            .map(|&p| (1.0 - (p - point as f32).abs()).clamp(0.0, 1.0))
+            .collect();
         if weight.iter().all(|&w| w == 0.0) {
             continue;
         }
@@ -228,8 +284,10 @@ pub fn filter_sweep(outgoing: &[f32], incoming: &[f32]) -> Vec<f32> {
     let progress = linspace(1.0, frames);
     // Both sweeps finish a little before the end of the blend, so that the incoming track is fully open when it
     // takes over.
-    let position: Vec<f32> =
-        progress.iter().map(|&p| SWEEP_CUTOFFS_HZ.len() as f32 * (1.0 - (p / SWEEP_DONE_AT).clamp(0.0, 1.0))).collect();
+    let position: Vec<f32> = progress
+        .iter()
+        .map(|&p| SWEEP_CUTOFFS_HZ.len() as f32 * (1.0 - (p / SWEEP_DONE_AT).clamp(0.0, 1.0)))
+        .collect();
     let closing = sweep(outgoing, &position, false);
     let opening = sweep(incoming, &position, true);
     let mut blended = Vec::with_capacity(outgoing.len());
@@ -237,7 +295,9 @@ pub fn filter_sweep(outgoing: &[f32], incoming: &[f32]) -> Vec<f32> {
         let angle = p * HALF_PI_32;
         let (out_gain, in_gain) = (angle.cos(), angle.sin());
         for c in 0..CHANNELS {
-            blended.push(closing[frame * CHANNELS + c] * out_gain + opening[frame * CHANNELS + c] * in_gain);
+            blended.push(
+                closing[frame * CHANNELS + c] * out_gain + opening[frame * CHANNELS + c] * in_gain,
+            );
         }
     }
     blended
