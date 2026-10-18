@@ -427,6 +427,45 @@ impl MusicBackend for MultiBackend {
             .await
     }
 
+    fn supports_likes(&self) -> bool {
+        self.st()
+            .running
+            .values()
+            .any(|r| r.backend.supports_likes())
+    }
+
+    async fn liked_track_ids(&self) -> Result<HashSet<String>, BackendError> {
+        let owners: Vec<Owner> = self
+            .st()
+            .running
+            .values()
+            .filter(|r| r.backend.authorized() && r.backend.supports_likes())
+            .map(owner)
+            .collect();
+        let mut liked = HashSet::new();
+        for owner in owners {
+            match owner.backend.liked_track_ids().await {
+                Ok(ids) => liked.extend(ids.into_iter().map(|id| {
+                    if owner.plain_ids {
+                        id
+                    } else {
+                        format!("{}:{id}", owner.id)
+                    }
+                })),
+                Err(error) => tracing::warn!("Likes of {}: {error}", owner.id),
+            }
+        }
+        Ok(liked)
+    }
+
+    async fn set_like(&self, track: &Track, liked: bool) -> Result<(), BackendError> {
+        let running = self.owner_of(track)?;
+        if !running.backend.supports_likes() {
+            return Err(BackendError(format!("{} has no likes", running.id)));
+        }
+        running.backend.set_like(&Self::native(track), liked).await
+    }
+
     async fn station_settings(
         &self,
         _station_id: &str,

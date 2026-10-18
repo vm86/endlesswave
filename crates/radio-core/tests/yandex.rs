@@ -505,3 +505,65 @@ fn the_settings_file_of_an_earlier_version_goes_into_the_store_and_is_removed() 
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[tokio::test]
+async fn likes_are_read_added_and_taken_back_on_the_account() {
+    let log: Arc<Mutex<Vec<String>>> = Arc::default();
+    let seen = log.clone();
+    let app = Router::new().fallback(move |request: Request| {
+        let seen = seen.clone();
+        async move {
+            let line = format!("{} {}", request.method(), request.uri().path());
+            let body = axum::body::to_bytes(request.into_body(), 1 << 20)
+                .await
+                .unwrap();
+            seen.lock()
+                .unwrap()
+                .push(format!("{line} {}", String::from_utf8_lossy(&body)));
+            let answer = if line.contains("/account/status") {
+                json!({"result": {"account": {"uid": 42}}})
+            } else if line.starts_with("GET") {
+                json!({"result": {"library": {"tracks": [{"id": "7", "albumId": "1"}, {"id": 8}]}}})
+            } else {
+                json!({"result": {"revision": 5}})
+            };
+            (StatusCode::OK, answer.to_string()).into_response()
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, app).await });
+
+    let store = Arc::new(MemoryStore::default());
+    store
+        .save(&serde_json::from_str(r#"{"token": "t", "from_id": "music-x"}"#).unwrap())
+        .unwrap();
+    let options = YandexOptions {
+        api: origin,
+        ..YandexOptions::default()
+    };
+    let backend = YandexBackend::new(store, options, Arc::new(ManualClock::new(WALL))).unwrap();
+    assert!(backend.supports_likes());
+
+    let liked = backend.liked_track_ids().await.unwrap();
+    assert_eq!(liked, ["7", "8"].into_iter().map(str::to_owned).collect());
+
+    let track: Track = serde_json::from_value(json!({
+        "track_id": "7", "title": "t", "artists": [], "codec": "mp3"
+    }))
+    .unwrap();
+    backend.set_like(&track, true).await.unwrap();
+    backend.set_like(&track, false).await.unwrap();
+
+    let log = log.lock().unwrap().clone();
+    assert_eq!(
+        log,
+        [
+            "GET /account/status ",
+            "GET /users/42/likes/tracks ",
+            "POST /users/42/likes/tracks/add-multiple track-ids=7",
+            "POST /users/42/likes/tracks/remove track-ids=7",
+        ],
+        "the account is asked for once"
+    );
+}

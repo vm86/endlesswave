@@ -119,6 +119,11 @@ const json = (method: string, body?: unknown): RequestInit => ({
   body: body === undefined ? undefined : JSON.stringify(body),
 });
 
+export interface LikesInfo {
+  supported: boolean;
+  liked: string[];
+}
+
 export const api = {
   auth: () => request<AuthInfo>("/api/auth"),
   queue: () => request<Queue>("/api/queue?previous=3&next=15"),
@@ -142,6 +147,8 @@ export const api = {
   removeTrack: (trackId: string) =>
     request<Queue>(`/api/queue/tracks/${encodeURIComponent(trackId)}`, { method: "DELETE" }),
   playTrack: (track_id: string) => request<Queue>("/api/queue/play", json("POST", { track_id })),
+  likes: () => request<LikesInfo>("/api/likes"),
+  setLike: (track_id: string, liked: boolean) => request<LikesInfo>("/api/likes", json("PUT", { track_id, liked })),
   nextTrack: () => request<Queue>("/api/next", { method: "POST" }),
   refreshQueue: () => request<Queue>("/api/queue/refresh", { method: "POST" }),
   setMoods: (moods: string[]) =>

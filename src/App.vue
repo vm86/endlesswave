@@ -64,7 +64,7 @@ const help = ref(false);
 const prefs = ref(false);
 useDock();
 const { release, checking, status: updateStatus, check: checkUpdate, download, dismiss } = useUpdate();
-const { expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
+const { likes, toggleLike, expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
 watch(loading, (value) => {
   clearTimeout(slowTimer);
   slowStart.value = false;
@@ -211,6 +211,7 @@ onUnmounted(() => {
 
       <Deck v-model:volume="volume" :now="queue?.now ?? null" :elapsed="elapsed" :playing="playing" :loading="loading" :refreshing="refreshing"
         :busy="skipping || (queue?.skip_pending ?? false) || (queue?.blending ?? false)" :levels="levels" :format="format"
+        :likes-supported="likes.supported" :liked="!!queue?.now && likes.liked.includes(queue.now.track_id)" @like="queue?.now && toggleLike(queue.now.track_id)"
         :can-skip="queue?.can_skip ?? false" :paused="queue?.paused ?? false" @toggle="toggle" @stop="stop"
         @next="next" @refresh="refreshQueue" @format="flipFormat" />
 

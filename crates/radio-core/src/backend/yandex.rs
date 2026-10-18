@@ -350,6 +350,8 @@ struct State {
     last_station: (String, String),
     init_task: Option<JoinHandle<()>>,
     signed_in: bool,
+    /// The id of the account, once known.
+    uid: Option<String>,
 }
 
 /// The Yandex Music implementation of [`MusicBackend`].
@@ -396,6 +398,7 @@ impl YandexBackend {
                 last_station: (String::new(), String::new()),
                 init_task: None,
                 signed_in,
+                uid: None,
             }),
             signed_in: Notify::new(),
             info_slots: Semaphore::new(DOWNLOAD_INFO_SLOTS),
@@ -426,6 +429,32 @@ impl YandexBackend {
 
     fn from_id(&self) -> String {
         self.setting("from_id")
+    }
+
+    /// The id of the account, asked for once.
+    async fn uid(&self) -> Result<String, YError> {
+        if let Some(uid) = self.st().uid.clone() {
+            return Ok(uid);
+        }
+        let result = self
+            .request(
+                Method::GET,
+                &format!("{}/account/status", self.options.api),
+                &[],
+                Body::None,
+            )
+            .await?;
+        let uid = result
+            .as_ref()
+            .and_then(|r| r.pointer("/account/uid"))
+            .and_then(|u| match u {
+                Value::String(s) => Some(s.clone()),
+                Value::Number(n) => Some(n.to_string()),
+                _ => None,
+            })
+            .ok_or_else(|| YError::other("the account has no uid"))?;
+        self.st().uid = Some(uid.clone());
+        Ok(uid)
     }
 
     /// One request of the API: what comes back is the `result` of it.
@@ -1254,6 +1283,53 @@ impl MusicBackend for YandexBackend {
             return Ok(());
         }
         self.st().mood = Some(mood_energy.to_owned());
+        Ok(())
+    }
+
+    fn supports_likes(&self) -> bool {
+        true
+    }
+
+    /// The tracks of "My favourites" of the account.
+    async fn liked_track_ids(&self) -> Result<HashSet<String>, BackendError> {
+        let uid = self.uid().await?;
+        let result = self
+            .request(
+                Method::GET,
+                &format!("{}/users/{uid}/likes/tracks", self.options.api),
+                &[],
+                Body::None,
+            )
+            .await?;
+        Ok(result
+            .as_ref()
+            .and_then(|r| r.pointer("/library/tracks"))
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|t| match t.get("id")? {
+                Value::String(id) => Some(id.clone()),
+                Value::Number(id) => Some(id.to_string()),
+                _ => None,
+            })
+            .collect())
+    }
+
+    async fn set_like(&self, track: &Track, liked: bool) -> Result<(), BackendError> {
+        let uid = self.uid().await?;
+        let action = if liked { "add-multiple" } else { "remove" };
+        tracing::info!(
+            "Track {}: {}",
+            track.track_id,
+            if liked { "liked" } else { "like taken back" }
+        );
+        self.request(
+            Method::POST,
+            &format!("{}/users/{uid}/likes/tracks/{action}", self.options.api),
+            &[],
+            Body::Form(vec![("track-ids", track.track_id.clone())]),
+        )
+        .await?;
         Ok(())
     }
 

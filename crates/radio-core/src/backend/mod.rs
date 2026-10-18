@@ -186,6 +186,18 @@ pub trait MusicBackend: Send + Sync {
             "this music backend has no settings to change".to_owned(),
         ))
     }
+    /// Whether the backend keeps likes (a favourites list of the account). Without it the other like calls do nothing.
+    fn supports_likes(&self) -> bool {
+        false
+    }
+    /// The ids of the liked tracks, as the backend knows the tracks (`Track::track_id`). Empty for a backend with no likes.
+    async fn liked_track_ids(&self) -> Result<HashSet<String>, BackendError> {
+        Ok(HashSet::new())
+    }
+    /// Like the track, or take the like back.
+    async fn set_like(&self, _track: &Track, _liked: bool) -> Result<(), BackendError> {
+        Err(BackendError("this music backend has no likes".to_owned()))
+    }
     /// The ids of the backends that are off or can't be reached; the tracks of them that are only linked leave the
     /// queue. Only the multi-backend has any.
     fn unavailable(&self) -> Vec<String> {

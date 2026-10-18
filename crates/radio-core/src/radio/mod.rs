@@ -4,6 +4,7 @@
 //! The state is behind one `std::sync::Mutex` that is never held across an `.await`; the long work (downloads, decoding,
 //! analysis) is done outside it. What the Python radio waits on with `asyncio.Event` is a `tokio::sync::Notify` here.
 
+mod likes;
 mod load;
 mod pool;
 mod queue;
@@ -210,6 +211,10 @@ pub(crate) struct State {
     pub transition_keys: Counter,
     pub matched_transitions: i64,
     pub key_pairs: IndexMap<(String, String), i64>,
+    /// The ids of the liked tracks, `None` before the backend has been asked.
+    pub liked: Option<HashSet<String>>,
+    /// The tracks played lately, to like them after they are gone from the queue.
+    pub played_tracks: VecDeque<Track>,
 }
 
 pub struct Radio {
@@ -287,6 +292,8 @@ impl Radio {
                 transition_keys: Counter::default(),
                 matched_transitions: 0,
                 key_pairs: IndexMap::new(),
+                liked: None,
+                played_tracks: VecDeque::new(),
             }),
             slots: Semaphore::new(PREPARE_CONCURRENCY),
             analyzing: Semaphore::new(ANALYZE_CONCURRENCY),
@@ -549,6 +556,13 @@ impl DeckSource for Radio {
                 state.before.push_back(info);
                 while state.before.len() > MAX_LISTED {
                     state.before.pop_front();
+                }
+            }
+            if let Some(track) = &deck.track {
+                state.played_tracks.retain(|t| t.track_id != track.track_id);
+                state.played_tracks.push_back(track.clone());
+                while state.played_tracks.len() > MAX_LISTED * 2 {
+                    state.played_tracks.pop_front();
                 }
             }
             state.now = Some(deck.clone());

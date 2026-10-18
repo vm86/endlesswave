@@ -215,6 +215,26 @@ async fn play_track(State(api): State<Api>, body: Bytes) -> Result<Response, Api
     Ok(json_response(StatusCode::ACCEPTED, &api.queue()))
 }
 
+async fn get_likes(State(api): State<Api>) -> Response {
+    ok(&api.radio.likes_info().await)
+}
+
+async fn put_like(State(api): State<Api>, body: Bytes) -> Result<Response, ApiError> {
+    api.need_token()?;
+    let body = json_body(&body)?;
+    let track_id = parse_track_id(&body)?;
+    let Some(liked) = body.get("liked").and_then(Value::as_bool) else {
+        return Err(ApiError::bad_request(
+            "expected {\"track_id\": \"...\", \"liked\": true}",
+        ));
+    };
+    api.radio
+        .set_like(&track_id, liked)
+        .await
+        .map_err(radio_error)?;
+    Ok(ok(&api.radio.likes_info().await))
+}
+
 async fn get_language(State(api): State<Api>) -> Response {
     ok(&api.radio.language_info())
 }
@@ -386,6 +406,7 @@ pub fn router(api: Api) -> Router {
             "/api/genres/blocked",
             put(put_blocked).delete(delete_blocked),
         )
+        .route("/api/likes", get(get_likes).put(put_like))
         .route("/api/stats", get(stats))
         .route("/api/transitions", get(blends))
         .route("/api/stats/keys", get(key_pairs))

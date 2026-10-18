@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { usePlayer } from "./usePlayer";
 import { useSpectrum } from "./useSpectrum";
-import { api, coverUrl, setBase, streamUrl, type AuthInfo, type StreamFormat, type GenresInfo, type Queue, type Stats } from "../api";
+import { api, coverUrl, setBase, streamUrl, type AuthInfo, type StreamFormat, type GenresInfo, type LikesInfo, type Queue, type Stats } from "../api";
 
 const POLL_MS = 2000;
 const REFRESH_MIN_MS = 700;
@@ -128,6 +128,19 @@ export function useRadio() {
       },
       () => api.moveTrack(id, position),
     );
+  /** Likes of the backend: shown as a heart on the track that plays. */
+  const likes = ref<LikesInfo>({ supported: false, liked: [] });
+  const toggleLike = async (id: string) => {
+    const liked = !likes.value.liked.includes(id);
+    const before = likes.value;
+    likes.value = { ...before, liked: liked ? [...before.liked, id] : before.liked.filter((x) => x !== id) };
+    try {
+      likes.value = await api.setLike(id, liked);
+    } catch (e) {
+      likes.value = before;
+      notice.value = `Could not ${liked ? "like" : "unlike"} the track: ${e instanceof Error ? e.message : e}`;
+    }
+  };
   const removeTrack = (id: string) =>
     change(
       (list) => list.filter((t) => t.track_id !== id),
@@ -173,8 +186,9 @@ export function useRadio() {
 
   async function refresh() {
     try {
-      const [a, q, g, st] = await Promise.all([api.auth(), api.queue(), api.genres(), api.stats()]);
+      const [a, q, g, st, l] = await Promise.all([api.auth(), api.queue(), api.genres(), api.stats(), api.likes()]);
       auth.value = a;
+      likes.value = l;
       if (holding.value === 0) genres.value = steady(genres.value, g);
       stats.value = st;
       take(q);
@@ -328,5 +342,5 @@ export function useRadio() {
     unlisten.forEach((f) => f());
   });
 
-  return { expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
+  return { likes, toggleLike, expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
 }

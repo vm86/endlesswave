@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiMusicNote, mdiPause, mdiPlay, mdiRefresh, mdiSkipNext, mdiStop, mdiVolumeHigh } from "@mdi/js";
+import { mdiHeart, mdiHeartOutline, mdiMusicNote, mdiPause, mdiPlay, mdiRefresh, mdiSkipNext, mdiStop, mdiVolumeHigh } from "@mdi/js";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { clock, coverUrl, type NowTrack } from "../api";
 
@@ -14,9 +14,11 @@ const props = defineProps<{
   paused: boolean;
   levels: number[];
   format: "mp3" | "flac";
+  likesSupported: boolean;
+  liked: boolean;
 }>();
 const volume = defineModel<number>("volume", { required: true });
-defineEmits<{ toggle: []; stop: []; next: []; refresh: []; format: [] }>();
+defineEmits<{ toggle: []; stop: []; next: []; refresh: []; format: []; like: [] }>();
 
 const title = computed(() => props.now?.title ?? "EndlessWave");
 const artist = computed(() => props.now?.artists.join(", ") || (props.now ? "" : "Waiting for the first track…"));
@@ -91,6 +93,10 @@ watch(title, () => void nextTick(measure));
       <div class="tbtn" :class="{ loading: refreshing }" :title="refreshing ? 'Rebuilding…' : 'Rebuild the queue  (⌘R)'"
         @click="refreshing || $emit('refresh')">
         <v-icon :icon="mdiRefresh" size="18" :class="{ spin: refreshing }" />
+      </div>
+      <div v-if="likesSupported && now" class="tbtn like" :class="{ on: liked }" :title="liked ? 'Remove the like' : 'Like'"
+        @click="$emit('like')">
+        <v-icon :icon="liked ? mdiHeart : mdiHeartOutline" size="18" />
       </div>
       <div class="tbtn fmt" :title="`Stream: ${format.toUpperCase()}  (⌘L to switch)`" @click="$emit('format')">
         {{ format.toUpperCase() }}
