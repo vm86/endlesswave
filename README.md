@@ -34,7 +34,7 @@ The radio is inside the app, and the packages hold ffmpeg: nothing else has to b
 | **Sources** | Yandex Music and/or a local folder (`mp3`, `flac`, `m4a`, `ogg`, `opus`, `wav`...). Both can play at once |
 | **MP3 or FLAC** | A switch for the stream: MP3 at 320 kbit/s, or lossless FLAC (16 bit) |
 | **Spectrum** | The real spectrum of the mix, in time with the sound |
-| **Native audio** | The app plays the stream itself, through the system's audio output (CoreAudio on macOS, PipeWire on Linux, ALSA where there is none). The audio of the window is kept as a fall back |
+| **Native audio** | The app plays the stream itself, through the system's audio output (CoreAudio on macOS, PipeWire on Linux, ALSA where there is none) |
 | **The system** | Tray, media keys, Now Playing with the cover, keyboard shortcuts, hide to the tray |
 | **Statistics** | How many blends there were and how well tempo and key matched |
 
@@ -63,9 +63,7 @@ sudo apt install ./endlesswave_*_amd64.deb
 ```
 
 The sound is played by the app itself through PipeWire (ALSA is the fall back where there is no PipeWire), so nothing
-else is needed. The GStreamer plugins (`gstreamer1-plugins-good` or `gstreamer1.0-plugins-good`) are for the
-fall back, the audio of the window; the package pulls them in. For the tray icon, GNOME needs the
-AppIndicator extension.
+else is needed. For the tray icon, GNOME needs the AppIndicator extension.
 
 ## First start and setup
 
@@ -105,9 +103,8 @@ with the **⟳** button (⌘R). The settings are remembered and come back after 
 
 ### Settings
 
-The **Settings** sheet (the gear in the top bar, <kbd>⌘</kbd> <kbd>,</kbd>) has the **Player**: **native** is the app's own player (the system's
-audio output), **browser** the audio of the window. If the native one cannot start (no audio device, for
-instance), the app says so and plays with the browser for that listening.
+The **Settings** sheet is the gear in the top bar (<kbd>⌘</kbd> <kbd>,</kbd>). The sound is played by the app's own player (the
+system's audio output); if it cannot start (no audio device, for instance), the app says so.
 
 On macOS, **Appearance** can hide the Dock icon and the app's menu: the player then lives in the menu bar
 only, and the window opens from the tray icon.
@@ -172,7 +169,7 @@ On macOS the shortcuts are in the menu bar (**Controls** and **View**), so you c
 ```
 
 The app reads the stream itself, decodes it (MP3, FLAC) and plays it through the system's audio output;
-the window only controls it. If that does not work, the window plays the stream with a plain `<audio>`.
+the window only controls it.
 Everything else (the queue, the moods, the spectrum) comes from the API of the radio. The radio runs inside the app (`crates/radio-core`); if something already answers on port `18000`, the app connects to it.
 
 Files of the radio:
@@ -197,8 +194,7 @@ the radio, e.g. `--no-keep-tracks`; `yamusic-radio --help` in `crates/radio-core
 - **No tray icon on Linux.** AppIndicator is needed (in GNOME, the *AppIndicator and
   KStatusNotifierItem Support* extension). The tray menu still works, a click on the icon does not open
   the window.
-- **No sound on Linux.** The native player needs a working audio output (PipeWire, or ALSA). If
-  it falls back to the browser, install `gstreamer1-plugins-good` and `gstreamer1-plugins-base`.
+- **No sound on Linux.** The native player needs a working audio output (PipeWire, or ALSA).
 
 ## Development
 

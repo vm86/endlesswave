@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { usePlayer } from "./usePlayer";
 import { useSpectrum } from "./useSpectrum";
-import { api, coverUrl, setBase, streamUrls, type AuthInfo, type StreamFormat, type GenresInfo, type Queue, type Stats } from "../api";
+import { api, coverUrl, setBase, streamUrl, type AuthInfo, type StreamFormat, type GenresInfo, type Queue, type Stats } from "../api";
 
 const POLL_MS = 2000;
 const REFRESH_MIN_MS = 700;
@@ -30,9 +30,8 @@ export function useRadio() {
   // Names this connection to the stream (see the spectrum).
   const token = ref("");
 
-  // Who plays (the native player, or the <audio> of the webview as the fall back).
   const notice = ref("");
-  const player = usePlayer(volume, (text) => (notice.value = text));
+  const player = usePlayer(volume);
   const { playing, loading } = player;
   watch(player.error, (text) => text && (error.value = text));
   watch(volume, (v) => localStorage.setItem("volume", String(v)));
@@ -44,7 +43,7 @@ export function useRadio() {
     // Somebody paused the mix for everyone: listening alone would not wake it.
     if (queue.value?.paused && queue.value.pause_reason === "user") await guarded(api.resume);
     token.value = crypto.randomUUID();
-    await player.start(streamUrls(format.value, token.value));
+    await player.start(streamUrl(format.value, token.value));
   }
 
   async function toggle() {
@@ -57,20 +56,11 @@ export function useRadio() {
     if (playing.value || loading.value) await player.stop();
   }
 
-  // Another stream, or another player, while listening: connect at once.
+  // Another stream while listening: connect at once.
   watch(format, (value) => {
     localStorage.setItem("format", value);
     if (playing.value) void start();
   });
-  watch(player.engine, () => {
-    if (playing.value) void start();
-  });
-  /** The choice of the player. Choosing the one that is chosen but fell back tries it again. */
-  function setEngine(value: "native" | "web") {
-    if (value === player.engine.value && player.active.value !== value && (playing.value || loading.value)) void start();
-    else player.engine.value = value;
-  }
-
   // The button "rebuild the queue": the answer is quick, so the spinner is held
   // a moment to be seen, and the result is told.
   const refreshing = ref(false);
@@ -262,67 +252,33 @@ export function useRadio() {
   watch([title, playing], () => {
     void invoke("update_tray", { title: title.value, playing: playing.value });
   });
-  // The system's Now Playing (Control Center on macOS, MPRIS on Linux) and the media keys. ONE
-  // of two says what plays, or a second player would show up in the system: the native layer
-  // (src-tauri/src/media.rs) while the native player plays, and the webview (navigator.mediaSession,
-  // which publishes the <audio> by itself) when the <audio> plays.
-  const session = "mediaSession" in navigator ? navigator.mediaSession : null;
+  // The system's Now Playing (Control Center on macOS, MPRIS on Linux) and the media keys: the native layer
+  // (src-tauri/src/media.rs) is told what plays.
   const trackId = () => queue.value?.now?.track_id;
   watch(
-    [trackId, player.active],
+    trackId,
     () => {
       const now = queue.value?.now;
-      if (player.active.value === "native") {
-        if (session) {
-          session.metadata = null;
-          session.playbackState = "none";
-        }
-        if (now) {
-          void invoke("media_metadata", {
-            title: now.title,
-            artist: now.artists.join(", "),
-            cover: coverUrl(now.cover, 400),
-            duration: now.duration_seconds,
-          });
-        }
-      } else if (session) {
-        session.metadata = now
-          ? new MediaMetadata({
-              title: now.title,
-              artist: now.artists.join(", "),
-              album: "EndlessWave",
-              artwork: now.cover ? [{ src: coverUrl(now.cover, 400), sizes: "400x400" }] : [],
-            })
-          : null;
+      if (now) {
+        void invoke("media_metadata", {
+          title: now.title,
+          artist: now.artists.join(", "),
+          cover: coverUrl(now.cover, 400),
+          duration: now.duration_seconds,
+        });
       }
     },
     { immediate: true },
   );
   watch(
-    [playing, () => queue.value?.paused, trackId, player.active],
+    [playing, () => queue.value?.paused, trackId],
     () => {
       const now = queue.value?.now;
-      const state = !now ? "none" : playing.value && !queue.value?.paused ? "playing" : "paused";
-      if (player.active.value === "native") {
-        void invoke("media_playback", { state: state === "none" ? "stopped" : state, progress: elapsed.value });
-      } else if (session) {
-        session.playbackState = state;
-        try {
-          if (now) session.setPositionState({ duration: now.duration_seconds, position: Math.min(elapsed.value, now.duration_seconds), playbackRate: 1 });
-        } catch {
-          /* a position the system does not take */
-        }
-      }
+      const state = !now ? "stopped" : playing.value && !queue.value?.paused ? "playing" : "paused";
+      void invoke("media_playback", { state, progress: elapsed.value });
     },
     { immediate: true },
   );
-  if (session) {
-    // A live radio: no previous track, nothing to seek in.
-    session.setActionHandler("play", () => playing.value || void toggle());
-    session.setActionHandler("pause", () => playing.value && void toggle());
-    session.setActionHandler("stop", () => void stop());
-    session.setActionHandler("nexttrack", () => void next());
-  }
 
   const timers: number[] = [];
   const unlisten: Array<() => void> = [];
@@ -367,5 +323,5 @@ export function useRadio() {
     unlisten.forEach((f) => f());
   });
 
-  return { expectRestart, setEngine, starting, engine: player.engine, activeEngine: player.active, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
+  return { expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
 }

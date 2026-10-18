@@ -3,14 +3,12 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { onUnmounted, ref, watch, type Ref } from "vue";
 
 /**
- * Who plays the stream: the native player (src-tauri/src/audio.rs: the system's audio output),
- * or the `<audio>` of the webview. The native one is the default; when it cannot start (no audio
- * device, a stream it does not understand) the `<audio>` plays instead, for that listening.
+ * The player: src-tauri/src/audio.rs reads the stream and plays it through the system's audio output;
+ * the page starts and stops it, sets the volume and asks where it stands.
  */
-export type Engine = "native" | "web";
 
-// The first start of the radio (no track analyzed yet) can take a minute or more; the native player
-// is given time for it, and falls back only on a real failure or after this long.
+// The first start of the radio (no track analyzed yet) can take a minute or more; the player
+// is given time for it, and gives up only on a real failure or after this long.
 const START_TIMEOUT_MS = 300000;
 const POSITION_POLL_MS = 200;
 
@@ -21,53 +19,12 @@ interface NativeStatus {
   message: string;
 }
 
-export function usePlayer(volume: Ref<number>, notice: (text: string) => void) {
-  /** What is chosen; `active` is what plays now (it differs after a fall back). */
-  const engine = ref<Engine>(localStorage.getItem("engine") === "web" ? "web" : "native");
-  const active = ref<Engine>(engine.value);
+export function usePlayer(volume: Ref<number>) {
   const playing = ref(false);
   // Between the click on Play and the first sound (and while the stream stalls).
   const loading = ref(false);
   const error = ref("");
 
-  // ---- The <audio> of the webview
-  const audio = new Audio();
-  audio.preload = "none";
-  // Where the clock of <audio> stands when the stream begins: a stream joined in the middle may not
-  // start it at 0.
-  let base = 0;
-  audio.addEventListener("loadedmetadata", () => (base = audio.currentTime));
-  const syncWeb = () => {
-    if (active.value === "web") playing.value = !audio.paused;
-  };
-  audio.addEventListener("playing", () => {
-    loading.value = false;
-    syncWeb();
-  });
-  audio.addEventListener("waiting", () => (loading.value = !audio.paused));
-  audio.addEventListener("pause", syncWeb);
-  audio.addEventListener("error", () => {
-    loading.value = false;
-    if (!audio.getAttribute("src")) return syncWeb();
-    const e = audio.error;
-    error.value = `Stream is not available (code ${e?.code} ${e?.message ?? ""})`;
-    syncWeb();
-  });
-
-  function dropWeb() {
-    audio.pause();
-    audio.removeAttribute("src");
-    audio.load(); // the stream is live: resume at its edge, not where it stopped
-  }
-
-  async function startWeb(url: string) {
-    base = 0;
-    audio.volume = volume.value / 100;
-    audio.src = url;
-    await audio.play();
-  }
-
-  // ---- The native player
   let position = 0;
   let positionAt = performance.now();
   let underruns = 0;
@@ -94,7 +51,6 @@ export function usePlayer(volume: Ref<number>, notice: (text: string) => void) {
   }
 
   const unlisten: Promise<UnlistenFn> = listen<{ state: NativeStatus["state"]; message: string }>("player", (event) => {
-    if (active.value !== "native") return;
     const { state, message } = event.payload;
     if (state === "playing") {
       loading.value = false;
@@ -147,38 +103,25 @@ export function usePlayer(volume: Ref<number>, notice: (text: string) => void) {
   }
 
   // ---- What the page uses
-  /** Starts the stream: `urls` has the address for each engine. */
-  async function start(urls: Record<Engine, string>) {
+  async function start(url: string) {
     loading.value = true;
     error.value = "";
     await stopAll();
-    active.value = engine.value;
-    if (active.value === "native") {
-      try {
-        await startNative(urls.native);
-        return;
-      } catch (reason) {
-        console.warn("[player] the native player failed:", reason);
-        await invoke("player_stop").catch(() => undefined);
-        notice(`Native audio is not available (${reason}): playing with the browser`);
-        active.value = "web";
-        void invoke("media_enabled", { enabled: false });
-      }
-    }
     try {
-      await startWeb(urls.web);
-    } catch (e) {
+      await startNative(url);
+    } catch (reason) {
+      console.warn("[player] failed:", reason);
+      await invoke("player_stop").catch(() => undefined);
       loading.value = false;
-      error.value = (e as Error).message;
+      playing.value = false;
+      if (reason !== "stopped") error.value = `Cannot play: ${reason}`;
     }
-    syncWeb();
   }
 
   async function stopAll() {
     stopPolling();
     pending?.reject("stopped");
     pending = null;
-    dropWeb();
     await invoke("player_stop").catch(() => undefined);
   }
 
@@ -190,25 +133,15 @@ export function usePlayer(volume: Ref<number>, notice: (text: string) => void) {
 
   /** Seconds of the stream that were played since it was connected. */
   function currentTime(): number {
-    if (active.value === "native") return position + (playing.value ? (performance.now() - positionAt) / 1000 : 0);
-    return audio.currentTime - base;
+    return position + (playing.value ? (performance.now() - positionAt) / 1000 : 0);
   }
 
-  watch(volume, (v) => {
-    audio.volume = v / 100;
-    void invoke("player_volume", { volume: v / 100 });
-  }, { immediate: true });
-
-  // The system's own controls (Now Playing) belong to the native player; the webview shows itself
-  // when it plays, and a second one would show up.
-  watch(active, (value) => void invoke("media_enabled", { enabled: value === "native" }), { immediate: true });
-
-  watch(engine, (value) => localStorage.setItem("engine", value));
+  watch(volume, (v) => void invoke("player_volume", { volume: v / 100 }), { immediate: true });
 
   onUnmounted(() => {
     void stopAll();
     void unlisten.then((f) => f());
   });
 
-  return { engine, active, playing, loading, error, start, stop, currentTime };
+  return { playing, loading, error, start, stop, currentTime };
 }

@@ -64,7 +64,7 @@ const help = ref(false);
 const prefs = ref(false);
 useDock();
 const { release, checking, status: updateStatus, check: checkUpdate, download, dismiss } = useUpdate();
-const { expectRestart, setEngine, starting, engine, activeEngine, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
+const { expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
 watch(loading, (value) => {
   clearTimeout(slowTimer);
   slowStart.value = false;
@@ -248,7 +248,7 @@ onUnmounted(() => {
         @play="playTrack" @move="moveTrack" @remove="removeTrack" @moods="setMoods" @language="setLanguage" @genres="setGenres" @blocked="setBlocked" @toggle-backend="setBackend" @sign-in="signIn" @copy="copy" />
 
       <div class="status">
-        <span>{{ eqNote || (loading ? (slowStart ? "Waiting for the radio to get its first tracks…" : "Connecting…") : playing ? `Playing · ${activeEngine === "native" ? "native" : "browser"}` : "Stopped") }}</span>
+        <span>{{ eqNote || (loading ? (slowStart ? "Waiting for the radio to get its first tracks…" : "Connecting…") : playing ? "Playing" : "Stopped") }}</span>
         <span>{{ queue?.next.length ?? 0 }} queued · ~{{ Math.round(left / 60) }} min</span>
       </div>
 
@@ -274,7 +274,7 @@ onUnmounted(() => {
         <div v-if="prefs" class="sheet-wrap top" @click.self="prefs = false">
           <div class="sheet prefs">
             <h3>Settings</h3>
-            <SettingsPanel :engine="engine" :active="activeEngine" :checking="checking" :update-status="updateStatus" :resetting="resetting" @reset="resetAll" @engine="setEngine" @check-update="checkUpdate(true)" />
+            <SettingsPanel :checking="checking" :update-status="updateStatus" :resetting="resetting" @reset="resetAll" @check-update="checkUpdate(true)" />
             <div class="done"><button class="btn-accent" @click="prefs = false">Done</button></div>
           </div>
         </div>

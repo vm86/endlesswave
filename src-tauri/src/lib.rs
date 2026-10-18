@@ -71,12 +71,6 @@ fn media_playback(media: State<Media>, state: String, progress: f64) {
     media.playback(&state, progress);
 }
 
-/// On with the native player, off with the `<audio>` of the webview (it shows itself to the system).
-#[tauri::command]
-fn media_enabled(media: State<Media>, enabled: bool) {
-    media.set_enabled(enabled);
-}
-
 /// The page tells the tray what plays.
 #[tauri::command]
 fn update_tray(app: AppHandle, state: State<TrayState>, title: String, playing: bool) {
@@ -170,7 +164,6 @@ pub fn run() {
             player_status,
             media_metadata,
             media_playback,
-            media_enabled,
             set_dock_visible
         ])
         .setup(|app| {
