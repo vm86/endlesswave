@@ -15,8 +15,9 @@ use axum::{
 use radio_core::{
     backend::{
         Feedback, MusicBackend, Track,
-        yandex::{YandexBackend, YandexOptions},
+        yandex::{DbStore, MemoryStore, SettingsStore, YandexBackend, YandexOptions},
     },
+    cache::TrackCache,
     clock::ManualClock,
 };
 use serde_json::{Value, json};
@@ -255,9 +256,12 @@ async fn the_yandex_backend_sends_and_reads_as_the_python_one_does() {
         let app = Router::new().fallback(handle).with_state(mock.clone());
         let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
 
-        let settings_path = dir.join("yamusic-radio.json");
-        if !scenario["settings"].is_null() {
-            fs::write(&settings_path, scenario["settings"].to_string()).unwrap();
+        // The settings are in the database of the radio, as in the app.
+        let db_path = dir.join("endlesswave.db");
+        let cache = Arc::new(Mutex::new(TrackCache::open(&db_path).unwrap()));
+        let store = Arc::new(DbStore::new(cache));
+        if let Value::Object(settings) = &scenario["settings"] {
+            store.save(settings).unwrap();
         }
         let delays = scenario
             .get("rate_limit_delays")
@@ -267,7 +271,7 @@ async fn the_yandex_backend_sends_and_reads_as_the_python_one_does() {
                 |d| d.iter().map(|v| v.as_f64().unwrap()).collect(),
             );
         let backend = YandexBackend::new(
-            settings_path.clone(),
+            store.clone(),
             YandexOptions {
                 api: origin.clone(),
                 oauth: origin.clone(),
@@ -385,25 +389,28 @@ async fn the_yandex_backend_sends_and_reads_as_the_python_one_does() {
                 new
             };
             got.insert("requests".to_owned(), json!(settle(requests)));
+            // The database holds the token: only its owner reads it. (Python kept a file; the mode of the file in the
+            // golden data is not the point, so it is left out of the comparison.)
             #[cfg(unix)]
-            let mode = {
+            {
                 use std::os::unix::fs::PermissionsExt;
-                fs::metadata(&settings_path)
-                    .ok()
-                    .map(|m| m.permissions().mode() & 0o777)
-            };
-            #[cfg(not(unix))]
-            let mode = want["state"]["settings_mode"].as_u64().map(|m| m as u32);
+                let mode = fs::metadata(&db_path).unwrap().permissions().mode() & 0o777;
+                assert_eq!(mode, 0o600, "scenario {name}: the mode of the database");
+            }
             got.insert(
                 "state".to_owned(),
                 json!({
                     "authorized": backend.authorized(),
                     "prompt": backend.auth_prompt(),
-                    "settings_file": fs::read_to_string(&settings_path).ok().map(|t| serde_json::from_str::<Value>(&t).unwrap()),
-                    "settings_mode": mode,
+                    "settings_file": Some(store.load()).filter(|m| !m.is_empty()),
                 }),
             );
-            if let Some(difference) = first_difference(&Value::Object(got), want, "") {
+            let mut want = want.clone();
+            want["state"]
+                .as_object_mut()
+                .unwrap()
+                .remove("settings_mode");
+            if let Some(difference) = first_difference(&Value::Object(got), &want, "") {
                 panic!("scenario {name}, step {index} ({op}): {difference}");
             }
         }
@@ -418,14 +425,17 @@ async fn the_quality_is_a_setting_of_the_backend_and_is_kept() {
     let dir =
         std::env::temp_dir().join(format!("radio-core-yandex-quality-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("endlesswave.json");
-    std::fs::write(
-        &path,
-        r#"{"token": "t", "from_id": "music-x", "quality": "lossless"}"#,
-    )
-    .unwrap();
+    let store = Arc::new(MemoryStore::default());
+    store
+        .save(
+            &serde_json::from_str::<serde_json::Map<String, Value>>(
+                r#"{"token": "t", "from_id": "music-x", "quality": "lossless"}"#,
+            )
+            .unwrap(),
+        )
+        .unwrap();
     let backend = YandexBackend::new(
-        path.clone(),
+        store.clone(),
         YandexOptions::default(),
         Arc::new(ManualClock::new(WALL)),
     )
@@ -442,7 +452,7 @@ async fn the_quality_is_a_setting_of_the_backend_and_is_kept() {
         .await
         .unwrap();
     assert_eq!(backend.settings().unwrap().0["quality"], "hq");
-    let kept: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    let kept = Value::Object(store.load());
     assert_eq!(
         (kept["quality"].as_str(), kept["token"].as_str()),
         (Some("hq"), Some("t")),
@@ -459,6 +469,46 @@ async fn the_quality_is_a_setting_of_the_backend_and_is_kept() {
         backend.settings().unwrap().0["quality"],
         "hq",
         "a refused value changes nothing"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_settings_file_of_an_earlier_version_goes_into_the_store_and_is_removed() {
+    use radio_core::backend::yandex::{has_token, import_settings_file};
+    let dir = std::env::temp_dir().join(format!("radio-core-yandex-import-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("endlesswave.json");
+    std::fs::write(
+        &file,
+        r#"{"token": "old", "from_id": "music-1", "quality": "hq"}"#,
+    )
+    .unwrap();
+
+    let store = MemoryStore::default();
+    assert!(!has_token(&store));
+    // what the store has already is not replaced
+    store
+        .save(&serde_json::from_str(r#"{"quality": "nq"}"#).unwrap())
+        .unwrap();
+    let done = import_settings_file(&file, &store)
+        .unwrap()
+        .expect("the file was there");
+    assert!(done.contains("token"), "{done}");
+    let kept = store.load();
+    assert_eq!(
+        (
+            kept["token"].as_str(),
+            kept["from_id"].as_str(),
+            kept["quality"].as_str()
+        ),
+        (Some("old"), Some("music-1"), Some("nq"))
+    );
+    assert!(has_token(&store));
+    assert!(!file.exists(), "the file is removed");
+    assert!(
+        import_settings_file(&file, &store).unwrap().is_none(),
+        "nothing to do the second time"
     );
     let _ = std::fs::remove_dir_all(&dir);
 }

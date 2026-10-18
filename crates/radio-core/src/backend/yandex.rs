@@ -3,7 +3,7 @@
 //! the link to a file.
 //!
 //! Signing in is a code on Yandex's page: the radio asks for the code, shows it (`auth_prompt`), and polls until it is
-//! entered; the token is kept in `~/.config/endlesswave.json`, for the owner only.
+//! entered; the token is kept in the database of the radio (see `SettingsStore`), which only its owner can read.
 
 use super::{
     AuthError, AuthField, AuthPrompt, BackendError, Choice, Feedback, MusicBackend, Track,
@@ -17,7 +17,7 @@ use serde_json::{Map, Value, json};
 use sha2::Sha256;
 use std::{
     collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
+    path::Path,
     sync::{Arc, Mutex, Weak},
     time::Duration,
 };
@@ -77,25 +77,104 @@ impl Default for YandexOptions {
 
 // ---- The settings file --------------------------------------------------------------------------------------------------
 
-/// `~/.config/endlesswave.json`
-pub fn default_settings_path() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(|_| crate::paths::config_file())
+/// Where the settings of the backend (the token, the quality, the id of the listener) are kept.
+pub trait SettingsStore: Send + Sync {
+    /// All of them, empty if nothing was kept yet.
+    fn load(&self) -> Map<String, Value>;
+    /// Keep these.
+    fn save(&self, settings: &Map<String, Value>) -> std::io::Result<()>;
 }
 
-/// Whether the settings file already holds an OAuth token.
-pub fn has_token(path: &Path) -> bool {
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|text| serde_json::from_str::<Value>(&text).ok())
-        .and_then(|v| v.get("token").cloned())
-        .is_some_and(|t| {
-            t.as_str().is_some_and(|s| !s.is_empty())
-                || (t.is_boolean() && t == true)
-                || t.is_number()
-        })
+/// In memory only: nothing is kept after the run (`--no-cache`, tests).
+#[derive(Default)]
+pub struct MemoryStore(Mutex<Map<String, Value>>);
+
+impl SettingsStore for MemoryStore {
+    fn load(&self) -> Map<String, Value> {
+        self.0.lock().expect("not poisoned").clone()
+    }
+
+    fn save(&self, settings: &Map<String, Value>) -> std::io::Result<()> {
+        self.0
+            .lock()
+            .expect("not poisoned")
+            .extend(settings.clone());
+        Ok(())
+    }
 }
 
-fn read_settings(path: &Path) -> std::io::Result<Map<String, Value>> {
+/// In the database of the radio (`backend_settings`), which only its owner can read: it holds the token.
+pub struct DbStore {
+    cache: Arc<Mutex<crate::cache::TrackCache>>,
+}
+
+impl DbStore {
+    pub fn new(cache: Arc<Mutex<crate::cache::TrackCache>>) -> Self {
+        Self { cache }
+    }
+}
+
+impl SettingsStore for DbStore {
+    fn load(&self) -> Map<String, Value> {
+        self.cache
+            .lock()
+            .expect("not poisoned")
+            .backend_settings(ID)
+    }
+
+    fn save(&self, settings: &Map<String, Value>) -> std::io::Result<()> {
+        self.cache
+            .lock()
+            .expect("not poisoned")
+            .put_backend_settings(ID, settings)
+            .map_err(std::io::Error::other)
+    }
+}
+
+/// The id of this backend in the settings.
+pub const ID: &str = "yandex";
+
+/// Whether the settings hold an OAuth token.
+pub fn has_token(store: &dyn SettingsStore) -> bool {
+    store.load().get("token").is_some_and(|t| {
+        t.as_str().is_some_and(|s| !s.is_empty()) || (t.is_boolean() && *t == true) || t.is_number()
+    })
+}
+
+/// Take the settings of an earlier version, a file (`~/.config/endlesswave.json`), into the store, and remove the file. What
+/// the store has already is not replaced. Says what it did.
+pub fn import_settings_file(
+    path: &std::path::Path,
+    store: &dyn SettingsStore,
+) -> std::io::Result<Option<String>> {
+    let text = match std::fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error),
+    };
+    let Value::Object(old) = serde_json::from_str(&text).map_err(std::io::Error::other)? else {
+        return Err(std::io::Error::other("the settings file is not an object"));
+    };
+    let mut have = store.load();
+    let mut taken = Map::new();
+    for (key, value) in old {
+        if !have.contains_key(&key) {
+            have.insert(key.clone(), value.clone());
+            taken.insert(key, value);
+        }
+    }
+    store.save(&taken)?;
+    std::fs::remove_file(path)?;
+    Ok(Some(format!(
+        "took the settings of Yandex Music ({}) from {} into the database, and removed the file",
+        taken.keys().cloned().collect::<Vec<_>>().join(", "),
+        path.display()
+    )))
+}
+
+/// The settings with the defaults for what is not kept; the defaults are kept too, once (the id of the listener is made
+/// only the first time).
+fn read_settings(store: &dyn SettingsStore) -> std::io::Result<Map<String, Value>> {
     let mut settings = Map::new();
     settings.insert("token".to_owned(), Value::Null);
     settings.insert(
@@ -103,47 +182,13 @@ fn read_settings(path: &Path) -> std::io::Result<Map<String, Value>> {
         json!(format!("music-{}", uuid::Uuid::new_v4())),
     );
     settings.insert("quality".to_owned(), json!("lossless"));
-    match std::fs::read_to_string(path) {
-        Ok(text) => {
-            let Value::Object(saved) =
-                serde_json::from_str(&text).map_err(std::io::Error::other)?
-            else {
-                return Err(std::io::Error::other("the settings file is not an object"));
-            };
-            settings.extend(saved);
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            save_settings(path, &settings)?
-        }
-        Err(error) => return Err(error),
+    let kept = store.load();
+    let complete = settings.keys().all(|key| kept.contains_key(key));
+    settings.extend(kept);
+    if !complete {
+        store.save(&settings)?;
     }
     Ok(settings)
-}
-
-/// Write the settings, which hold the token, for the owner only.
-fn save_settings(path: &Path, settings: &Map<String, Value>) -> std::io::Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    // A new file, so that the token is never readable by others, not even for a moment, and a crash can't leave half of it
-    // behind.
-    let mut temp = path.as_os_str().to_owned();
-    temp.push(".tmp");
-    let temp = PathBuf::from(temp);
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create(true).truncate(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    std::io::Write::write_all(
-        &mut options.open(&temp)?,
-        serde_json::to_string(settings)
-            .expect("settings are JSON")
-            .as_bytes(),
-    )?;
-    std::fs::rename(temp, path)
 }
 
 // ---- The requests -----------------------------------------------------------------------------------------------------
@@ -312,7 +357,7 @@ pub struct YandexBackend {
     me: Weak<Self>,
     http: reqwest::Client,
     options: YandexOptions,
-    settings_path: PathBuf,
+    store: Arc<dyn SettingsStore>,
     clock: Arc<dyn Clock>,
     state: Mutex<State>,
     signed_in: Notify,
@@ -322,11 +367,11 @@ pub struct YandexBackend {
 
 impl YandexBackend {
     pub fn new(
-        settings_path: PathBuf,
+        store: Arc<dyn SettingsStore>,
         options: YandexOptions,
         clock: Arc<dyn Clock>,
     ) -> std::io::Result<Arc<Self>> {
-        let settings = read_settings(&settings_path)?;
+        let settings = read_settings(&*store)?;
         let signed_in = settings
             .get("token")
             .and_then(Value::as_str)
@@ -340,7 +385,7 @@ impl YandexBackend {
             me: me.clone(),
             http,
             options,
-            settings_path,
+            store,
             clock,
             state: Mutex::new(State {
                 settings,
@@ -581,7 +626,7 @@ impl YandexBackend {
 
     fn save(&self) -> std::io::Result<()> {
         let settings = self.st().settings.clone();
-        save_settings(&self.settings_path, &settings)
+        self.store.save(&settings)
     }
 
     // ---- The calls the radio makes ------------------------------------------------------------------------------------

@@ -108,21 +108,15 @@ impl Engine {
 mod tests {
     use super::*;
 
-    /// Arguments that keep a test away from the files and the accounts of whoever runs it: a settings file of its own
-    /// (with no token), no cache.
+    /// Arguments that keep a test away from the files and the accounts of whoever runs it: no cache, so the settings of
+    /// Yandex Music (the token) are not read from the database of the user.
     fn test_args(port: u16) -> Vec<String> {
-        let config = std::env::temp_dir().join(format!(
-            "endlesswave-engine-test-{}-{port}.json",
-            std::process::id()
-        ));
         [
             "--host",
             "127.0.0.1",
             "--port",
             &port.to_string(),
             "--no-cache",
-            "--config",
-            &config.to_string_lossy(),
         ]
         .map(String::from)
         .to_vec()

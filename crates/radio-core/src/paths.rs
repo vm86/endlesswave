@@ -14,8 +14,9 @@ pub fn home() -> PathBuf {
     std::env::var_os("HOME").map_or_else(|| PathBuf::from("."), PathBuf::from)
 }
 
-/// `~/.config/endlesswave.json`: the token of Yandex Music and its settings.
-pub fn config_file() -> PathBuf {
+/// `~/.config/endlesswave.json`: where the token of Yandex Music and its settings were kept before they went into the
+/// database; the radio takes the file in and removes it.
+pub fn legacy_config_file() -> PathBuf {
     home().join(".config").join(CONFIG_NAME)
 }
 

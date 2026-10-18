@@ -7,7 +7,7 @@ use crate::{
         MusicBackend,
         local::LocalBackend,
         multi::{BackendSpec, MultiBackend},
-        yandex::{self, YandexBackend, YandexOptions},
+        yandex::{self, DbStore, MemoryStore, SettingsStore, YandexBackend, YandexOptions},
     },
     cache::TrackCache,
     clock::{Clock, SystemClock},
@@ -59,9 +59,6 @@ pub struct Options {
     /// Enable debugging output
     #[arg(long)]
     pub debug: bool,
-    /// Settings file with the Yandex OAuth token (Yandex backend)
-    #[arg(long, default_value_os_t = crate::paths::config_file())]
-    pub config: PathBuf,
     /// Turn a music backend on (repeat for several). The tracks of all that are on are mixed. The ones of the last run and
     /// the ones that are signed in are on too; the API turns them on and off
     #[arg(long, value_parser = clap::builder::PossibleValuesParser::new(BACKEND_IDS))]
@@ -130,25 +127,29 @@ pub fn backend_specs(
     clock: Arc<dyn Clock>,
 ) -> Vec<BackendSpec> {
     let directory = options.local_dir.clone().or_else(|| saved_directory(cache));
-    let config = options.config.clone();
+    // The settings of Yandex Music (the token...) are in the database; without one (`--no-cache`) in memory, for this run.
+    let store: Arc<dyn SettingsStore> = match cache {
+        Some(cache) => Arc::new(DbStore::new(cache.clone())),
+        None => Arc::new(MemoryStore::default()),
+    };
     let yandex_clock = clock.clone();
     let shown = directory.clone();
     let remember = cache.cloned();
     let ffmpeg = options.ffmpeg.clone();
     vec![
         BackendSpec::new("yandex", "Yandex Music", {
-            let config = config.clone();
+            let store = store.clone();
             move || {
                 YandexBackend::new(
-                    config.clone(),
+                    store.clone(),
                     YandexOptions::default(),
                     yandex_clock.clone(),
                 )
-                .expect("the settings file of the Yandex backend can be read")
+                .expect("the settings of the Yandex backend can be read")
                     as Arc<dyn MusicBackend>
             }
         })
-        .configured(move || yandex::has_token(&config)),
+        .configured(move || yandex::has_token(&*store)),
         BackendSpec::new("local", "Local folder", {
             let directory = directory.clone();
             move || {
@@ -276,6 +277,19 @@ pub async fn run(
     } else {
         (Some(open()?), Some(Arc::new(Mutex::new(open()?))))
     };
+    // The token and the rest of the settings of Yandex Music were in a file; they are in the database now.
+    if let Some(cache) = &settings {
+        match yandex::import_settings_file(
+            &crate::paths::legacy_config_file(),
+            &DbStore::new(cache.clone()),
+        ) {
+            Ok(Some(done)) => tracing::info!("Migration: {done}"),
+            Ok(None) => {}
+            Err(error) => {
+                tracing::error!("Could not take the settings file into the database: {error}")
+            }
+        }
+    }
     // What the last run was using, unless the command line says otherwise.
     if let (Some(cache), Some(dir)) = (&settings, &options.local_dir) {
         let _ = cache

@@ -267,6 +267,8 @@ mod tests {
             "CREATE TABLE tracks (track_id TEXT, analysis TEXT, played_at REAL);
              CREATE TABLE transitions (at REAL);
              CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+             CREATE TABLE backend_settings (backend TEXT, key TEXT, value TEXT);
+             INSERT INTO backend_settings VALUES ('yandex', 'token', 'x');
              INSERT INTO tracks VALUES ('a', '{\"bpm\": 120}', 5.0);
              INSERT INTO transitions VALUES (1.0);
              INSERT INTO settings VALUES ('playlist', '[]');",
@@ -280,6 +282,11 @@ mod tests {
         let count = |sql: &str| conn.query_row(sql, [], |row| row.get::<_, i64>(0)).unwrap();
         assert_eq!(count("SELECT COUNT(*) FROM settings"), 0);
         assert_eq!(count("SELECT COUNT(*) FROM transitions"), 0);
+        assert_eq!(
+            count("SELECT COUNT(*) FROM backend_settings"),
+            1,
+            "the sign-in stays"
+        );
         assert_eq!(
             count("SELECT COUNT(*) FROM tracks"),
             1,

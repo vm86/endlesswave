@@ -35,7 +35,7 @@ def main() -> None:
     if engine == "python":
         command = [str(PYTHON_BIN), "--foreground", "--config", str(out / "config.json"), *common]
     else:
-        command = [str(RUST_BIN), "--config", str(out / "config.json"), *common]
+        command = [str(RUST_BIN), *common]
     log = (out / "log.txt").open("w")
     process = subprocess.Popen(command, stdout=log, stderr=log, stdin=subprocess.DEVNULL)
     started = time.time()

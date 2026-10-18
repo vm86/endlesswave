@@ -49,6 +49,12 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS backend_settings (
+    backend TEXT NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (backend, key)
+);
 CREATE INDEX IF NOT EXISTS tracks_played ON tracks (played_at);
 CREATE INDEX IF NOT EXISTS tracks_used ON tracks (used_at);
 ";
@@ -133,6 +139,14 @@ impl TrackCache {
                 .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
         }
         let db = Connection::open(path)?;
+        // The database holds the tokens of the music services: for the owner only (SQLite gives its side files the same
+        // mode).
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+        }
         db.execute_batch(SCHEMA)?;
         let columns = |table: &str| -> rusqlite::Result<HashSet<String>> {
             db.prepare(&format!("PRAGMA table_info({table})"))?
@@ -188,6 +202,42 @@ impl TrackCache {
             params![key, value.to_string()],
         )?;
         Ok(())
+    }
+
+    /// The settings of a music backend (its token, its quality), as the JSON object it keeps. They are not the `settings` of
+    /// the radio: a reset of the radio does not touch them.
+    pub fn backend_settings(&self, backend: &str) -> serde_json::Map<String, Value> {
+        let Ok(mut statement) = self
+            .db
+            .prepare("SELECT key, value FROM backend_settings WHERE backend = ?")
+        else {
+            return serde_json::Map::new();
+        };
+        let rows = statement.query_map([backend], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        });
+        rows.into_iter()
+            .flatten()
+            .flatten()
+            .filter_map(|(key, text)| serde_json::from_str(&text).ok().map(|value| (key, value)))
+            .collect()
+    }
+
+    /// Keep the settings of a music backend: these keys, in one transaction.
+    pub fn put_backend_settings(
+        &mut self,
+        backend: &str,
+        settings: &serde_json::Map<String, Value>,
+    ) -> rusqlite::Result<()> {
+        let tx = self.db.transaction()?;
+        for (key, value) in settings {
+            tx.execute(
+                "INSERT INTO backend_settings (backend, key, value) VALUES (?, ?, ?) \
+                 ON CONFLICT (backend, key) DO UPDATE SET value = excluded.value",
+                params![backend, key, value.to_string()],
+            )?;
+        }
+        tx.commit()
     }
 
     pub fn delete_setting(&self, key: &str) -> rusqlite::Result<()> {

@@ -76,7 +76,7 @@ If you have not signed in yet, a card "Sign in to Yandex Music" shows at the top
 1. Press **Copy code** (the code goes to the clipboard) and **Open**: the Yandex page opens.
 2. Paste the code and confirm the sign-in.
 
-The token is kept in `~/.config/endlesswave.json` (mode `0600`), so you sign in once.
+The token is kept in the database of the radio, `~/.cache/endlesswave.db` (mode `0600`), so you sign in once.
 
 ### Music from a folder
 
@@ -172,12 +172,11 @@ The app reads the stream itself, decodes it (MP3, FLAC) and plays it through the
 the window only controls it.
 Everything else (the queue, the moods, the spectrum) comes from the API of the radio. The radio runs inside the app (`crates/radio-core`); if something already answers on port `18000`, the app connects to it.
 
-Files of the radio (versions before 0.2 kept them as `~/.config/yamusic-radio.json`, `~/.cache/yamusic-radio.db` and so on; the first start moves the token and the database to the new names and removes the old files, the loaded tracks and the log):
+Files of the radio (versions before 0.2 kept them as `~/.config/yamusic-radio.json`, `~/.cache/yamusic-radio.db` and so on; the first start moves the database to the new name, takes the token file into it and removes the old files, the loaded tracks and the log):
 
 | What | Where |
 |---|---|
-| The Yandex Music token | `~/.config/endlesswave.json` |
-| The cache of the analysis, the settings | `~/.cache/endlesswave.db` |
+| The Yandex Music token and its settings, the cache of the analysis, the settings of the radio | `~/.cache/endlesswave.db` (mode `0600`) |
 | The loaded tracks that wait for their turn | `~/.cache/endlesswave-tracks/` |
 | The log (only with `ENDLESSWAVE_LOG=1`) | `~/.cache/endlesswave.log` |
 
