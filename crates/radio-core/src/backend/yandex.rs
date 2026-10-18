@@ -5,7 +5,9 @@
 //! Signing in is a code on Yandex's page: the radio asks for the code, shows it (`auth_prompt`), and polls until it is
 //! entered; the token is kept in `~/.config/endlesswave.json`, for the owner only.
 
-use super::{AuthError, AuthPrompt, BackendError, Feedback, MusicBackend, Track};
+use super::{
+    AuthError, AuthField, AuthPrompt, BackendError, Choice, Feedback, MusicBackend, Track,
+};
 use crate::clock::Clock;
 use async_trait::async_trait;
 use base64::Engine as _;
@@ -30,6 +32,13 @@ pub const API: &str = "https://api.music.yandex.net";
 pub const OAUTH: &str = "https://oauth.yandex.ru";
 /// "My wave".
 pub const DEFAULT_STATION: &str = "user:onyourwave";
+/// The setting of the quality of the files, and the values the service knows.
+const QUALITY: &str = "quality";
+const QUALITIES: [(&str, &str); 3] = [
+    ("lossless", "Lossless (FLAC)"),
+    ("hq", "High (hq)"),
+    ("nq", "Normal (nq)"),
+];
 const CLIENT_HEADER: &str = "YandexMusicAndroid/24023621";
 const USER_AGENT: &str = "Yandex-Music-API";
 /// The public OAuth credentials of the official Android app.
@@ -848,6 +857,46 @@ impl MusicBackend for YandexBackend {
 
     fn default_station(&self) -> String {
         DEFAULT_STATION.to_owned()
+    }
+
+    /// The quality of the files: what is chosen, and what can be.
+    fn settings(&self) -> Option<(HashMap<String, String>, Vec<AuthField>)> {
+        let field = AuthField {
+            name: QUALITY.to_owned(),
+            label: "Quality".to_owned(),
+            secret: false,
+            choices: QUALITIES
+                .iter()
+                .map(|(value, label)| Choice {
+                    value: (*value).to_owned(),
+                    label: (*label).to_owned(),
+                })
+                .collect(),
+        };
+        Some((
+            HashMap::from([(QUALITY.to_owned(), self.setting(QUALITY))]),
+            vec![field],
+        ))
+    }
+
+    /// Choose the quality. It is kept in the settings file and is the one of the tracks that are fetched from now on.
+    async fn update_settings(&self, values: &HashMap<String, String>) -> Result<(), AuthError> {
+        let Some(quality) = values.get(QUALITY) else {
+            return Err(AuthError("expected {\"quality\": \"...\"}".to_owned()));
+        };
+        if !QUALITIES.iter().any(|(value, _)| value == quality) {
+            return Err(AuthError(format!(
+                "unknown quality {}",
+                crate::api::py_repr(quality)
+            )));
+        }
+        self.st()
+            .settings
+            .insert(QUALITY.to_owned(), json!(quality));
+        self.save()
+            .map_err(|e| AuthError(format!("could not keep the settings: {e}")))?;
+        tracing::info!("Yandex Music: quality {quality}");
+        Ok(())
     }
 
     async fn wait_authorized(&self) {

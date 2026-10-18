@@ -117,6 +117,13 @@ impl BackendSet for StubBackends {
             })
             .collect()
     }
+    async fn update_backend_settings(
+        &self,
+        _id: &str,
+        _values: &HashMap<String, String>,
+    ) -> Result<(), AuthError> {
+        Err(AuthError("the stub has no settings".to_owned()))
+    }
     async fn authorize_backend(
         &self,
         id: &str,

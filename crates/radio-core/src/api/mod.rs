@@ -40,6 +40,12 @@ pub trait BackendSet: Send + Sync {
     async fn disable(&self, id: &str) -> Result<(), String>;
     /// Describe every backend, for the page that turns them on and off.
     fn status(&self) -> Value;
+    /// Change the settings of one of the backends that are on (not the sign-in).
+    async fn update_backend_settings(
+        &self,
+        id: &str,
+        values: &HashMap<String, String>,
+    ) -> Result<(), AuthError>;
     /// Sign in to one of the backends that are on.
     async fn authorize_backend(
         &self,
@@ -313,6 +319,29 @@ async fn turn_on(State(api): State<Api>, body: Bytes) -> Result<Response, ApiErr
     Ok(ok(&api.auth_info()))
 }
 
+/// `PUT /api/auth/backend/{backend}/settings` with `{"values": {...}}`: change the settings of a backend that is on.
+async fn backend_settings(
+    State(api): State<Api>,
+    Path(backend): Path<String>,
+    body: Bytes,
+) -> Result<Response, ApiError> {
+    let body = json_body(&body)?;
+    let values: Option<HashMap<String, String>> =
+        body.get("values").and_then(Value::as_object).and_then(|o| {
+            o.iter()
+                .map(|(k, v)| v.as_str().map(|v| (k.clone(), v.to_owned())))
+                .collect()
+        });
+    let Some(values) = values else {
+        return Err(ApiError::bad_request("expected {\"values\": {...}}"));
+    };
+    known(&api)?
+        .update_backend_settings(&backend, &values)
+        .await
+        .map_err(|e| ApiError::bad_request(e.0))?;
+    Ok(ok(&api.auth_info()))
+}
+
 async fn turn_off(
     State(api): State<Api>,
     Path(backend): Path<String>,
@@ -365,6 +394,10 @@ pub fn router(api: Api) -> Router {
         .route(
             "/api/auth/backend/{backend}",
             axum::routing::delete(turn_off),
+        )
+        .route(
+            "/api/auth/backend/{backend}/settings",
+            put(backend_settings),
         );
     app = streams::add_streams(app, &api);
     app.method_not_allowed_fallback(not_allowed)

@@ -200,6 +200,8 @@ kbd {
 .toast.fade-enter-from, .toast.fade-leave-to { transform: translate(-50%, 8px); }
 .tbtn.fmt { min-width: 48px; letter-spacing: 0.5px; }
 .tbtn.loading { opacity: 0.55; color: var(--text2); background: var(--control); }
+.choices { margin: 6px 0 0 2px; }
+.choices .prefs-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--text2); }
 .folder { display: flex; align-items: center; gap: 8px; margin: 6px 0 0 2px; color: var(--text2); }
 .folder .path { flex: 1; min-width: 0; font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .spin { animation: spin 0.8s linear infinite; }

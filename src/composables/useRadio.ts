@@ -230,6 +230,11 @@ export function useRadio() {
       auth.value = await (enabled ? api.enableBackend(id) : api.disableBackend(id));
       return true;
     })) === true;
+  const setBackendSettings = async (id: string, values: Record<string, string>): Promise<boolean> =>
+    (await guarded(async () => {
+      auth.value = await api.setBackendSettings(id, values);
+      return true;
+    })) === true;
   const signIn = async (id: string, values: Record<string, string>): Promise<boolean> =>
     (await guarded(async () => {
       auth.value = await api.signIn(id, values);
@@ -323,5 +328,5 @@ export function useRadio() {
     unlisten.forEach((f) => f());
   });
 
-  return { expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
+  return { expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
 }

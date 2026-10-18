@@ -550,6 +550,22 @@ impl BackendSet for MultiBackend {
             .collect()
     }
 
+    /// Change the settings of one of the backends that are on.
+    async fn update_backend_settings(
+        &self,
+        id: &str,
+        values: &HashMap<String, String>,
+    ) -> Result<(), AuthError> {
+        let running = self.st().running.get(id).map(owner);
+        let Some(running) = running else {
+            return Err(AuthError(format!(
+                "music backend {} is not on",
+                crate::api::py_repr(id)
+            )));
+        };
+        running.backend.update_settings(values).await
+    }
+
     /// Sign in to one of the backends that are on.
     async fn authorize_backend(
         &self,

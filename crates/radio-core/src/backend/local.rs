@@ -230,6 +230,7 @@ impl LocalBackend {
             name: DIRECTORY.to_owned(),
             label: "Folder with the music".to_owned(),
             secret: false,
+            choices: Vec::new(),
         }]
     }
 

@@ -64,7 +64,7 @@ const help = ref(false);
 const prefs = ref(false);
 useDock();
 const { release, checking, status: updateStatus, check: checkUpdate, download, dismiss } = useUpdate();
-const { expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
+const { expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
 watch(loading, (value) => {
   clearTimeout(slowTimer);
   slowStart.value = false;
@@ -245,7 +245,7 @@ onUnmounted(() => {
       </div>
 
       <Playlist :queue="queue" :moods="queue?.moods" :language="queue?.language" :genres="genres" :auth="auth" :stats="stats" :tab="tab"
-        @play="playTrack" @move="moveTrack" @remove="removeTrack" @moods="setMoods" @language="setLanguage" @genres="setGenres" @blocked="setBlocked" @toggle-backend="setBackend" @sign-in="signIn" @copy="copy" />
+        @play="playTrack" @move="moveTrack" @remove="removeTrack" @moods="setMoods" @language="setLanguage" @genres="setGenres" @blocked="setBlocked" @toggle-backend="setBackend" @sign-in="signIn" @backend-settings="setBackendSettings" @copy="copy" />
 
       <div class="status">
         <span>{{ eqNote || (loading ? (slowStart ? "Waiting for the radio to get its first tracks…" : "Connecting…") : playing ? "Playing" : "Stopped") }}</span>

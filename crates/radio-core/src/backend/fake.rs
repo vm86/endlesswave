@@ -125,6 +125,7 @@ impl MusicBackend for FakeBackend {
                 name: "token".to_owned(),
                 label: "Token".to_owned(),
                 secret: true,
+                choices: Vec::new(),
             }],
         }
     }

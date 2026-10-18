@@ -50,6 +50,16 @@ pub struct AuthField {
     pub label: String,
     #[serde(default)]
     pub secret: bool,
+    /// The values to choose from, when the field is a choice and not a text; none for a text.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub choices: Vec<Choice>,
+}
+
+/// One of the values of a field that is a choice.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Choice {
+    pub value: String,
+    pub label: String,
 }
 
 /// What the user is asked to do to sign in, as far as it is known. A backend asks for either or both of these: to open
@@ -169,6 +179,12 @@ pub trait MusicBackend: Send + Sync {
     /// that has none. The new values are given to `authorize`, which keeps them.
     fn settings(&self) -> Option<(HashMap<String, String>, Vec<AuthField>)> {
         None
+    }
+    /// Change the settings that `settings` lists (not the sign-in: that is `authorize`). `values` holds the ones to change.
+    async fn update_settings(&self, _values: &HashMap<String, String>) -> Result<(), AuthError> {
+        Err(AuthError(
+            "this music backend has no settings to change".to_owned(),
+        ))
     }
     /// The ids of the backends that are off or can't be reached; the tracks of them that are only linked leave the
     /// queue. Only the multi-backend has any.

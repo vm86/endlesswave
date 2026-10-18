@@ -56,6 +56,8 @@ export interface AuthField {
   name: string;
   label: string;
   secret: boolean;
+  /** The values to choose from, when the field is a choice and not a text. */
+  choices?: { value: string; label: string }[];
 }
 export interface Backend {
   id: string;
@@ -129,6 +131,8 @@ export const api = {
   enableBackend: (backend: string) => request<AuthInfo>("/api/auth/backend", json("PUT", { backend })),
   disableBackend: (id: string) =>
     request<AuthInfo>(`/api/auth/backend/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  setBackendSettings: (backend: string, values: Record<string, string>) =>
+    request<AuthInfo>(`/api/auth/backend/${encodeURIComponent(backend)}/settings`, json("PUT", { values })),
   signIn: (backend: string, values: Record<string, string>) =>
     request<AuthInfo>("/api/auth", json("POST", { backend, values })),
   setBlocked: (genres: string[]) =>

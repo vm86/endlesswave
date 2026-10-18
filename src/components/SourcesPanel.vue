@@ -6,14 +6,17 @@ import { reactive } from "vue";
 import type { AuthInfo, Backend } from "../api";
 
 defineProps<{ auth: AuthInfo | null }>();
-const emit = defineEmits<{ toggle: [id: string, enabled: boolean]; signIn: [id: string, values: Record<string, string>]; copy: [text: string, what?: string] }>();
+const emit = defineEmits<{ toggle: [id: string, enabled: boolean]; signIn: [id: string, values: Record<string, string>]; setting: [id: string, values: Record<string, string>]; copy: [text: string, what?: string] }>();
 const values = reactive<Record<string, Record<string, string>>>({});
 
 const status = (b: Backend) =>
-  !b.enabled ? "off" : !b.authorized ? (b.setting_fields?.length ? "choose a folder" : "sign-in needed") : b.available ? "ready" : "resting after failures";
+  !b.enabled ? "off" : !b.authorized ? (folderField(b) ? "choose a folder" : "sign-in needed") : b.available ? "ready" : "resting after failures";
 
 /** A backend whose setting is a folder (the local one) picks it in the system's dialog. */
 const folderField = (b: Backend) => b.setting_fields?.find((f) => f.name === "directory");
+
+/** The settings of a backend that are a choice (the quality of Yandex Music): a row for each. */
+const choiceFields = (b: Backend) => b.setting_fields?.filter((f) => f.choices?.length) ?? [];
 
 async function chooseFolder(b: Backend) {
   const field = folderField(b);
@@ -38,7 +41,17 @@ async function chooseFolder(b: Backend) {
         <button class="btn-accent" @click="chooseFolder(b)">{{ b.settings?.directory ? "Change…" : "Choose…" }}</button>
       </div>
 
-      <div v-else-if="b.enabled && !b.authorized" class="login">
+      <div v-if="b.enabled && b.authorized" class="choices">
+        <div v-for="f in choiceFields(b)" :key="f.name" class="prefs-row">
+          <span>{{ f.label }}</span>
+          <div class="segmented">
+            <button v-for="c in f.choices" :key="c.value" :class="{ on: b.settings?.[f.name] === c.value }"
+              @click="emit('setting', b.id, { [f.name]: c.value })">{{ c.label }}</button>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="b.enabled && !b.authorized && !folderField(b)" class="login">
         <template v-if="b.url && b.code">
           code <code class="code" title="Click to copy" @click="emit('copy', b.code)">{{ b.code }}</code>
           <a href="#" @click.prevent="emit('copy', b.code)">copy</a> ·

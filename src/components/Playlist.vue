@@ -22,6 +22,7 @@ const emit = defineEmits<{
   language: [string | null];
   toggleBackend: [id: string, enabled: boolean];
   signIn: [id: string, values: Record<string, string>];
+  backendSettings: [id: string, values: Record<string, string>];
   play: [id: string];
   move: [id: string, position: number];
   remove: [id: string];
@@ -152,7 +153,8 @@ window.addEventListener("keydown", (event) => event.key === "Escape" && closeMen
     <MixPanel v-else-if="tab === 'mix'" :moods="moods" :genres="genres" :language="language" @language="emit('language', $event)" @moods="emit('moods', $event)"
       @genres="emit('genres', $event)" @blocked="emit('blocked', $event)" />
     <SourcesPanel v-else-if="tab === 'sources'" :auth="auth" @toggle="(id, on) => emit('toggleBackend', id, on)"
-      @sign-in="(id, v) => emit('signIn', id, v)" @copy="(t, w) => emit('copy', t, w)" />
+      @sign-in="(id, v) => emit('signIn', id, v)"
+      @setting="(id, v) => emit('backendSettings', id, v)" @copy="(t, w) => emit('copy', t, w)" />
     <StatsPanel v-else :stats="stats" />
     <div v-if="menu" class="ctx" :style="{ left: menu.x + 'px', top: menu.y + 'px' }" @contextmenu.prevent>
       <template v-if="menu.row.kind === 'next'">

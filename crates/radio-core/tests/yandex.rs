@@ -412,3 +412,53 @@ async fn the_yandex_backend_sends_and_reads_as_the_python_one_does() {
     }
     let _ = fs::remove_dir_all(&scratch);
 }
+
+#[tokio::test]
+async fn the_quality_is_a_setting_of_the_backend_and_is_kept() {
+    let dir =
+        std::env::temp_dir().join(format!("radio-core-yandex-quality-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("endlesswave.json");
+    std::fs::write(
+        &path,
+        r#"{"token": "t", "from_id": "music-x", "quality": "lossless"}"#,
+    )
+    .unwrap();
+    let backend = YandexBackend::new(
+        path.clone(),
+        YandexOptions::default(),
+        Arc::new(ManualClock::new(WALL)),
+    )
+    .unwrap();
+
+    let (values, fields) = backend.settings().expect("Yandex has settings");
+    assert_eq!(values["quality"], "lossless");
+    assert_eq!(fields[0].name, "quality");
+    let offered: Vec<&str> = fields[0].choices.iter().map(|c| c.value.as_str()).collect();
+    assert_eq!(offered, ["lossless", "hq", "nq"]);
+
+    backend
+        .update_settings(&HashMap::from([("quality".to_owned(), "hq".to_owned())]))
+        .await
+        .unwrap();
+    assert_eq!(backend.settings().unwrap().0["quality"], "hq");
+    let kept: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(
+        (kept["quality"].as_str(), kept["token"].as_str()),
+        (Some("hq"), Some("t")),
+        "the token stays"
+    );
+
+    for bad in [
+        HashMap::from([("quality".to_owned(), "ultra".to_owned())]),
+        HashMap::new(),
+    ] {
+        assert!(backend.update_settings(&bad).await.is_err());
+    }
+    assert_eq!(
+        backend.settings().unwrap().0["quality"],
+        "hq",
+        "a refused value changes nothing"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
