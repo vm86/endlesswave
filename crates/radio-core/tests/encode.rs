@@ -504,9 +504,14 @@ async fn real_encoders_give_streams_a_listener_can_join() {
     task.abort();
 
     use radio_core::stream::frames;
-    // Who was there from the start gets the stream from its first byte: ffmpeg begins an MP3 with a tag of 44 bytes.
+    // Who was there from the start gets the stream from its first byte: ffmpeg begins an MP3 with a tag (its size is in
+    // the tag, and depends on the version of ffmpeg: it names the library), and the first frame follows it.
     assert_eq!(&received[0][..3], b"ID3");
-    assert_eq!(frames::mp3_start(&received[0]), 44);
+    let tag = 10
+        + received[0][6..10]
+            .iter()
+            .fold(0usize, |size, &b| size << 7 | usize::from(b & 0x7F));
+    assert_eq!(frames::mp3_start(&received[0]), tag);
     // Who joins later gets the latest seconds from a frame.
     let (late, position) = streams.mp3.subscribe_at();
     let first = late.try_recv().expect("the latest audio at once");
