@@ -715,3 +715,186 @@ def hashid(root: Path, path: Path) -> str:
     from yamusic_radio.local import track_id
 
     return track_id(path.relative_to(root))
+
+
+# ---- The Yandex backend: a mock of the service ------------------------------------------------------------------------
+
+YANDEX_WALL = 1_700_000_000.0
+YANDEX_TOKEN_FILE = {"token": "tok-123", "from_id": "music-test", "quality": "lossless"}
+
+
+def _json_text(value: object) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+class MockYandex:
+    """The service, as the scenario says it answers: per route, the answers in turn (the last one is repeated)."""
+
+    def __init__(self, routes: list[dict[str, object]]) -> None:
+        self.routes = routes
+        self.calls: dict[str, int] = {}
+        self.log: list[dict[str, object]] = []
+        self.origin = ""
+
+    def answer_for(self, method: str, path: str, query: dict[str, str]) -> dict[str, object]:
+        for index, route in enumerate(self.routes):
+            if route["method"] == method and route["path"] == path and all(query.get(k) == v for k, v in route.get("when", {}).items()):
+                key = str(index)
+                turn = self.calls.get(key, 0)
+                self.calls[key] = turn + 1
+                answers = route["responses"]
+                return answers[min(turn, len(answers) - 1)]
+        return {"status": 404, "json": {"error": "no route"}}
+
+    async def handle(self, request: "web.Request") -> "web.Response":  # noqa: F821
+        from aiohttp import web
+
+        raw = await request.read()
+        kind = request.headers.get("Content-Type", "")
+        if "json" in kind:
+            body: object = json.loads(raw)
+        elif "x-www-form-urlencoded" in kind:
+            body = {k: ("<id>" if k == "device_id" else v) for k, v in (await request.post()).items()}
+        else:
+            body = raw.decode() or None
+        self.log.append(
+            {
+                "method": request.method,
+                "path": request.path,
+                "query": sorted([k, v] for k, v in request.query.items()),
+                # (the files are fetched by the HTTP client's own manners)
+                "headers": None if request.path.startswith("/dl/") else {
+                    "x-yandex-music-client": request.headers.get("X-Yandex-Music-Client"),
+                    "user-agent": request.headers.get("User-Agent"),
+                    "authorization": request.headers.get("Authorization"),
+                    "content-type": kind or None,
+                },
+                "body": body,
+            }
+        )
+        answer = self.answer_for(request.method, request.path, dict(request.query))
+        if "text" in answer:
+            return web.Response(status=answer["status"], text=answer["text"].replace("<mock>", self.origin))
+        return web.Response(
+            status=answer["status"],
+            text=_json_text(answer["json"]).replace("<mock>", self.origin),
+            content_type="application/json",
+        )
+
+
+def settle_requests(requests: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Requests sent at once come in any order: put runs of get-file-info in order."""
+    out: list[dict[str, object]] = []
+    run: list[dict[str, object]] = []
+    for request in requests:
+        if request["path"] == "/get-file-info":
+            run.append(request)
+            continue
+        out.extend(sorted(run, key=_json_text))
+        run = []
+        out.append(request)
+    out.extend(sorted(run, key=_json_text))
+    return out
+
+
+async def run_yandex_scenario(scenario: dict[str, object], scratch: Path) -> list[dict[str, object]]:
+    import asyncio
+    import time as real_time
+    import types
+
+    from aiohttp import ClientSession, ClientTimeout, web
+
+    from yamusic_radio import request as request_module
+    from yamusic_radio import ya_player
+    from yamusic_radio.backend import AuthError, BackendError, Feedback, Track
+
+    mock = MockYandex(scenario["routes"])
+    app = web.Application()
+    app.router.add_route("*", "/{tail:.*}", mock.handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    port = site._server.sockets[0].getsockname()[1]  # noqa: SLF001
+    mock.origin = f"http://127.0.0.1:{port}"
+
+    class Redirected(ClientSession):
+        async def _request(self, method, str_or_url, **kwargs):  # noqa: ANN001, ANN003, ANN202
+            text = str(str_or_url)
+            for old in ("https://api.music.yandex.net", "https://oauth.yandex.ru"):
+                if text.startswith(old):
+                    text = mock.origin + text[len(old) :]
+            return await super()._request(method, text, **kwargs)
+
+    settings_path = scratch / "yamusic-radio.json"
+    if scenario.get("settings") is not None:
+        settings_path.write_text(json.dumps(scenario["settings"]))
+    delays = tuple(scenario.get("rate_limit_delays", (0.01, 0.02, 0.04, 0.08)))
+    saved_defaults = request_module.retry_on_rate_limit.__defaults__
+    request_module.retry_on_rate_limit.__defaults__ = (delays, None)
+    saved_time = ya_player.time
+    ya_player.time = types.SimpleNamespace(time=lambda: YANDEX_WALL, monotonic=real_time.monotonic)
+    session = Redirected(timeout=ClientTimeout(sock_read=10, sock_connect=5))
+    player = ya_player.YandexMusicPlayer(settings_path, session)
+    results = []
+    sent = 0
+    try:
+        for step in scenario["steps"]:
+            result: dict[str, object] = {}
+            op = step["op"]
+            try:
+                if op == "batch":
+                    batch = await player.station_batch(step["station"], exclude_track_ids=set(step.get("exclude", [])))
+                    result["tracks"] = [dataclasses.asdict(t) for t in batch]
+                elif op == "download":
+                    track = Track(**step["track"])
+                    target = scratch / step["name"]
+                    await player.download(track, target)
+                    result["file"] = target.read_text() if target.exists() else None
+                elif op == "feedback":
+                    track = Track(**step["track"])
+                    kind = {"started": Feedback.STARTED, "finished": Feedback.FINISHED, "skipped": Feedback.SKIPPED}[step["kind"]]
+                    await player.feedback_track(track, kind, step["station"], step["seconds"])
+                elif op == "station_settings":
+                    result["settings"] = list(await player.station_settings(step["station"]))
+                elif op == "set_station_settings":
+                    await player.set_station_settings(step["station"], step["mood"], step["diversity"], step["language"])
+                elif op == "authorize":
+                    await player.authorize({})
+                elif op == "auth":
+                    player.start_auth()
+                    for _ in range(500):
+                        if player.auth_prompt.code is not None:
+                            break
+                        await asyncio.sleep(0.01)
+                    prompt = player.auth_prompt
+                    result["prompt"] = {"url": prompt.url, "code": prompt.code}
+                    await asyncio.wait_for(player.wait_authorized(), 10)
+                    await asyncio.sleep(0.05)
+                elif op == "query":
+                    pass
+                else:
+                    raise ValueError(op)
+            except (AuthError, BackendError) as error:
+                import re
+
+                # (what a failed download says of the HTTP error differs between the libraries, and holds the port)
+                text = re.sub(r"(download of \S+ from \S+?): .*", r"\1", f"{type(error).__name__}: {error}", flags=re.S)
+                result["error"] = text.replace(mock.origin, "<mock>")
+            mode = settings_path.stat().st_mode & 0o777 if settings_path.exists() else None
+            result["requests"] = settle_requests(mock.log[sent:])
+            sent = len(mock.log)
+            result["state"] = {
+                "authorized": player.authorized,
+                "prompt": dataclasses.asdict(player.auth_prompt),
+                "settings_file": json.loads(settings_path.read_text()) if settings_path.exists() else None,
+                "settings_mode": mode,
+            }
+            results.append(result)
+    finally:
+        await player.aclose()
+        await session.close()
+        await runner.cleanup()
+        ya_player.time = saved_time
+        request_module.retry_on_rate_limit.__defaults__ = saved_defaults
+    return results

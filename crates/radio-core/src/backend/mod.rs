@@ -8,6 +8,7 @@
 pub mod fake;
 pub mod local;
 pub mod multi;
+pub mod yandex;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

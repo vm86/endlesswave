@@ -1860,6 +1860,179 @@ def write_local() -> None:
     print("local:", len(files), "files;", {s["name"]: len(s["results"]) for s in expected["scenarios"]})
 
 
+def write_yandex() -> None:
+    """The Yandex backend against a mock of the service: what it sends, and what it makes of the answers."""
+    import asyncio
+    import tempfile
+
+    import radio_harness as harness
+
+    folder = OUT / "yandex"
+    folder.mkdir(parents=True, exist_ok=True)
+
+    def song(ident: int, album: int | None, title: str, *, genre: str | None = None, cover: str | None = None, og: str | None = None, ms: int = 200000, available: bool = True, artists: tuple[str, ...] = ("Artist",)) -> dict[str, object]:
+        return {
+            "id": str(ident),
+            "title": title,
+            "available": available,
+            "durationMs": ms,
+            "artists": [{"id": 100 + i, "name": name} for i, name in enumerate(artists)],
+            "albums": [] if album is None else [{"id": album, "title": f"Album {album}", "genre": genre}],
+            "coverUri": cover,
+            "ogImage": og,
+        }
+
+    def info(codec: str, bitrate: int, track: str, url: str = "<mock>/dl/file") -> dict[str, object]:
+        return {
+            "result": {
+                "downloadInfo": {
+                    "trackId": track, "quality": "lossless", "codec": codec, "bitrate": bitrate,
+                    "transport": "raw", "key": "", "size": 5, "gain": False, "preview": False,
+                    "realId": track, "url": url, "urls": [url, "<mock>/dl/other"],
+                }
+            }
+        }
+
+    def seq(*tracks: dict[str, object] | None, batch: str = "b1") -> dict[str, object]:
+        return {"result": {"id": {"type": "user", "tag": "onyourwave"}, "pumpkin": False, "batchId": batch, "sequence": [{"type": "track", "track": t, "liked": False} for t in tracks]}}
+
+    station = "/rotor/station/user:onyourwave"
+    ok = {"status": 200, "json": {"result": "ok"}}
+    one = {"status": 200, "json": {"result": "ok"}}
+    t1 = song(1, 10, "One", genre="rock", cover="avatars.yandex.net/get-music-content/1/%%", ms=181500, artists=("A", "B"))
+    t2 = song(2, 20, "Two (gone)", available=False)
+    t3 = song(3, None, "Three", og="https://og.example/3/%%", ms=120000)
+    t4 = song(4, 40, "Four", genre=" jazz ", artists=())
+    track = lambda tid, codec="mp3", bitrate=192, batch="b1": {"track_id": tid, "title": "T", "artists": ["x"], "codec": codec, "bitrate_in_kbps": bitrate, "batch_id": batch}  # noqa: E731
+
+    scenarios: list[dict[str, object]] = [
+        {
+            "name": "batch",
+            "settings": harness.YANDEX_TOKEN_FILE,
+            "routes": [
+                {"method": "GET", "path": station + "/tracks", "responses": [
+                    {"status": 200, "json": seq(t1, t2, None, t3, t4)},
+                    {"status": 200, "json": seq(t3, t4, batch="b1")},
+                    {"status": 200, "json": seq(t1, batch="b2")},
+                ]},
+                {"method": "POST", "path": station + "/feedback", "responses": [ok]},
+                {"method": "POST", "path": station + "/settings3", "responses": [one, {"status": 200, "json": {"result": "no"}}]},
+                {"method": "GET", "path": station + "/info", "responses": [
+                    {"status": 200, "json": {"result": [{"station": {}, "settings": {}, "settings2": {"moodEnergy": "calm", "diversity": "favorite", "language": "russian"}, "adParams": {}}]}},
+                    {"status": 200, "json": {"result": [{"station": {}, "settings": {}, "adParams": {}}]}},
+                    {"status": 200, "json": {"result": []}},
+                ]},
+                {"method": "GET", "path": "/get-file-info", "when": {"trackId": "1"}, "responses": [{"status": 200, "json": info("mp3", 192, "1")}]},
+                {"method": "GET", "path": "/get-file-info", "when": {"trackId": "1:10"}, "responses": [{"status": 200, "json": info("mp3", 192, "1")}]},
+                {"method": "GET", "path": "/get-file-info", "when": {"trackId": "3"}, "responses": [{"status": 200, "json": info("aac", 128, "3")}]},
+                {"method": "GET", "path": "/get-file-info", "when": {"trackId": "4"}, "responses": [{"status": 200, "json": {"result": {}}}]},
+                {"method": "GET", "path": "/dl/file", "responses": [{"status": 200, "text": "AUDIO"}]},
+            ],
+            "steps": [
+                {"op": "batch", "station": "user:onyourwave", "exclude": ["4:40"]},
+                {"op": "batch", "station": "user:onyourwave"},
+                {"op": "set_station_settings", "station": "user:onyourwave", "mood": "calm", "diversity": "default", "language": "any"},
+                {"op": "batch", "station": "user:onyourwave"},
+                {"op": "set_station_settings", "station": "user:onyourwave", "mood": "all", "diversity": "default", "language": ""},
+                {"op": "station_settings", "station": "user:onyourwave"},
+                {"op": "station_settings", "station": "user:onyourwave"},
+                {"op": "station_settings", "station": "user:onyourwave"},
+                {"op": "feedback", "station": "user:onyourwave", "kind": "started", "seconds": 0, "track": track("1:10")},
+                {"op": "feedback", "station": "user:onyourwave", "kind": "finished", "seconds": 181.5, "track": track("1:10")},
+                {"op": "feedback", "station": "user:onyourwave", "kind": "skipped", "seconds": 12.25, "track": track("1:10")},
+                {"op": "feedback", "station": "user:onyourwave", "kind": "skipped", "seconds": 3, "track": track("1:10", batch="")},
+                {"op": "download", "name": "one.mp3", "track": track("1:10")},
+            ],
+        },
+        {
+            "name": "quality",
+            "settings": {**harness.YANDEX_TOKEN_FILE, "quality": "nq"},
+            "routes": [
+                {"method": "GET", "path": station + "/tracks", "responses": [{"status": 200, "json": seq(t1)}]},
+                {"method": "POST", "path": station + "/feedback", "responses": [ok]},
+                {"method": "GET", "path": "/get-file-info", "responses": [{"status": 200, "json": info("mp3", 64, "1")}]},
+            ],
+            "steps": [{"op": "batch", "station": "user:onyourwave"}],
+        },
+        {
+            "name": "download_checks",
+            "settings": harness.YANDEX_TOKEN_FILE,
+            "routes": [
+                {"method": "GET", "path": "/get-file-info", "when": {"trackId": "1:10"}, "responses": [
+                    {"status": 200, "json": info("mp3", 192, "1")},
+                    {"status": 200, "json": info("mp3", 192, "1")},
+                    {"status": 200, "json": info("mp3", 192, "1")},
+                    {"status": 200, "json": info("mp3", 192, "1", url="<mock>/dl/missing")},
+                    {"status": 200, "json": {"result": {"downloadInfo": {**info("mp3", 192, "1")["result"]["downloadInfo"], "urls": []}}}},
+                ]},
+                {"method": "GET", "path": "/get-file-info", "when": {"trackId": "2:20"}, "responses": [
+                    {"status": 429, "json": {"error": "limit", "errorDescription": "slow"}},
+                    {"status": 429, "json": {"error": "limit"}},
+                    {"status": 200, "json": info("mp3", 192, "2")},
+                ]},
+                {"method": "GET", "path": "/dl/file", "responses": [{"status": 200, "text": "AUDIO"}]},
+            ],
+            "steps": [
+                {"op": "download", "name": "wrong_bitrate.mp3", "track": track("1:10", bitrate=320)},
+                {"op": "download", "name": "wrong_codec.mp3", "track": track("1:10", codec="aac")},
+                {"op": "download", "name": "ok.mp3", "track": track("1:10")},
+                {"op": "download", "name": "limited.mp3", "track": track("2:20")},
+                {"op": "download", "name": "missing.mp3", "track": track("1:10")},
+                {"op": "download", "name": "nolinks.mp3", "track": track("1:10")},
+            ],
+        },
+        {
+            "name": "failures",
+            "settings": harness.YANDEX_TOKEN_FILE,
+            "routes": [
+                {"method": "GET", "path": station + "/tracks", "responses": [
+                    {"status": 500, "json": {"error": "boom"}},
+                    {"status": 502, "text": "Bad gateway"},
+                    {"status": 401, "json": {"error": "unauthorized", "errorDescription": "no"}},
+                    {"status": 404, "json": {"error": "gone"}},
+                    {"status": 409, "text": "<html>"},
+                    {"status": 400, "json": {"error": "bad", "errorDescription": "condition is not met"}},
+                    {"status": 200, "text": "not json"},
+                ]},
+                {"method": "POST", "path": station + "/feedback", "responses": [ok]},
+            ],
+            "steps": [{"op": "batch", "station": "user:onyourwave"} for _ in range(7)],
+        },
+        {
+            "name": "auth",
+            "settings": {**harness.YANDEX_TOKEN_FILE, "token": None},
+            "routes": [
+                {"method": "POST", "path": "/device/code", "responses": [{"status": 200, "json": {"device_code": "dc", "user_code": "ABCD-EFGH", "verification_url": "https://ya.example/device", "expires_in": 60, "interval": 0.05}}]},
+                {"method": "POST", "path": "/token", "responses": [
+                    {"status": 400, "json": {"error": "authorization_pending", "error_description": "wait"}},
+                    {"status": 400, "json": {"error": "authorization_pending", "error_description": "wait"}},
+                    {"status": 200, "json": {"access_token": "new-token", "token_type": "bearer", "expires_in": 100}},
+                ]},
+                {"method": "GET", "path": station + "/tracks", "responses": [{"status": 200, "json": seq(t1)}]},
+                {"method": "POST", "path": station + "/feedback", "responses": [ok]},
+                {"method": "GET", "path": "/get-file-info", "responses": [{"status": 200, "json": info("mp3", 192, "1")}]},
+            ],
+            "steps": [
+                {"op": "query"},
+                {"op": "authorize"},
+                {"op": "auth"},
+                {"op": "batch", "station": "user:onyourwave"},
+            ],
+        },
+    ]
+
+    async def run() -> list[dict[str, object]]:
+        out = []
+        for scenario in scenarios:
+            with tempfile.TemporaryDirectory() as scratch:
+                out.append({**scenario, "results": await harness.run_yandex_scenario(scenario, Path(scratch))})
+        return out
+
+    results = asyncio.run(run())
+    (folder / "expected.json").write_text(json.dumps(results, indent=1) + "\n")
+    print("yandex:", {s["name"]: len(s["results"]) for s in results})
+
+
 def write_effects() -> None:
     """The effects, the limiter and blend(): the noise is recorded, and the Rust side replays it."""
     folder = OUT / "effects"
@@ -2043,4 +2216,5 @@ if __name__ == "__main__":
     write_mix()
     write_multi()
     write_local()
+    write_yandex()
     write_radio_scenarios()

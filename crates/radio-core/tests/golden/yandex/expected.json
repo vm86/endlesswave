@@ -1,0 +1,3228 @@
+[
+ {
+  "name": "batch",
+  "settings": {
+   "token": "tok-123",
+   "from_id": "music-test",
+   "quality": "lossless"
+  },
+  "routes": [
+   {
+    "method": "GET",
+    "path": "/rotor/station/user:onyourwave/tracks",
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "id": {
+         "type": "user",
+         "tag": "onyourwave"
+        },
+        "pumpkin": false,
+        "batchId": "b1",
+        "sequence": [
+         {
+          "type": "track",
+          "track": {
+           "id": "1",
+           "title": "One",
+           "available": true,
+           "durationMs": 181500,
+           "artists": [
+            {
+             "id": 100,
+             "name": "A"
+            },
+            {
+             "id": 101,
+             "name": "B"
+            }
+           ],
+           "albums": [
+            {
+             "id": 10,
+             "title": "Album 10",
+             "genre": "rock"
+            }
+           ],
+           "coverUri": "avatars.yandex.net/get-music-content/1/%%",
+           "ogImage": null
+          },
+          "liked": false
+         },
+         {
+          "type": "track",
+          "track": {
+           "id": "2",
+           "title": "Two (gone)",
+           "available": false,
+           "durationMs": 200000,
+           "artists": [
+            {
+             "id": 100,
+             "name": "Artist"
+            }
+           ],
+           "albums": [
+            {
+             "id": 20,
+             "title": "Album 20",
+             "genre": null
+            }
+           ],
+           "coverUri": null,
+           "ogImage": null
+          },
+          "liked": false
+         },
+         {
+          "type": "track",
+          "track": null,
+          "liked": false
+         },
+         {
+          "type": "track",
+          "track": {
+           "id": "3",
+           "title": "Three",
+           "available": true,
+           "durationMs": 120000,
+           "artists": [
+            {
+             "id": 100,
+             "name": "Artist"
+            }
+           ],
+           "albums": [],
+           "coverUri": null,
+           "ogImage": "https://og.example/3/%%"
+          },
+          "liked": false
+         },
+         {
+          "type": "track",
+          "track": {
+           "id": "4",
+           "title": "Four",
+           "available": true,
+           "durationMs": 200000,
+           "artists": [],
+           "albums": [
+            {
+             "id": 40,
+             "title": "Album 40",
+             "genre": " jazz "
+            }
+           ],
+           "coverUri": null,
+           "ogImage": null
+          },
+          "liked": false
+         }
+        ]
+       }
+      }
+     },
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "id": {
+         "type": "user",
+         "tag": "onyourwave"
+        },
+        "pumpkin": false,
+        "batchId": "b1",
+        "sequence": [
+         {
+          "type": "track",
+          "track": {
+           "id": "3",
+           "title": "Three",
+           "available": true,
+           "durationMs": 120000,
+           "artists": [
+            {
+             "id": 100,
+             "name": "Artist"
+            }
+           ],
+           "albums": [],
+           "coverUri": null,
+           "ogImage": "https://og.example/3/%%"
+          },
+          "liked": false
+         },
+         {
+          "type": "track",
+          "track": {
+           "id": "4",
+           "title": "Four",
+           "available": true,
+           "durationMs": 200000,
+           "artists": [],
+           "albums": [
+            {
+             "id": 40,
+             "title": "Album 40",
+             "genre": " jazz "
+            }
+           ],
+           "coverUri": null,
+           "ogImage": null
+          },
+          "liked": false
+         }
+        ]
+       }
+      }
+     },
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "id": {
+         "type": "user",
+         "tag": "onyourwave"
+        },
+        "pumpkin": false,
+        "batchId": "b2",
+        "sequence": [
+         {
+          "type": "track",
+          "track": {
+           "id": "1",
+           "title": "One",
+           "available": true,
+           "durationMs": 181500,
+           "artists": [
+            {
+             "id": 100,
+             "name": "A"
+            },
+            {
+             "id": 101,
+             "name": "B"
+            }
+           ],
+           "albums": [
+            {
+             "id": 10,
+             "title": "Album 10",
+             "genre": "rock"
+            }
+           ],
+           "coverUri": "avatars.yandex.net/get-music-content/1/%%",
+           "ogImage": null
+          },
+          "liked": false
+         }
+        ]
+       }
+      }
+     }
+    ]
+   },
+   {
+    "method": "POST",
+    "path": "/rotor/station/user:onyourwave/feedback",
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": "ok"
+      }
+     }
+    ]
+   },
+   {
+    "method": "POST",
+    "path": "/rotor/station/user:onyourwave/settings3",
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": "ok"
+      }
+     },
+     {
+      "status": 200,
+      "json": {
+       "result": "no"
+      }
+     }
+    ]
+   },
+   {
+    "method": "GET",
+    "path": "/rotor/station/user:onyourwave/info",
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": [
+        {
+         "station": {},
+         "settings": {},
+         "settings2": {
+          "moodEnergy": "calm",
+          "diversity": "favorite",
+          "language": "russian"
+         },
+         "adParams": {}
+        }
+       ]
+      }
+     },
+     {
+      "status": 200,
+      "json": {
+       "result": [
+        {
+         "station": {},
+         "settings": {},
+         "adParams": {}
+        }
+       ]
+      }
+     },
+     {
+      "status": 200,
+      "json": {
+       "result": []
+      }
+     }
+    ]
+   },
+   {
+    "method": "GET",
+    "path": "/get-file-info",
+    "when": {
+     "trackId": "1"
+    },
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "downloadInfo": {
+         "trackId": "1",
+         "quality": "lossless",
+         "codec": "mp3",
+         "bitrate": 192,
+         "transport": "raw",
+         "key": "",
+         "size": 5,
+         "gain": false,
+         "preview": false,
+         "realId": "1",
+         "url": "<mock>/dl/file",
+         "urls": [
+          "<mock>/dl/file",
+          "<mock>/dl/other"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   },
+   {
+    "method": "GET",
+    "path": "/get-file-info",
+    "when": {
+     "trackId": "1:10"
+    },
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "downloadInfo": {
+         "trackId": "1",
+         "quality": "lossless",
+         "codec": "mp3",
+         "bitrate": 192,
+         "transport": "raw",
+         "key": "",
+         "size": 5,
+         "gain": false,
+         "preview": false,
+         "realId": "1",
+         "url": "<mock>/dl/file",
+         "urls": [
+          "<mock>/dl/file",
+          "<mock>/dl/other"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   },
+   {
+    "method": "GET",
+    "path": "/get-file-info",
+    "when": {
+     "trackId": "3"
+    },
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "downloadInfo": {
+         "trackId": "3",
+         "quality": "lossless",
+         "codec": "aac",
+         "bitrate": 128,
+         "transport": "raw",
+         "key": "",
+         "size": 5,
+         "gain": false,
+         "preview": false,
+         "realId": "3",
+         "url": "<mock>/dl/file",
+         "urls": [
+          "<mock>/dl/file",
+          "<mock>/dl/other"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   },
+   {
+    "method": "GET",
+    "path": "/get-file-info",
+    "when": {
+     "trackId": "4"
+    },
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": {}
+      }
+     }
+    ]
+   },
+   {
+    "method": "GET",
+    "path": "/dl/file",
+    "responses": [
+     {
+      "status": 200,
+      "text": "AUDIO"
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "op": "batch",
+    "station": "user:onyourwave",
+    "exclude": [
+     "4:40"
+    ]
+   },
+   {
+    "op": "batch",
+    "station": "user:onyourwave"
+   },
+   {
+    "op": "set_station_settings",
+    "station": "user:onyourwave",
+    "mood": "calm",
+    "diversity": "default",
+    "language": "any"
+   },
+   {
+    "op": "batch",
+    "station": "user:onyourwave"
+   },
+   {
+    "op": "set_station_settings",
+    "station": "user:onyourwave",
+    "mood": "all",
+    "diversity": "default",
+    "language": ""
+   },
+   {
+    "op": "station_settings",
+    "station": "user:onyourwave"
+   },
+   {
+    "op": "station_settings",
+    "station": "user:onyourwave"
+   },
+   {
+    "op": "station_settings",
+    "station": "user:onyourwave"
+   },
+   {
+    "op": "feedback",
+    "station": "user:onyourwave",
+    "kind": "started",
+    "seconds": 0,
+    "track": {
+     "track_id": "1:10",
+     "title": "T",
+     "artists": [
+      "x"
+     ],
+     "codec": "mp3",
+     "bitrate_in_kbps": 192,
+     "batch_id": "b1"
+    }
+   },
+   {
+    "op": "feedback",
+    "station": "user:onyourwave",
+    "kind": "finished",
+    "seconds": 181.5,
+    "track": {
+     "track_id": "1:10",
+     "title": "T",
+     "artists": [
+      "x"
+     ],
+     "codec": "mp3",
+     "bitrate_in_kbps": 192,
+     "batch_id": "b1"
+    }
+   },
+   {
+    "op": "feedback",
+    "station": "user:onyourwave",
+    "kind": "skipped",
+    "seconds": 12.25,
+    "track": {
+     "track_id": "1:10",
+     "title": "T",
+     "artists": [
+      "x"
+     ],
+     "codec": "mp3",
+     "bitrate_in_kbps": 192,
+     "batch_id": "b1"
+    }
+   },
+   {
+    "op": "feedback",
+    "station": "user:onyourwave",
+    "kind": "skipped",
+    "seconds": 3,
+    "track": {
+     "track_id": "1:10",
+     "title": "T",
+     "artists": [
+      "x"
+     ],
+     "codec": "mp3",
+     "bitrate_in_kbps": 192,
+     "batch_id": ""
+    }
+   },
+   {
+    "op": "download",
+    "name": "one.mp3",
+    "track": {
+     "track_id": "1:10",
+     "title": "T",
+     "artists": [
+      "x"
+     ],
+     "codec": "mp3",
+     "bitrate_in_kbps": 192,
+     "batch_id": "b1"
+    }
+   }
+  ],
+  "results": [
+   {
+    "tracks": [
+     {
+      "track_id": "1:10",
+      "title": "One",
+      "artists": [
+       "A",
+       "B"
+      ],
+      "codec": "mp3",
+      "bitrate_in_kbps": 192,
+      "genre": "rock",
+      "cover": "https://avatars.yandex.net/get-music-content/1/%%",
+      "batch_id": "b1",
+      "mood": "",
+      "source": "",
+      "native_id": ""
+     },
+     {
+      "track_id": "3",
+      "title": "Three",
+      "artists": [
+       "Artist"
+      ],
+      "codec": "aac",
+      "bitrate_in_kbps": 128,
+      "genre": "",
+      "cover": "https://og.example/3/%%",
+      "batch_id": "b1",
+      "mood": "",
+      "source": "",
+      "native_id": ""
+     }
+    ],
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/tracks",
+      "query": [
+       [
+        "settings2",
+        "True"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "radioStarted",
+       "timestamp": 1700000000.0,
+       "from": "music-test"
+      }
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "trackStarted",
+       "timestamp": 1700000000.0,
+       "trackId": "1:10",
+       "from": "music-test"
+      }
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "trackFinished",
+       "timestamp": 1700000000.0,
+       "trackId": "4:40",
+       "from": "music-test",
+       "totalPlayedSeconds": 200.0
+      }
+     },
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "FGbJl0hIAgbb6tkEcUJ83fRAXjXCVWv3+OK0iToUQDY"
+       ],
+       [
+        "trackId",
+        "3"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     },
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "Vi5cTEas3cMP6/blftGpZAeM6jLSX99Ar7Hb/XV29XQ"
+       ],
+       [
+        "trackId",
+        "1"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "tracks": [
+     {
+      "track_id": "3",
+      "title": "Three",
+      "artists": [
+       "Artist"
+      ],
+      "codec": "aac",
+      "bitrate_in_kbps": 128,
+      "genre": "",
+      "cover": "https://og.example/3/%%",
+      "batch_id": "b1",
+      "mood": "",
+      "source": "",
+      "native_id": ""
+     }
+    ],
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/tracks",
+      "query": [
+       [
+        "queue",
+        "4:40"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "trackStarted",
+       "timestamp": 1700000000.0,
+       "trackId": "3",
+       "from": "music-test"
+      }
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "trackFinished",
+       "timestamp": 1700000000.0,
+       "trackId": "4:40",
+       "from": "music-test",
+       "totalPlayedSeconds": 200.0
+      }
+     },
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "FGbJl0hIAgbb6tkEcUJ83fRAXjXCVWv3+OK0iToUQDY"
+       ],
+       [
+        "trackId",
+        "3"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     },
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "cL/81bwPsKfxP9USpJZ9enix4L4xbmU9ZRMvemlwrGY"
+       ],
+       [
+        "trackId",
+        "4"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "requests": [
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/settings3",
+      "query": [],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "moodEnergy": "calm",
+       "diversity": "default",
+       "type": "rotor",
+       "language": "any"
+      }
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "tracks": [
+     {
+      "track_id": "1:10",
+      "title": "One",
+      "artists": [
+       "A",
+       "B"
+      ],
+      "codec": "mp3",
+      "bitrate_in_kbps": 192,
+      "genre": "rock",
+      "cover": "https://avatars.yandex.net/get-music-content/1/%%",
+      "batch_id": "b2",
+      "mood": "calm",
+      "source": "",
+      "native_id": ""
+     }
+    ],
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/tracks",
+      "query": [
+       [
+        "queue",
+        "4:40"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b2"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "radioStarted",
+       "timestamp": 1700000000.0,
+       "from": "music-test"
+      }
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b2"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "trackStarted",
+       "timestamp": 1700000000.0,
+       "trackId": "1:10",
+       "from": "music-test"
+      }
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b2"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "trackFinished",
+       "timestamp": 1700000000.0,
+       "trackId": "1:10",
+       "from": "music-test",
+       "totalPlayedSeconds": 181.5
+      }
+     },
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "Vi5cTEas3cMP6/blftGpZAeM6jLSX99Ar7Hb/XV29XQ"
+       ],
+       [
+        "trackId",
+        "1"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "requests": [
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/settings3",
+      "query": [],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "moodEnergy": "all",
+       "diversity": "default",
+       "type": "rotor"
+      }
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "settings": [
+     "calm",
+     "favorite",
+     "russian"
+    ],
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/info",
+      "query": [],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "settings": [
+     "all",
+     "default",
+     "any"
+    ],
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/info",
+      "query": [],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "settings": [
+     "all",
+     "default",
+     "any"
+    ],
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/info",
+      "query": [],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "requests": [
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "trackStarted",
+       "timestamp": 1700000000.0,
+       "trackId": "1:10",
+       "from": "music-test"
+      }
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "requests": [
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "trackFinished",
+       "timestamp": 1700000000.0,
+       "trackId": "1:10",
+       "from": "music-test",
+       "totalPlayedSeconds": 181.5
+      }
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "requests": [
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "skip",
+       "timestamp": 1700000000.0,
+       "trackId": "1:10",
+       "from": "music-test",
+       "totalPlayedSeconds": 12.25
+      }
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "requests": [],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "file": "AUDIO",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "3sVh7HIQ6sQzHwZuCUsi+nFRqJloWuujJCCkz7Xi5gs"
+       ],
+       [
+        "trackId",
+        "1:10"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     },
+     {
+      "method": "GET",
+      "path": "/dl/file",
+      "query": [],
+      "headers": null,
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   }
+  ]
+ },
+ {
+  "name": "quality",
+  "settings": {
+   "token": "tok-123",
+   "from_id": "music-test",
+   "quality": "nq"
+  },
+  "routes": [
+   {
+    "method": "GET",
+    "path": "/rotor/station/user:onyourwave/tracks",
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "id": {
+         "type": "user",
+         "tag": "onyourwave"
+        },
+        "pumpkin": false,
+        "batchId": "b1",
+        "sequence": [
+         {
+          "type": "track",
+          "track": {
+           "id": "1",
+           "title": "One",
+           "available": true,
+           "durationMs": 181500,
+           "artists": [
+            {
+             "id": 100,
+             "name": "A"
+            },
+            {
+             "id": 101,
+             "name": "B"
+            }
+           ],
+           "albums": [
+            {
+             "id": 10,
+             "title": "Album 10",
+             "genre": "rock"
+            }
+           ],
+           "coverUri": "avatars.yandex.net/get-music-content/1/%%",
+           "ogImage": null
+          },
+          "liked": false
+         }
+        ]
+       }
+      }
+     }
+    ]
+   },
+   {
+    "method": "POST",
+    "path": "/rotor/station/user:onyourwave/feedback",
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": "ok"
+      }
+     }
+    ]
+   },
+   {
+    "method": "GET",
+    "path": "/get-file-info",
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "downloadInfo": {
+         "trackId": "1",
+         "quality": "lossless",
+         "codec": "mp3",
+         "bitrate": 64,
+         "transport": "raw",
+         "key": "",
+         "size": 5,
+         "gain": false,
+         "preview": false,
+         "realId": "1",
+         "url": "<mock>/dl/file",
+         "urls": [
+          "<mock>/dl/file",
+          "<mock>/dl/other"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "op": "batch",
+    "station": "user:onyourwave"
+   }
+  ],
+  "results": [
+   {
+    "tracks": [
+     {
+      "track_id": "1:10",
+      "title": "One",
+      "artists": [
+       "A",
+       "B"
+      ],
+      "codec": "mp3",
+      "bitrate_in_kbps": 64,
+      "genre": "rock",
+      "cover": "https://avatars.yandex.net/get-music-content/1/%%",
+      "batch_id": "b1",
+      "mood": "",
+      "source": "",
+      "native_id": ""
+     }
+    ],
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/tracks",
+      "query": [
+       [
+        "settings2",
+        "True"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "radioStarted",
+       "timestamp": 1700000000.0,
+       "from": "music-test"
+      }
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "trackStarted",
+       "timestamp": 1700000000.0,
+       "trackId": "1:10",
+       "from": "music-test"
+      }
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "trackFinished",
+       "timestamp": 1700000000.0,
+       "trackId": "1:10",
+       "from": "music-test",
+       "totalPlayedSeconds": 181.5
+      }
+     },
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,aac,he-aac,mp3"
+       ],
+       [
+        "quality",
+        "nq"
+       ],
+       [
+        "sign",
+        "8xts7xpH4zKd6LTwkHcTZ9JkACGnm7r6132p3oyDFT0"
+       ],
+       [
+        "trackId",
+        "1"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "nq"
+     },
+     "settings_mode": 420
+    }
+   }
+  ]
+ },
+ {
+  "name": "download_checks",
+  "settings": {
+   "token": "tok-123",
+   "from_id": "music-test",
+   "quality": "lossless"
+  },
+  "routes": [
+   {
+    "method": "GET",
+    "path": "/get-file-info",
+    "when": {
+     "trackId": "1:10"
+    },
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "downloadInfo": {
+         "trackId": "1",
+         "quality": "lossless",
+         "codec": "mp3",
+         "bitrate": 192,
+         "transport": "raw",
+         "key": "",
+         "size": 5,
+         "gain": false,
+         "preview": false,
+         "realId": "1",
+         "url": "<mock>/dl/file",
+         "urls": [
+          "<mock>/dl/file",
+          "<mock>/dl/other"
+         ]
+        }
+       }
+      }
+     },
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "downloadInfo": {
+         "trackId": "1",
+         "quality": "lossless",
+         "codec": "mp3",
+         "bitrate": 192,
+         "transport": "raw",
+         "key": "",
+         "size": 5,
+         "gain": false,
+         "preview": false,
+         "realId": "1",
+         "url": "<mock>/dl/file",
+         "urls": [
+          "<mock>/dl/file",
+          "<mock>/dl/other"
+         ]
+        }
+       }
+      }
+     },
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "downloadInfo": {
+         "trackId": "1",
+         "quality": "lossless",
+         "codec": "mp3",
+         "bitrate": 192,
+         "transport": "raw",
+         "key": "",
+         "size": 5,
+         "gain": false,
+         "preview": false,
+         "realId": "1",
+         "url": "<mock>/dl/file",
+         "urls": [
+          "<mock>/dl/file",
+          "<mock>/dl/other"
+         ]
+        }
+       }
+      }
+     },
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "downloadInfo": {
+         "trackId": "1",
+         "quality": "lossless",
+         "codec": "mp3",
+         "bitrate": 192,
+         "transport": "raw",
+         "key": "",
+         "size": 5,
+         "gain": false,
+         "preview": false,
+         "realId": "1",
+         "url": "<mock>/dl/missing",
+         "urls": [
+          "<mock>/dl/missing",
+          "<mock>/dl/other"
+         ]
+        }
+       }
+      }
+     },
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "downloadInfo": {
+         "trackId": "1",
+         "quality": "lossless",
+         "codec": "mp3",
+         "bitrate": 192,
+         "transport": "raw",
+         "key": "",
+         "size": 5,
+         "gain": false,
+         "preview": false,
+         "realId": "1",
+         "url": "<mock>/dl/file",
+         "urls": []
+        }
+       }
+      }
+     }
+    ]
+   },
+   {
+    "method": "GET",
+    "path": "/get-file-info",
+    "when": {
+     "trackId": "2:20"
+    },
+    "responses": [
+     {
+      "status": 429,
+      "json": {
+       "error": "limit",
+       "errorDescription": "slow"
+      }
+     },
+     {
+      "status": 429,
+      "json": {
+       "error": "limit"
+      }
+     },
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "downloadInfo": {
+         "trackId": "2",
+         "quality": "lossless",
+         "codec": "mp3",
+         "bitrate": 192,
+         "transport": "raw",
+         "key": "",
+         "size": 5,
+         "gain": false,
+         "preview": false,
+         "realId": "2",
+         "url": "<mock>/dl/file",
+         "urls": [
+          "<mock>/dl/file",
+          "<mock>/dl/other"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   },
+   {
+    "method": "GET",
+    "path": "/dl/file",
+    "responses": [
+     {
+      "status": 200,
+      "text": "AUDIO"
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "op": "download",
+    "name": "wrong_bitrate.mp3",
+    "track": {
+     "track_id": "1:10",
+     "title": "T",
+     "artists": [
+      "x"
+     ],
+     "codec": "mp3",
+     "bitrate_in_kbps": 320,
+     "batch_id": "b1"
+    }
+   },
+   {
+    "op": "download",
+    "name": "wrong_codec.mp3",
+    "track": {
+     "track_id": "1:10",
+     "title": "T",
+     "artists": [
+      "x"
+     ],
+     "codec": "aac",
+     "bitrate_in_kbps": 192,
+     "batch_id": "b1"
+    }
+   },
+   {
+    "op": "download",
+    "name": "ok.mp3",
+    "track": {
+     "track_id": "1:10",
+     "title": "T",
+     "artists": [
+      "x"
+     ],
+     "codec": "mp3",
+     "bitrate_in_kbps": 192,
+     "batch_id": "b1"
+    }
+   },
+   {
+    "op": "download",
+    "name": "limited.mp3",
+    "track": {
+     "track_id": "2:20",
+     "title": "T",
+     "artists": [
+      "x"
+     ],
+     "codec": "mp3",
+     "bitrate_in_kbps": 192,
+     "batch_id": "b1"
+    }
+   },
+   {
+    "op": "download",
+    "name": "missing.mp3",
+    "track": {
+     "track_id": "1:10",
+     "title": "T",
+     "artists": [
+      "x"
+     ],
+     "codec": "mp3",
+     "bitrate_in_kbps": 192,
+     "batch_id": "b1"
+    }
+   },
+   {
+    "op": "download",
+    "name": "nolinks.mp3",
+    "track": {
+     "track_id": "1:10",
+     "title": "T",
+     "artists": [
+      "x"
+     ],
+     "codec": "mp3",
+     "bitrate_in_kbps": 192,
+     "batch_id": "b1"
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": "BackendError: no download links for 1:10",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "3sVh7HIQ6sQzHwZuCUsi+nFRqJloWuujJCCkz7Xi5gs"
+       ],
+       [
+        "trackId",
+        "1:10"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "error": "BackendError: no download links for 1:10",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "3sVh7HIQ6sQzHwZuCUsi+nFRqJloWuujJCCkz7Xi5gs"
+       ],
+       [
+        "trackId",
+        "1:10"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "file": "AUDIO",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "3sVh7HIQ6sQzHwZuCUsi+nFRqJloWuujJCCkz7Xi5gs"
+       ],
+       [
+        "trackId",
+        "1:10"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     },
+     {
+      "method": "GET",
+      "path": "/dl/file",
+      "query": [],
+      "headers": null,
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "file": "AUDIO",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "GA8lGFWjWNs0dmcnwdoEijqn+nnY0qeyIR9ibbDI5q8"
+       ],
+       [
+        "trackId",
+        "2:20"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     },
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "GA8lGFWjWNs0dmcnwdoEijqn+nnY0qeyIR9ibbDI5q8"
+       ],
+       [
+        "trackId",
+        "2:20"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     },
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "GA8lGFWjWNs0dmcnwdoEijqn+nnY0qeyIR9ibbDI5q8"
+       ],
+       [
+        "trackId",
+        "2:20"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     },
+     {
+      "method": "GET",
+      "path": "/dl/file",
+      "query": [],
+      "headers": null,
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "error": "BackendError: download of 1:10 from <mock>/dl/missing",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "3sVh7HIQ6sQzHwZuCUsi+nFRqJloWuujJCCkz7Xi5gs"
+       ],
+       [
+        "trackId",
+        "1:10"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     },
+     {
+      "method": "GET",
+      "path": "/dl/missing",
+      "query": [],
+      "headers": null,
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "error": "BackendError: no download links for 1:10",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "3sVh7HIQ6sQzHwZuCUsi+nFRqJloWuujJCCkz7Xi5gs"
+       ],
+       [
+        "trackId",
+        "1:10"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   }
+  ]
+ },
+ {
+  "name": "failures",
+  "settings": {
+   "token": "tok-123",
+   "from_id": "music-test",
+   "quality": "lossless"
+  },
+  "routes": [
+   {
+    "method": "GET",
+    "path": "/rotor/station/user:onyourwave/tracks",
+    "responses": [
+     {
+      "status": 500,
+      "json": {
+       "error": "boom"
+      }
+     },
+     {
+      "status": 502,
+      "text": "Bad gateway"
+     },
+     {
+      "status": 401,
+      "json": {
+       "error": "unauthorized",
+       "errorDescription": "no"
+      }
+     },
+     {
+      "status": 404,
+      "json": {
+       "error": "gone"
+      }
+     },
+     {
+      "status": 409,
+      "text": "<html>"
+     },
+     {
+      "status": 400,
+      "json": {
+       "error": "bad",
+       "errorDescription": "condition is not met"
+      }
+     },
+     {
+      "status": 200,
+      "text": "not json"
+     }
+    ]
+   },
+   {
+    "method": "POST",
+    "path": "/rotor/station/user:onyourwave/feedback",
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": "ok"
+      }
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "op": "batch",
+    "station": "user:onyourwave"
+   },
+   {
+    "op": "batch",
+    "station": "user:onyourwave"
+   },
+   {
+    "op": "batch",
+    "station": "user:onyourwave"
+   },
+   {
+    "op": "batch",
+    "station": "user:onyourwave"
+   },
+   {
+    "op": "batch",
+    "station": "user:onyourwave"
+   },
+   {
+    "op": "batch",
+    "station": "user:onyourwave"
+   },
+   {
+    "op": "batch",
+    "station": "user:onyourwave"
+   }
+  ],
+  "results": [
+   {
+    "error": "BackendError: boom  (500): b'{\"error\":\"boom\"}'",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/tracks",
+      "query": [
+       [
+        "settings2",
+        "True"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "error": "BackendError: Bad Gateway",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/tracks",
+      "query": [
+       [
+        "settings2",
+        "True"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "error": "BackendError: unauthorized no",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/tracks",
+      "query": [
+       [
+        "settings2",
+        "True"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "error": "BackendError: gone ",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/tracks",
+      "query": [
+       [
+        "settings2",
+        "True"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "error": "BackendError: Unknown HTTPError",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/tracks",
+      "query": [
+       [
+        "settings2",
+        "True"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "error": "BackendError: bad condition is not met",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/tracks",
+      "query": [
+       [
+        "settings2",
+        "True"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "error": "BackendError: Invalid server response",
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/tracks",
+      "query": [
+       [
+        "settings2",
+        "True"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth tok-123",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "tok-123",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   }
+  ]
+ },
+ {
+  "name": "auth",
+  "settings": {
+   "token": null,
+   "from_id": "music-test",
+   "quality": "lossless"
+  },
+  "routes": [
+   {
+    "method": "POST",
+    "path": "/device/code",
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "device_code": "dc",
+       "user_code": "ABCD-EFGH",
+       "verification_url": "https://ya.example/device",
+       "expires_in": 60,
+       "interval": 0.05
+      }
+     }
+    ]
+   },
+   {
+    "method": "POST",
+    "path": "/token",
+    "responses": [
+     {
+      "status": 400,
+      "json": {
+       "error": "authorization_pending",
+       "error_description": "wait"
+      }
+     },
+     {
+      "status": 400,
+      "json": {
+       "error": "authorization_pending",
+       "error_description": "wait"
+      }
+     },
+     {
+      "status": 200,
+      "json": {
+       "access_token": "new-token",
+       "token_type": "bearer",
+       "expires_in": 100
+      }
+     }
+    ]
+   },
+   {
+    "method": "GET",
+    "path": "/rotor/station/user:onyourwave/tracks",
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "id": {
+         "type": "user",
+         "tag": "onyourwave"
+        },
+        "pumpkin": false,
+        "batchId": "b1",
+        "sequence": [
+         {
+          "type": "track",
+          "track": {
+           "id": "1",
+           "title": "One",
+           "available": true,
+           "durationMs": 181500,
+           "artists": [
+            {
+             "id": 100,
+             "name": "A"
+            },
+            {
+             "id": 101,
+             "name": "B"
+            }
+           ],
+           "albums": [
+            {
+             "id": 10,
+             "title": "Album 10",
+             "genre": "rock"
+            }
+           ],
+           "coverUri": "avatars.yandex.net/get-music-content/1/%%",
+           "ogImage": null
+          },
+          "liked": false
+         }
+        ]
+       }
+      }
+     }
+    ]
+   },
+   {
+    "method": "POST",
+    "path": "/rotor/station/user:onyourwave/feedback",
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": "ok"
+      }
+     }
+    ]
+   },
+   {
+    "method": "GET",
+    "path": "/get-file-info",
+    "responses": [
+     {
+      "status": 200,
+      "json": {
+       "result": {
+        "downloadInfo": {
+         "trackId": "1",
+         "quality": "lossless",
+         "codec": "mp3",
+         "bitrate": 192,
+         "transport": "raw",
+         "key": "",
+         "size": 5,
+         "gain": false,
+         "preview": false,
+         "realId": "1",
+         "url": "<mock>/dl/file",
+         "urls": [
+          "<mock>/dl/file",
+          "<mock>/dl/other"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "op": "query"
+   },
+   {
+    "op": "authorize"
+   },
+   {
+    "op": "auth"
+   },
+   {
+    "op": "batch",
+    "station": "user:onyourwave"
+   }
+  ],
+  "results": [
+   {
+    "requests": [],
+    "state": {
+     "authorized": false,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": null,
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "error": "AuthError: Yandex signs in by the code on its page",
+    "requests": [],
+    "state": {
+     "authorized": false,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": null,
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 420
+    }
+   },
+   {
+    "prompt": {
+     "url": "https://ya.example/device",
+     "code": "ABCD-EFGH"
+    },
+    "requests": [
+     {
+      "method": "POST",
+      "path": "/device/code",
+      "query": [],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": null,
+       "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": {
+       "client_id": "23cabbbdc6cd418abb4b39c32c41195d",
+       "device_id": "<id>",
+       "device_name": "YandexMusicAPI"
+      }
+     },
+     {
+      "method": "POST",
+      "path": "/token",
+      "query": [],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": null,
+       "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": {
+       "grant_type": "device_code",
+       "code": "dc",
+       "client_id": "23cabbbdc6cd418abb4b39c32c41195d",
+       "client_secret": "53bc75238f0c4d08a118e51fe9203300"
+      }
+     },
+     {
+      "method": "POST",
+      "path": "/token",
+      "query": [],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": null,
+       "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": {
+       "grant_type": "device_code",
+       "code": "dc",
+       "client_id": "23cabbbdc6cd418abb4b39c32c41195d",
+       "client_secret": "53bc75238f0c4d08a118e51fe9203300"
+      }
+     },
+     {
+      "method": "POST",
+      "path": "/token",
+      "query": [],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": null,
+       "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": {
+       "grant_type": "device_code",
+       "code": "dc",
+       "client_id": "23cabbbdc6cd418abb4b39c32c41195d",
+       "client_secret": "53bc75238f0c4d08a118e51fe9203300"
+      }
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "new-token",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 384
+    }
+   },
+   {
+    "tracks": [
+     {
+      "track_id": "1:10",
+      "title": "One",
+      "artists": [
+       "A",
+       "B"
+      ],
+      "codec": "mp3",
+      "bitrate_in_kbps": 192,
+      "genre": "rock",
+      "cover": "https://avatars.yandex.net/get-music-content/1/%%",
+      "batch_id": "b1",
+      "mood": "",
+      "source": "",
+      "native_id": ""
+     }
+    ],
+    "requests": [
+     {
+      "method": "GET",
+      "path": "/rotor/station/user:onyourwave/tracks",
+      "query": [
+       [
+        "settings2",
+        "True"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth new-token",
+       "content-type": null
+      },
+      "body": null
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth new-token",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "radioStarted",
+       "timestamp": 1700000000.0,
+       "from": "music-test"
+      }
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth new-token",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "trackStarted",
+       "timestamp": 1700000000.0,
+       "trackId": "1:10",
+       "from": "music-test"
+      }
+     },
+     {
+      "method": "POST",
+      "path": "/rotor/station/user:onyourwave/feedback",
+      "query": [
+       [
+        "batch-id",
+        "b1"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth new-token",
+       "content-type": "application/json"
+      },
+      "body": {
+       "type": "trackFinished",
+       "timestamp": 1700000000.0,
+       "trackId": "1:10",
+       "from": "music-test",
+       "totalPlayedSeconds": 181.5
+      }
+     },
+     {
+      "method": "GET",
+      "path": "/get-file-info",
+      "query": [
+       [
+        "codecs",
+        "flac,flac-mp4,aac,aac-mp4,he-aac,he-aac-mp4,mp3"
+       ],
+       [
+        "quality",
+        "lossless"
+       ],
+       [
+        "sign",
+        "Vi5cTEas3cMP6/blftGpZAeM6jLSX99Ar7Hb/XV29XQ"
+       ],
+       [
+        "trackId",
+        "1"
+       ],
+       [
+        "transports",
+        "raw"
+       ],
+       [
+        "ts",
+        "1700000000"
+       ]
+      ],
+      "headers": {
+       "x-yandex-music-client": "YandexMusicAndroid/24023621",
+       "user-agent": "Yandex-Music-API",
+       "authorization": "OAuth new-token",
+       "content-type": null
+      },
+      "body": null
+     }
+    ],
+    "state": {
+     "authorized": true,
+     "prompt": {
+      "url": null,
+      "code": null,
+      "fields": []
+     },
+     "settings_file": {
+      "token": "new-token",
+      "from_id": "music-test",
+      "quality": "lossless"
+     },
+     "settings_mode": 384
+    }
+   }
+  ]
+ }
+]
