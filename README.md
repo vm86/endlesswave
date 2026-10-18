@@ -232,7 +232,7 @@ The packages hold a static LGPL ffmpeg (it decodes what the radio can not: HE-AA
 ## License
 
 The player is released under the [GNU Affero General Public License, version 3 or later](LICENSE). The source
-is this repository; the radio was ported from [vm86/yamusic-radio](https://github.com/vm86/yamusic-radio).
+is this repository; the radio was ported from the author's Python radio, whose answers are kept as test data in `crates/radio-core/tests/golden`.
 Versions up to 0.1.0 were released under the MIT License.
 
 ### Third-party parts
