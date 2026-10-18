@@ -13,7 +13,6 @@ tar -C /src \
   --exclude=./.git -cf - . | tar -xf -
 
 npm ci
-scripts/build-backend.sh
 scripts/build-ffmpeg.sh
 
 # The build runs in emulation (x86_64 on an ARM Mac): the cheaper release

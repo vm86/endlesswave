@@ -2,10 +2,11 @@
 node_modules/
 /dist/
 
-# Made by the package scripts (scripts/build-backend.sh, build-ffmpeg.sh,
+# Made by the package scripts (scripts/build-ffmpeg.sh,
 # build-linux.sh): the daemon, ffmpeg, their sources and the packages
-/backend/
 /ffmpeg/
+# (the folder of the Python daemon that earlier builds made; it can be deleted)
+/backend/
 /build/
 /dist-linux/
 

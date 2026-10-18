@@ -165,18 +165,18 @@ On macOS the shortcuts are in the menu bar (**Controls** and **View**), so you c
 
 ```
 ┌──────────────────────────┐   HTTP API, SSE, /stream    ┌──────────────────────────┐
-│  EndlessWave             │ ◄─────────────────────────► │  yamusic-dj (service)    │
-│  Tauri + Vue 3           │      127.0.0.1:18000        │  Python, the mix in numpy│
-│  window, tray, sound     │                             │  ├─ ffmpeg: MP3 and FLAC │
+│  EndlessWave             │ ◄─────────────────────────► │  the radio (radio-core)  │
+│  Tauri + Vue 3           │      127.0.0.1:18000        │  Rust, on its own thread │
+│  window, tray, sound     │                             │  ├─ MP3, FLAC, Ogg built │
 └──────────────────────────┘                             │  └─ Yandex Music / folder│
                                                          └──────────────────────────┘
 ```
 
 The app reads the stream itself, decodes it (MP3, FLAC) and plays it through the system's audio output;
 the window only controls it. If that does not work, the window plays the stream with a plain `<audio>`.
-Everything else (the queue, the moods, the spectrum) comes from the API of the service. If a service already runs on port `18000`, the app connects to it.
+Everything else (the queue, the moods, the spectrum) comes from the API of the radio. The radio runs inside the app (`crates/radio-core`); if something already answers on port `18000`, the app connects to it.
 
-Files of the service:
+Files of the radio:
 
 | What | Where |
 |---|---|
@@ -186,9 +186,8 @@ Files of the service:
 | The log (only with `ENDLESSWAVE_LOG=1`) | `~/.cache/yamusic_radio.log` |
 
 Environment: `ENDLESSWAVE_PORT` (the port, 18000 by default), `ENDLESSWAVE_ARGS` (any more flags of
-the service, e.g. `--no-keep-tracks`), `ENDLESSWAVE_LOG=1` (write the log of the service to a file; it is not written otherwise), `ENDLESSWAVE_DEBUG=1` (a detailed log, to the file too), `ENDLESSWAVE_ENGINE=python` (the radio of the Python daemon, which is packed for a release or two, instead of the one built into the app), `ENDLESSWAVE_DJ_BIN` (your own
-binary of the service). The names the app had before (`YAMUSIC_RADIO_PORT`, `YAMUSIC_RADIO_ARGS`, `YAMUSIC_RADIO_LOG`,
-`YAMUSIC_RADIO_DEBUG`, `YAMUSIC_DJ_BIN`) still work.
+the radio, e.g. `--no-keep-tracks`; `yamusic-radio --help` in `crates/radio-core` lists them), `ENDLESSWAVE_LOG=1` (write the log to a file; it is not written otherwise), `ENDLESSWAVE_DEBUG=1` (a detailed log, to the file too). The names the app had before (`YAMUSIC_RADIO_PORT`, `YAMUSIC_RADIO_ARGS`, `YAMUSIC_RADIO_LOG`,
+`YAMUSIC_RADIO_DEBUG`) still work.
 
 ## Troubleshooting
 
@@ -197,7 +196,7 @@ binary of the service). The names the app had before (`YAMUSIC_RADIO_PORT`, `YAM
   `open -n --env ENDLESSWAVE_LOG=1 -a "EndlessWave"`, on Linux
   `ENDLESSWAVE_LOG=1 endlesswave`, and `tail -f ~/.cache/yamusic_radio.log`.
   `Unknown HTTPError` in it means Yandex Music does not answer or limits the requests.
-- **An old service is left after an update.** Stop it and restart the app: `pkill -f yamusic-dj`.
+- **An old service is left after an update** (versions before the radio moved into the app ran it as `yamusic-dj`). Stop it and restart the app: `pkill -f yamusic-dj`.
 - **No tray icon on Linux.** AppIndicator is needed (in GNOME, the *AppIndicator and
   KStatusNotifierItem Support* extension). The tray menu still works, a click on the icon does not open
   the window.
@@ -206,27 +205,25 @@ binary of the service). The names the app had before (`YAMUSIC_RADIO_PORT`, `YAM
 
 ## Development
 
-You need Node.js 22+, Rust (stable) and, to develop, the radio service next to the project.
+You need Node.js 22+ and Rust (stable). The radio is in `crates/radio-core` (see `docs/rust-port.md`); for the keys and the loudness the way the Python radio found them build with `--features essentia` after `crates/radio-core/tools/fetch-vendor.sh`.
 
 ```bash
 npm install
 npm run tauri dev      # the window, with hot reload
 ```
 
-In development the service is taken from `../yamusic-radio/.venv/bin/yamusic-dj`, then from `PATH`;
-`ENDLESSWAVE_DJ_BIN` sets another one. Type check: `npx vue-tsc --noEmit`.
+Type check: `npx vue-tsc --noEmit`. The radio's tests: `cargo test` in `crates/radio-core`.
 
 The app icon is drawn in `assets/icon.svg` (`python3 assets/make-icon.py`, then `python3 assets/render-icon.py` for `assets/icon.png`, then
 `npx tauri icon assets/icon.png` makes all the sizes); the menu bar icon of macOS is
 `src-tauri/icons/tray.png` (`assets/tray.svg`).
 
-Layout: `src/` is the interface (Vue 3, Vuetify), `src-tauri/` the shell (starts the service, the tray, the
-window), `scripts/` builds the service, ffmpeg and the packages.
+Layout: `src/` is the interface (Vue 3, Vuetify), `src-tauri/` the shell (starts the radio, the tray, the
+window), `crates/radio-core/` the radio, `scripts/` builds ffmpeg and the packages.
 
 ## Build
 
-The packages hold the service (built from [vm86/yamusic-radio](https://github.com/vm86/yamusic-radio)
-with PyInstaller) and a static LGPL ffmpeg.
+The packages hold a static LGPL ffmpeg (it decodes what the radio can not: HE-AAC, Opus); the radio is built into the app.
 
 | Platform | Result | Command |
 |---|---|---|
@@ -243,13 +240,15 @@ with PyInstaller) and a static LGPL ffmpeg.
 ## License
 
 The player is released under the [GNU Affero General Public License, version 3 or later](LICENSE). The source
-is this repository; the radio service it starts is [vm86/yamusic-radio](https://github.com/vm86/yamusic-radio).
+is this repository; the radio was ported from [vm86/yamusic-radio](https://github.com/vm86/yamusic-radio).
 Versions up to 0.1.0 were released under the MIT License.
 
 ### Third-party parts
 
 - **ffmpeg 9.0.2** (LGPL-2.1+) and **LAME 4.0** (LGPL): built without any GPL parts; the license text is
   next to the binary in the package.
-- **Essentia** (AGPL-3.0): part of the `yamusic-dj` service, finds the keys of the tracks (see its
-  [README](https://github.com/vm86/yamusic-radio#readme)). The packages that hold it can only be passed on
-  under the AGPL-3.0, which is why the player has this license.
+- **Essentia** (AGPL-3.0): built into the app from source (`crates/radio-core/vendor`, fetched by
+  `tools/fetch-vendor.sh`), finds the keys and the loudness of the tracks. The packages that hold it can only be
+  passed on under the AGPL-3.0, which is why the player has this license.
+- **LAME** (LGPL), **flacenc** (Apache-2.0), **symphonia** (MPL-2.0), **rubato** (MIT): the MP3 and FLAC encoders and
+  the decoders of the radio.

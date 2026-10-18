@@ -1,7 +1,6 @@
 {
   "bundle": {
     "resources": {
-      "../backend/": "backend/",
       "../ffmpeg/": "ffmpeg/"
     },
     "linux": {

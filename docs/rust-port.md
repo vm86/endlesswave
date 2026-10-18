@@ -115,7 +115,7 @@ A/B-проверка (7). Подробности по 3.x в [rust-port-radio.md
 - **6.1** ✅ (`src-tauri/src/engine.rs`, выбор `ENDLESSWAVE_ENGINE=rust`, по умолчанию пока Python; 2 теста: слушает/останавливается, занятый порт) Запуск `radio-core` внутри `src-tauri` (задача/поток) вместо дочернего процесса; заменяет `radio.rs`.
 - **6.2** ✅ Сохранить `ENDLESSWAVE_PORT`, `ENDLESSWAVE_ARGS`, `ENDLESSWAVE_LOG/DEBUG` и «если на порту уже есть
   сервис, подключиться».
-- **6.3** (после этапа 7: пока Python-демон остаётся запасным движком) Убрать PyInstaller: `scripts/build-backend.sh`, `backend/`, шаги в `release.yml`; обновить раздел
+- **6.3** ✅ (Python-движок и `ENDLESSWAVE_ENGINE` убраны; остался `reap_orphan` для демона старых версий) Убрать PyInstaller: `scripts/build-backend.sh`, `backend/`, шаги в `release.yml`; обновить раздел
   Third-party в README.
 - **6.4** (работает как раньше: `clean_state` правит ту же базу, схема совпадает; общий `cache.rs` — по желанию) Reset в настройках работает через общий `cache.rs`.
 
