@@ -24,3 +24,6 @@ node_modules/
 .env
 .env.*
 __pycache__/
+
+# Made by scripts/third-party.sh and packed into the packages
+/THIRD-PARTY-LICENSES

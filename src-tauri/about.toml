@@ -1,0 +1,27 @@
+# The licenses of the crates the app is built from (scripts/third-party.sh makes THIRD-PARTY-LICENSES of them).
+accepted = [
+    "AGPL-3.0",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "CDLA-Permissive-2.0",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "ISC",
+    "LGPL-2.1",
+    "LGPL-3.0",
+    "MIT",
+    "MIT-0",
+    "MPL-2.0",
+    "OpenSSL",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+]
+# This repository's own crates (publish = false) are not third-party.
+private = { ignore = true }
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu"]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+workarounds = ["ring"]

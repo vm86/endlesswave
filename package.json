@@ -8,7 +8,7 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "bundle": "npm run ffmpeg && tauri build --config src-tauri/tauri.bundle.conf.json",
+    "bundle": "npm run ffmpeg && scripts/third-party.sh && tauri build --config src-tauri/tauri.bundle.conf.json",
     "ffmpeg": "scripts/build-ffmpeg.sh",
     "bundle:linux": "scripts/build-linux.sh"
   },

@@ -59,7 +59,7 @@ A/B-проверка (7). Подробности по 3.x в [rust-port-radio.md
 - **0.3** ✅ (только `analyze()`; PCM переходов появятся с 1.7) Генератор эталонов `crates/radio-core/tools/gen_golden.py`, 10 случаев, сигналы не в git: Python `analyze()` и `blend()` на синтетике из тестов радио и 5–10 реальных
   треках → JSON и PCM-фрагменты в `tests/golden/`.
 - **0.4** ✅ (не запускался) `.github/workflows/rust.yml`: ставит Python-радио с Essentia, генерирует сигналы, `cargo test` с `GOLDEN_REQUIRED=1`.
-- **0.5** Ссылка на исходники в Settings ✅. `THIRD-PARTY-LICENSES` (`cargo-about`, `license-checker`) в пакеты — не сделано.
+- **0.5** Ссылка на исходники в Settings ✅. `THIRD-PARTY-LICENSES` ✅ (`scripts/third-party.sh`: `cargo-about` + `scripts/third-party.mjs` + тексты Essentia, Eigen, LAME, ffmpeg; кладётся в пакет ресурсом; в `release.yml` перед сборкой).
 
 ### Этап 1. Аудио-ядро (`mix/`), самый рискованный
 - **1.1** ✅ Типы `Pcm`, `TrackAnalysis`, константы, `SAMPLE_RATE`.
@@ -74,7 +74,7 @@ A/B-проверка (7). Подробности по 3.x в [rust-port-radio.md
   - **1.5.3** ✅ Тональность совпадает с Python на 34 эталонах, включая все 24 тональности; громкость до 0,001 дБ.
   - **1.5.4** ✅ Запасной путь без Essentia или при её отказе: профили Крумхансла (`mix/chroma.rs`), хрома и
     уверенность совпадают с Python.
-  - **1.5.5** Раздел лицензий в README: Essentia теперь в самом приложении (AGPL, как и сам плеер) — не сделано.
+  - **1.5.5** Раздел лицензий в README: Essentia теперь в самом приложении (AGPL, как и сам плеер) ✅.
 - **1.6** ✅ Планирование (`mix/plan.rs`: `plan_matched`, `plan_early`, `plan_blend`, `tempo_ratio`, `transition_speed`, `section_length`, `choose_transition`; 300 пар, 1800 запросов `plan_early` — те же числа, что у Python): `plan_matched`, `plan_early`, `plan_blend`, `tempo_ratio`, `transition_speed`.
 - **1.7** ✅ (`mix/blend.rs`, 8 блендов + `swap_point`; SNR к Python 137–151 дБ) DSP переходов: `crossfade`, `bass_swap`, `eq_blend`, `filter_sweep`, `_lowpass`, `swap_point`.
 - **1.8** ✅ (`mix/glide.rs`; 4 glide-кейса, выход побитно совпадает с Python, сетка долей и атаки тоже) `_wsola` и `tempo_glide` (растяжение по времени, поиск атак). Нужен эталон PCM и прослушивание.

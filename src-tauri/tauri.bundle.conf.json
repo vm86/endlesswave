@@ -1,7 +1,8 @@
 {
   "bundle": {
     "resources": {
-      "../ffmpeg/": "ffmpeg/"
+      "../ffmpeg/": "ffmpeg/",
+      "../THIRD-PARTY-LICENSES": "THIRD-PARTY-LICENSES"
     },
     "linux": {
       "deb": {

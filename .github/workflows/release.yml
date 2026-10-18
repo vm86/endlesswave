@@ -65,6 +65,10 @@ jobs:
       - name: ffmpeg
         if: steps.ffmpeg.outputs.cache-hit != 'true'
         run: scripts/build-ffmpeg.sh
+      - name: Licenses of the parts
+        run: |
+          command -v cargo-about >/dev/null || cargo install --locked cargo-about --features cli
+          scripts/third-party.sh
       - name: App
         run: npx tauri build --bundles dmg --config src-tauri/tauri.bundle.conf.json -- --features essentia
 
@@ -138,6 +142,10 @@ jobs:
       - name: ffmpeg
         if: steps.ffmpeg.outputs.cache-hit != 'true'
         run: scripts/build-ffmpeg.sh
+      - name: Licenses of the parts
+        run: |
+          command -v cargo-about >/dev/null || cargo install --locked cargo-about --features cli
+          scripts/third-party.sh
       - name: App
         run: npx tauri build --bundles deb,rpm --config src-tauri/tauri.bundle.conf.json -- --features essentia
 

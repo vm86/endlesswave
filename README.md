@@ -242,6 +242,8 @@ Versions up to 0.1.0 were released under the MIT License.
 
 ### Third-party parts
 
+The full texts of all of them (the Rust crates and the JavaScript packages too) are in `THIRD-PARTY-LICENSES` next to the app in the package; `scripts/third-party.sh` makes it.
+
 - **ffmpeg 9.0.2** (LGPL-2.1+) and **LAME 4.0** (LGPL): built without any GPL parts; the license text is
   next to the binary in the package.
 - **Essentia** (AGPL-3.0): built into the app from source (`crates/radio-core/vendor`, fetched by

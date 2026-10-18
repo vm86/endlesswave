@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Tray player for the yamusic-radio DJ radio"
 authors = ["vm86"]
 license = "AGPL-3.0-or-later"
+publish = false
 edition = "2024"
 
 [lib]
