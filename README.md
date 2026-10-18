@@ -186,7 +186,7 @@ Files of the service:
 | The log (only with `ENDLESSWAVE_LOG=1`) | `~/.cache/yamusic_radio.log` |
 
 Environment: `ENDLESSWAVE_PORT` (the port, 18000 by default), `ENDLESSWAVE_ARGS` (any more flags of
-the service, e.g. `--no-keep-tracks`), `ENDLESSWAVE_LOG=1` (write the log of the service to a file; it is not written otherwise), `ENDLESSWAVE_DEBUG=1` (a detailed log, to the file too), `ENDLESSWAVE_DJ_BIN` (your own
+the service, e.g. `--no-keep-tracks`), `ENDLESSWAVE_LOG=1` (write the log of the service to a file; it is not written otherwise), `ENDLESSWAVE_DEBUG=1` (a detailed log, to the file too), `ENDLESSWAVE_ENGINE=python` (the radio of the Python daemon, which is packed for a release or two, instead of the one built into the app), `ENDLESSWAVE_DJ_BIN` (your own
 binary of the service). The names the app had before (`YAMUSIC_RADIO_PORT`, `YAMUSIC_RADIO_ARGS`, `YAMUSIC_RADIO_LOG`,
 `YAMUSIC_RADIO_DEBUG`, `YAMUSIC_DJ_BIN`) still work.
 

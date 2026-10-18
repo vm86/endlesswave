@@ -4,8 +4,9 @@
 #
 #   git tag v1.2.3 && git push origin v1.2.3
 #
-# The daemon comes from vm86/yamusic-radio (the branch main, or the repository
-# variable YAMUSIC_RADIO_REF: a branch, a tag or a commit).
+# The radio is crates/radio-core, inside the app (with Essentia, built from source: AGPL). The Python daemon
+# from vm86/yamusic-radio (the branch main, or the repository variable YAMUSIC_RADIO_REF: a branch, a tag or a
+# commit) is packed too, for ENDLESSWAVE_ENGINE=python, and goes in a release or two.
 name: build
 
 on:
@@ -61,13 +62,20 @@ jobs:
           key: ffmpeg-macos-arm64-${{ hashFiles('scripts/build-ffmpeg.sh') }}
 
       - run: npm ci
+      - name: Cache the sources of Essentia
+        uses: actions/cache@v4
+        with:
+          path: crates/radio-core/vendor
+          key: vendor-${{ hashFiles('crates/radio-core/tools/fetch-vendor.sh') }}
+      - name: Essentia
+        run: crates/radio-core/tools/fetch-vendor.sh
       - name: Daemon
         run: scripts/build-backend.sh
       - name: ffmpeg
         if: steps.ffmpeg.outputs.cache-hit != 'true'
         run: scripts/build-ffmpeg.sh
       - name: App
-        run: npx tauri build --bundles dmg --config src-tauri/tauri.bundle.conf.json
+        run: npx tauri build --bundles dmg --config src-tauri/tauri.bundle.conf.json -- --features essentia
 
       - name: Collect
         run: |
@@ -130,13 +138,20 @@ jobs:
           key: ffmpeg-linux-x86_64-${{ hashFiles('scripts/build-ffmpeg.sh') }}
 
       - run: npm ci
+      - name: Cache the sources of Essentia
+        uses: actions/cache@v4
+        with:
+          path: crates/radio-core/vendor
+          key: vendor-${{ hashFiles('crates/radio-core/tools/fetch-vendor.sh') }}
+      - name: Essentia
+        run: crates/radio-core/tools/fetch-vendor.sh
       - name: Daemon
         run: scripts/build-backend.sh
       - name: ffmpeg
         if: steps.ffmpeg.outputs.cache-hit != 'true'
         run: scripts/build-ffmpeg.sh
       - name: App
-        run: npx tauri build --bundles deb,rpm --config src-tauri/tauri.bundle.conf.json
+        run: npx tauri build --bundles deb,rpm --config src-tauri/tauri.bundle.conf.json -- --features essentia
 
       - name: Collect
         run: |
@@ -179,5 +194,5 @@ jobs:
           case "$GITHUB_REF_NAME" in *-*) flags+=(--prerelease) ;; esac
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" --generate-notes \
-            --notes "Radio daemon: [vm86/yamusic-radio@${backend:0:7}](https://github.com/vm86/yamusic-radio/commit/${backend}). ffmpeg 9.0.2 and LAME 4.0 (LGPL) are inside." \
+            --notes "Radio: crates/radio-core. Python daemon (fallback): [vm86/yamusic-radio@${backend:0:7}](https://github.com/vm86/yamusic-radio/commit/${backend}). ffmpeg 9.0.2 and LAME 4.0 (LGPL) are inside." \
             "${flags[@]}" -- *.dmg *.rpm *.deb SHA256SUMS

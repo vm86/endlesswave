@@ -41,9 +41,10 @@ fn env(name: &str) -> Option<std::ffi::OsString> {
     std::env::var_os(format!("ENDLESSWAVE_{name}")).or_else(|| std::env::var_os(old))
 }
 
-/// ENDLESSWAVE_ENGINE=rust: the radio runs inside the app (`radio-core`), not as the Python daemon.
+/// The radio runs inside the app (`radio-core`). ENDLESSWAVE_ENGINE=python brings back the Python daemon (the package
+/// still has it, for a release or two).
 fn rust_engine() -> bool {
-    env("ENGINE").is_some_and(|value| value == "rust")
+    !env("ENGINE").is_some_and(|value| value == "python")
 }
 
 pub fn port() -> u16 {
@@ -379,7 +380,12 @@ impl Radio {
     fn launch_engine(&self, resources: Option<&Path>) -> Result<(), String> {
         let port = port();
         let mut guard = self.engine.lock().unwrap();
-        if guard.is_some() || is_up(port) {
+        if guard.is_some() {
+            return Ok(());
+        }
+        // A daemon of an earlier version (or of the Python engine) that outlived its app.
+        reap_orphan();
+        if is_up(port) {
             return Ok(());
         }
         // An app started from the Finder has a short PATH: ffprobe and the rest are looked for by it.
