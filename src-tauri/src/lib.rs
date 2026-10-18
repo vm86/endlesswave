@@ -116,8 +116,7 @@ fn set_dock_visible(app: AppHandle, visible: bool) {
 }
 
 /// SIGTERM, SIGINT and SIGHUP (`kill`, Ctrl-C in a terminal, the session closing) end the app the same way
-/// "Quit" does, so the radio service is stopped and not left behind. (SIGKILL cannot be caught: the
-/// next start finds the service left by it, see `radio::reap_orphan`.)
+/// "Quit" does, so the radio is stopped and not left behind.
 #[cfg(unix)]
 fn watch_signals(app: AppHandle) {
     use signal_hook::{consts::signal::{SIGHUP, SIGINT, SIGTERM}, iterator::Signals};

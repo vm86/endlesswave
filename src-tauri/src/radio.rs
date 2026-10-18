@@ -6,7 +6,6 @@
 use std::net::{SocketAddr, TcpStream};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -32,11 +31,9 @@ const STABLE: Duration = Duration::from_secs(60);
 /// So many crashes in a row and the service is given up.
 const MAX_CRASHES: u32 = 5;
 
-/// A setting of the environment: ENDLESSWAVE_<name>. The names of the app before it was renamed
-/// (YAMUSIC_RADIO_<name>) still work.
+/// A setting of the environment: ENDLESSWAVE_<name>.
 fn env(name: &str) -> Option<std::ffi::OsString> {
-    let old = format!("YAMUSIC_RADIO_{name}");
-    std::env::var_os(format!("ENDLESSWAVE_{name}")).or_else(|| std::env::var_os(old))
+    std::env::var_os(format!("ENDLESSWAVE_{name}"))
 }
 
 pub fn port() -> u16 {
@@ -82,50 +79,6 @@ fn path_with_ffmpeg_places(resources: Option<&Path>) -> std::ffi::OsString {
     }
     std::env::join_paths(paths).unwrap_or_default()
 }
-
-/// Earlier versions ran the radio as a Python daemon and kept its pid in a file; one that outlived its app is stopped.
-fn pid_path() -> Option<PathBuf> {
-    let dir = PathBuf::from(std::env::var_os("HOME")?).join(".cache");
-    fs::create_dir_all(&dir).ok()?;
-    // The port is in the name: apps on other ports (ENDLESSWAVE_PORT) keep their own.
-    Some(dir.join(format!("endlesswave-{}.pid", port())))
-}
-
-/// Stops the service the file points to if it is still alive: SIGTERM, so it puts the settings of the
-/// station back, and SIGKILL if it does not leave in time. The pid may have been given to another
-/// process meanwhile: only a process that is a `yamusic-dj` is touched.
-#[cfg(unix)]
-fn reap_orphan() {
-    let Some(path) = pid_path() else { return };
-    let Some(pid) = fs::read_to_string(&path).ok().and_then(|text| text.trim().parse::<i32>().ok()) else {
-        return;
-    };
-    let _ = fs::remove_file(&path);
-    let alive = |pid: i32| unsafe { libc::kill(pid, 0) == 0 };
-    if pid <= 1 || !alive(pid) {
-        return;
-    }
-    let ours = Command::new("ps")
-        .args(["-p", &pid.to_string(), "-o", "command="])
-        .output()
-        .map(|output| String::from_utf8_lossy(&output.stdout).contains("yamusic-dj"))
-        .unwrap_or(false);
-    if !ours {
-        return;
-    }
-    eprintln!("stopping the radio service {pid} left by an earlier run");
-    unsafe { libc::kill(pid, libc::SIGTERM) };
-    for _ in 0..80 {
-        if !alive(pid) {
-            return;
-        }
-        std::thread::sleep(Duration::from_millis(100));
-    }
-    unsafe { libc::kill(pid, libc::SIGKILL) };
-}
-
-#[cfg(not(unix))]
-fn reap_orphan() {}
 
 fn cache_dir() -> Option<PathBuf> {
     Some(PathBuf::from(std::env::var_os("HOME")?).join(".cache"))
@@ -223,8 +176,6 @@ impl Radio {
         if guard.is_some() {
             return Ok(());
         }
-        // A daemon of an earlier version (it was Python) that outlived its app.
-        reap_orphan();
         if is_up(port) {
             return Ok(());
         }

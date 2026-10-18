@@ -1,6 +1,5 @@
-//! The radio inside the app: `radio-core` runs on a thread of its own, with a runtime of its own, instead of the
-//! `yamusic-dj` child process. Stage 6 of docs/rust-port.md. Chosen with ENDLESSWAVE_ENGINE=rust until it replaces the
-//! Python daemon.
+//! The radio inside the app: `radio-core` runs on a thread of its own, with a runtime of its own. Stage 6 of
+//! docs/rust-port.md.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;

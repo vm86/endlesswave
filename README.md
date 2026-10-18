@@ -22,8 +22,7 @@ gaps. It plays the mix and shows what plays, what comes next and how the blends 
   macOS, MPRIS on Linux);
 - it runs on **macOS** (Apple Silicon) and **Linux** (x86_64), in light or dark mode as the system has it.
 
-The packages already hold the radio service and ffmpeg: nothing else has to be installed, no `ffmpeg`
-and no Python.
+The radio is inside the app, and the packages hold ffmpeg: nothing else has to be installed, no `ffmpeg`.
 
 ## Features
 
@@ -186,8 +185,7 @@ Files of the radio:
 | The log (only with `ENDLESSWAVE_LOG=1`) | `~/.cache/yamusic_radio.log` |
 
 Environment: `ENDLESSWAVE_PORT` (the port, 18000 by default), `ENDLESSWAVE_ARGS` (any more flags of
-the radio, e.g. `--no-keep-tracks`; `yamusic-radio --help` in `crates/radio-core` lists them), `ENDLESSWAVE_LOG=1` (write the log to a file; it is not written otherwise), `ENDLESSWAVE_DEBUG=1` (a detailed log, to the file too). The names the app had before (`YAMUSIC_RADIO_PORT`, `YAMUSIC_RADIO_ARGS`, `YAMUSIC_RADIO_LOG`,
-`YAMUSIC_RADIO_DEBUG`) still work.
+the radio, e.g. `--no-keep-tracks`; `yamusic-radio --help` in `crates/radio-core` lists them), `ENDLESSWAVE_LOG=1` (write the log to a file; it is not written otherwise), `ENDLESSWAVE_DEBUG=1` (a detailed log, to the file too).
 
 ## Troubleshooting
 
@@ -196,7 +194,6 @@ the radio, e.g. `--no-keep-tracks`; `yamusic-radio --help` in `crates/radio-core
   `open -n --env ENDLESSWAVE_LOG=1 -a "EndlessWave"`, on Linux
   `ENDLESSWAVE_LOG=1 endlesswave`, and `tail -f ~/.cache/yamusic_radio.log`.
   `Unknown HTTPError` in it means Yandex Music does not answer or limits the requests.
-- **An old service is left after an update** (versions before the radio moved into the app ran it as `yamusic-dj`). Stop it and restart the app: `pkill -f yamusic-dj`.
 - **No tray icon on Linux.** AppIndicator is needed (in GNOME, the *AppIndicator and
   KStatusNotifierItem Support* extension). The tray menu still works, a click on the icon does not open
   the window.
@@ -205,7 +202,7 @@ the radio, e.g. `--no-keep-tracks`; `yamusic-radio --help` in `crates/radio-core
 
 ## Development
 
-You need Node.js 22+ and Rust (stable). The radio is in `crates/radio-core` (see `docs/rust-port.md`); for the keys and the loudness the way the Python radio found them build with `--features essentia` after `crates/radio-core/tools/fetch-vendor.sh`.
+You need Node.js 22+ and Rust (stable). The radio is in `crates/radio-core` (see `docs/rust-port.md`); for the keys and the loudness the way the original radio found them build with `--features essentia` after `crates/radio-core/tools/fetch-vendor.sh`.
 
 ```bash
 npm install

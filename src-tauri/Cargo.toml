@@ -43,7 +43,6 @@ panic = "unwind"
 strip = true
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2"
 # The signals that end the app (SIGTERM, SIGINT, SIGHUP) are caught, so the service is stopped first.
 signal-hook = "0.3"
 
