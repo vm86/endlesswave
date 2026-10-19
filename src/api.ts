@@ -38,6 +38,30 @@ export interface ArcInfo {
   max_stages: number;
   max_stage_tracks: number;
 }
+/** A plan of the tempo (morning, evening): a BPM for each stage, how long a stage is, how far a track may be from the line. */
+export interface Ramp {
+  stages: number[];
+  stage_tracks: number;
+  tolerance: number;
+}
+export type CycleName = "off" | "morning" | "day" | "evening";
+/** Morning, day, evening: the cycle that is on, and the plan of each. */
+export interface CycleInfo {
+  active: CycleName;
+  morning: Ramp;
+  day: { bpm_min: number; bpm_max: number };
+  evening: Ramp;
+  target_bpm: number | null;
+  stage: number | null;
+  mood: string;
+  min_bpm: number;
+  max_bpm: number;
+  min_stages: number;
+  max_stages: number;
+  max_stage_tracks: number;
+  min_tolerance: number;
+  max_tolerance: number;
+}
 export interface GenresInfo {
   available: string[];
   selected: string[];
@@ -167,6 +191,8 @@ export const api = {
   nextTrack: () => request<Queue>("/api/next", { method: "POST" }),
   clearQueue: () => request<Queue>("/api/queue/clear", { method: "POST" }),
   refreshQueue: () => request<Queue>("/api/queue/refresh", { method: "POST" }),
+  cycle: () => request<CycleInfo>("/api/cycle"),
+  setCycle: (change: Record<string, unknown>) => request<CycleInfo>("/api/cycle", json("PUT", change)),
   arc: () => request<ArcInfo>("/api/arc"),
   setArc: (change: { enabled?: boolean; stages?: string[]; stage_tracks?: number }) =>
     request<ArcInfo>("/api/arc", json("PUT", change)),

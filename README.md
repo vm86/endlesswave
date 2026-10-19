@@ -78,6 +78,19 @@ Click the level meter next to the track (or press `⌘E`) to open the equalizer 
 ±12 dB) to drag, move with the arrow keys, or pick from the presets. It shapes the sound of the app's own player; other
 listeners of the stream (a browser, VLC) hear the radio as it is.
 
+### Morning, day, evening
+
+In **Mix**, **Morning · Day · Evening** plays the set along a plan of the tempo; each cycle has its own, which you can change:
+
+- **Morning** starts quiet, about 60 BPM, and goes up to 120 BPM, stage by stage (a point for each stage; drag it up or down).
+- **Day** plays the mood arc (below) within a range of BPM (by default 95–135).
+- **Evening** plays quiet music only (calm, sad) and slows down from 100–120 BPM to 40–60 BPM.
+
+For the morning and the evening you set the points, how many tracks each stage lasts (the same for all) and how far from the line
+a track may be (the band around it). The plan goes on to its last stage and stays there. The radio picks the tracks that are
+nearest to the line (a tempo found at half or double speed counts, a little less), and asks the services for music of the mood
+that goes with it.
+
 ### Mood arc
 
 In **Mix**, the **Mood arc** is a line of points: each point is a stage of the set, and its height is the mood, from sad
