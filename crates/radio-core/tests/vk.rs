@@ -211,6 +211,44 @@ async fn vk_signs_in_with_a_token_plays_the_wave_and_the_music_and_likes() {
         .await
         .unwrap();
 
+    // the mood and the language steer the wave: VK is told the vibe and that the music has no words
+    assert!(backend.supports_moods());
+    assert_eq!(backend.station_settings("wave").await.unwrap().0, "all");
+    backend
+        .set_station_settings("wave", "calm", "default", "without-words")
+        .await
+        .unwrap();
+    assert_eq!(
+        backend.station_settings("wave").await.unwrap(),
+        (
+            "calm".to_owned(),
+            "default".to_owned(),
+            "without-words".to_owned()
+        )
+    );
+    log.lock().unwrap().clear();
+    let _ = backend.station_batch("wave", &none).await.unwrap();
+    let asked = log.lock().unwrap().join("\n");
+    assert!(
+        asked.contains(r#""vibes":["calm"]"#) && asked.contains(r#""langs":["instrumental"]"#),
+        "{asked}"
+    );
+    backend
+        .set_station_settings("wave", "active", "default", "any")
+        .await
+        .unwrap();
+    log.lock().unwrap().clear();
+    let _ = backend.station_batch("wave", &none).await.unwrap();
+    let asked = log.lock().unwrap().join("\n");
+    assert!(
+        asked.contains(r#""vibes":["active"]"#) && !asked.contains("langs"),
+        "{asked}"
+    );
+    backend
+        .set_station_settings("wave", "all", "default", "any")
+        .await
+        .unwrap();
+
     // likes
     let track: Track = wave[0].clone();
     backend.set_like(&track, true).await.unwrap();

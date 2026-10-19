@@ -100,6 +100,9 @@ struct State {
     user_id: Option<i64>,
     /// `wave` or `favorites`.
     tracks: String,
+    /// What the wave is steered by: "active" or "calm" (none: as VK likes), and whether it is music without words.
+    vibe: Option<&'static str>,
+    instrumental: bool,
     /// The ids of the music of the user not yet offered in this round.
     library: VecDeque<String>,
     recent: VecDeque<String>,
@@ -502,12 +505,23 @@ impl VkBackend {
                 state.mix_id += 1;
                 state.mix_id
             };
+            let options = {
+                let state = self.st();
+                let mut options = json!({ "id": id });
+                if let Some(vibe) = state.vibe {
+                    options["vibes"] = json!([vibe]);
+                }
+                if state.instrumental {
+                    options["langs"] = json!(["instrumental"]);
+                }
+                options
+            };
             let answer = self
                 .call(
                     "audio.getStreamMixAudios",
                     &[
                         ("mix_id", "common".to_owned()),
-                        ("options", json!({ "id": id }).to_string()),
+                        ("options", options.to_string()),
                     ],
                 )
                 .await?;
@@ -783,9 +797,9 @@ impl MusicBackend for VkBackend {
         Ok(())
     }
 
-    /// The tracks choose their mood by their sound.
+    /// The wave of VK can be steered: energetic or calm, and without words.
     fn supports_moods(&self) -> bool {
-        false
+        true
     }
 
     async fn station_batch(
@@ -859,20 +873,47 @@ impl MusicBackend for VkBackend {
         Ok(())
     }
 
+    /// The (mood, diversity, language) that the wave is steered by now: VK has the moods active and calm, and music without
+    /// words.
     async fn station_settings(
         &self,
         _station_id: &str,
     ) -> Result<(String, String, String), BackendError> {
-        Ok(("all".to_owned(), "default".to_owned(), "any".to_owned()))
+        let state = self.st();
+        Ok((
+            state.vibe.unwrap_or("all").to_owned(),
+            "default".to_owned(),
+            if state.instrumental {
+                "without-words"
+            } else {
+                "any"
+            }
+            .to_owned(),
+        ))
     }
 
+    /// Steer the wave: `active` and `fun` are the energetic vibe, `calm` and `sad` the calm one, the rest is as VK likes;
+    /// `without-words` is instrumental music. The tracks of the wave that were offered are forgotten, so the new wave is
+    /// not held back by them.
     async fn set_station_settings(
         &self,
         _station_id: &str,
-        _mood_energy: &str,
+        mood_energy: &str,
         _diversity: &str,
-        _language: &str,
+        language: &str,
     ) -> Result<(), BackendError> {
+        let vibe = match mood_energy {
+            "active" | "fun" => Some("active"),
+            "calm" | "sad" => Some("calm"),
+            _ => None,
+        };
+        let instrumental = language == "without-words";
+        let mut state = self.st();
+        if (state.vibe, state.instrumental) != (vibe, instrumental) {
+            tracing::info!("VK wave: mood {vibe:?}, without words {instrumental}");
+            state.vibe = vibe;
+            state.instrumental = instrumental;
+        }
         Ok(())
     }
 
