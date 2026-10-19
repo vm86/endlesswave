@@ -12,6 +12,8 @@ export interface TrackInfo {
   cover: string;
   /** Put where it is by hand: the radio does not move it. */
   pinned?: boolean;
+  /** The backend the track is from: "yandex", "vk", "local". */
+  source?: string;
 }
 export interface NowTrack extends TrackInfo {
   elapsed_seconds: number;

@@ -15,6 +15,8 @@ const props = defineProps<{
   stats: Stats | null;
   tab: string;
 }>();
+/** The mark of the backend a track is from, and its name. */
+const SOURCES: Record<string, [string, string]> = { yandex: ["Я", "Yandex Music"], vk: ["VK", "VK Music"], local: ["♪", "Local folder"] };
 const emit = defineEmits<{
   moods: [string[]];
   genres: [string[]];
@@ -134,6 +136,7 @@ window.addEventListener("keydown", (event) => event.key === "Escape" && closeMen
         <span class="thumb">
           <img v-if="row.track.cover" :src="coverUrl(row.track.cover, 100)" alt="" loading="lazy" draggable="false" referrerpolicy="no-referrer" />
           <v-icon v-else :icon="mdiMusicNote" size="16" />
+          <i v-if="SOURCES[row.track.source ?? '']" class="src" :class="row.track.source" :title="SOURCES[row.track.source ?? ''][1]">{{ SOURCES[row.track.source ?? ''][0] }}</i>
         </span>
         <span class="t">
           <b>{{ row.track.title }}</b>

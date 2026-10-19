@@ -54,6 +54,8 @@ pub struct TrackInfo {
     pub cover: String,
     /// Put where it is by hand: the radio doesn't move it.
     pub pinned: bool,
+    /// The id of the backend the track is from ("yandex", "vk", "local"); "" when the radio has just one backend.
+    pub source: String,
 }
 
 impl TrackInfo {
@@ -81,6 +83,7 @@ impl TrackInfo {
             decided,
             cover: track.map_or_else(String::new, |t| t.cover.clone()),
             pinned,
+            source: track.map_or_else(String::new, |t| t.source.clone()),
         }
     }
 }
