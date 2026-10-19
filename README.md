@@ -69,6 +69,12 @@ else is needed. For the tray icon, GNOME needs the AppIndicator extension.
 
 Open the app: the radio service starts by itself (port `18000`, on `127.0.0.1` only).
 
+### Wave or liked tracks
+
+In **Sources**, under each signed-in service, the row **Tracks** chooses where its tracks come from: the wave (My wave of
+Yandex Music, the wave of VK) or your own liked tracks, in a random order. The choice is kept per service; when it
+changes, the tracks of that service waiting in the queue make way for the new ones.
+
 ### Signing in to VK Music
 
 In **Sources** turn on VK Music and press **sign in with VK**: a window with the VK site opens, you sign in there as in a

@@ -168,6 +168,34 @@ impl Radio {
         Ok(())
     }
 
+    /// Take the tracks of one backend out of the queue, the ones that are waiting and not the one that is fixed to come next
+    /// (the backend was told to give other tracks). They are not marked as played. Returns how many went.
+    pub fn drop_queued_of(&self, source: &str) -> usize {
+        let removed: Vec<_> = {
+            let mut state = self.st();
+            let (gone, kept): (Vec<_>, Vec<_>) = std::mem::take(&mut state.pool)
+                .into_iter()
+                .partition(|c| c.track.as_ref().is_some_and(|t| t.source == source));
+            state.pool = kept;
+            for candidate in &gone {
+                if let Some(track) = &candidate.track {
+                    state.order.retain(|id| id != &track.track_id);
+                    state.seen.remove(&track.track_id);
+                }
+            }
+            gone
+        };
+        for candidate in &removed {
+            let _ = std::fs::remove_file(&candidate.path);
+        }
+        if !removed.is_empty() {
+            self.save_playlist();
+            self.consumed.notify_one();
+            tracing::info!("Out of the queue: {} tracks of {source}", removed.len());
+        }
+        removed.len()
+    }
+
     /// Play a track of the queue next, as soon as a blend can start.
     pub fn queue_play(&self, track_id: &str) -> Result<(), RadioError> {
         let mut ids = self.queue_ids();

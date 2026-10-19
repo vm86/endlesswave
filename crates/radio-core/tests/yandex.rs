@@ -436,9 +436,13 @@ async fn the_quality_is_a_setting_of_the_backend_and_is_kept() {
 
     let (values, fields) = backend.settings().expect("Yandex has settings");
     assert_eq!(values["quality"], "lossless");
-    assert_eq!(fields[0].name, "quality");
-    let offered: Vec<&str> = fields[0].choices.iter().map(|c| c.value.as_str()).collect();
+    let quality = fields.iter().find(|f| f.name == "quality").unwrap();
+    let offered: Vec<&str> = quality.choices.iter().map(|c| c.value.as_str()).collect();
     assert_eq!(offered, ["lossless", "hq", "nq"]);
+    assert_eq!(values["tracks"], "wave", "the wave unless chosen otherwise");
+    let tracks = fields.iter().find(|f| f.name == "tracks").unwrap();
+    let offered: Vec<&str> = tracks.choices.iter().map(|c| c.value.as_str()).collect();
+    assert_eq!(offered, ["wave", "favorites"]);
 
     backend
         .update_settings(&HashMap::from([("quality".to_owned(), "hq".to_owned())]))
@@ -570,4 +574,79 @@ async fn likes_are_read_added_and_taken_back_on_the_account() {
         ],
         "the account is asked for once"
     );
+}
+
+#[tokio::test]
+async fn the_tracks_can_come_from_the_liked_tracks_instead_of_the_wave() {
+    let log: Arc<Mutex<Vec<String>>> = Arc::default();
+    let seen = log.clone();
+    let app = Router::new().fallback(move |request: Request| {
+        let seen = seen.clone();
+        async move {
+            let line = format!("{} {}", request.method(), request.uri().path());
+            let body = axum::body::to_bytes(request.into_body(), 1 << 20)
+                .await
+                .unwrap();
+            seen.lock()
+                .unwrap()
+                .push(format!("{line} {}", String::from_utf8_lossy(&body)));
+            let track = |id: u32, album: u32| {
+                json!({"id": id.to_string(), "title": format!("Song {id}"), "available": true,
+                       "artists": [{"name": "Band"}], "albums": [{"id": album, "genre": "rock"}]})
+            };
+            let answer = if line.contains("/account/status") {
+                json!({"result": {"account": {"uid": 42}}})
+            } else if line.contains("/likes/tracks") {
+                json!({"result": {"library": {"tracks": [{"id": "7", "albumId": "1"}, {"id": "8", "albumId": "2"}]}}})
+            } else if line.starts_with("POST /tracks") {
+                json!({"result": [track(7, 1), track(8, 2)]})
+            } else if line.contains("/get-file-info") {
+                json!({"result": {"downloadInfo": {"codec": "mp3", "bitrate": 320, "urls": ["http://x/y"]}}})
+            } else {
+                json!({"result": {"batchId": "b", "sequence": []}})
+            };
+            (StatusCode::OK, answer.to_string()).into_response()
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, app).await });
+
+    let store = Arc::new(MemoryStore::default());
+    store
+        .save(&serde_json::from_str(r#"{"token": "t", "from_id": "music-x"}"#).unwrap())
+        .unwrap();
+    let options = YandexOptions {
+        api: origin,
+        ..YandexOptions::default()
+    };
+    let backend = YandexBackend::new(store, options, Arc::new(ManualClock::new(WALL))).unwrap();
+    assert!(
+        backend
+            .update_settings(&HashMap::from([("tracks".to_owned(), "radio".to_owned())]))
+            .await
+            .is_err()
+    );
+    backend
+        .update_settings(&HashMap::from([(
+            "tracks".to_owned(),
+            "favorites".to_owned(),
+        )]))
+        .await
+        .unwrap();
+
+    let tracks = backend
+        .station_batch("user:onyourwave", &Default::default())
+        .await
+        .unwrap();
+    let mut ids: Vec<&str> = tracks.iter().map(|t| t.track_id.as_str()).collect();
+    ids.sort();
+    assert_eq!(ids, ["7:1", "8:2"]);
+    assert!(
+        tracks.iter().all(|t| t.batch_id.is_empty()),
+        "no feedback for liked tracks"
+    );
+    let log = log.lock().unwrap().join("\n");
+    assert!(!log.contains("rotor"), "the station is not asked: {log}");
+    assert!(log.contains("POST /tracks track-ids="), "{log}");
 }

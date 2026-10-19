@@ -359,6 +359,10 @@ async fn backend_settings(
         .update_backend_settings(&backend, &values)
         .await
         .map_err(|e| ApiError::bad_request(e.0))?;
+    // The tracks of another source are wanted: those waiting in the queue from this backend make way for them.
+    if values.contains_key("tracks") {
+        api.radio.drop_queued_of(&backend);
+    }
     Ok(ok(&api.auth_info()))
 }
 

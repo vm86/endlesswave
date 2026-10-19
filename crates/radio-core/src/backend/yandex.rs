@@ -16,7 +16,7 @@ use reqwest::Method;
 use serde_json::{Map, Value, json};
 use sha2::Sha256;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     path::Path,
     sync::{Arc, Mutex, Weak},
     time::Duration,
@@ -34,6 +34,12 @@ pub const OAUTH: &str = "https://oauth.yandex.ru";
 pub const DEFAULT_STATION: &str = "user:onyourwave";
 /// The setting of the quality of the files, and the values the service knows.
 const QUALITY: &str = "quality";
+/// The setting of where the tracks come from: the wave (the station) or the liked tracks.
+pub const TRACKS: &str = "tracks";
+pub const WAVE: &str = "wave";
+pub const FAVORITES: &str = "favorites";
+/// Liked tracks asked for at once.
+const FAVORITES_BATCH: usize = 20;
 const QUALITIES: [(&str, &str); 3] = [
     ("lossless", "Lossless (FLAC)"),
     ("hq", "High (hq)"),
@@ -361,6 +367,8 @@ struct State {
     signed_in: bool,
     /// The id of the account, once known.
     uid: Option<String>,
+    /// The liked tracks not yet offered in this round (`id:album`), in a random order.
+    favorites: VecDeque<String>,
 }
 
 /// The Yandex Music implementation of [`MusicBackend`].
@@ -408,6 +416,7 @@ impl YandexBackend {
                 init_task: None,
                 signed_in,
                 uid: None,
+                favorites: VecDeque::new(),
             }),
             signed_in: Notify::new(),
             info_slots: Semaphore::new(DOWNLOAD_INFO_SLOTS),
@@ -464,6 +473,91 @@ impl YandexBackend {
             .ok_or_else(|| YError::other("the account has no uid"))?;
         self.st().uid = Some(uid.clone());
         Ok(uid)
+    }
+
+    /// The liked tracks of the account, a few at a time in a random order, ready to be downloaded. They belong to no
+    /// station, so the service is told nothing of them.
+    async fn favorites_batch(
+        &self,
+        exclude_track_ids: &HashSet<String>,
+    ) -> Result<Vec<Track>, BackendError> {
+        use rand::seq::SliceRandom as _;
+        if self.st().favorites.is_empty() {
+            let uid = self.uid().await?;
+            let result = self
+                .request(
+                    Method::GET,
+                    &format!("{}/users/{uid}/likes/tracks", self.options.api),
+                    &[],
+                    Body::None,
+                )
+                .await?;
+            let mut ids: Vec<String> = result
+                .as_ref()
+                .and_then(|r| r.pointer("/library/tracks"))
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .map(|t| match t.get("albumId") {
+                    Some(album) if !id_text(Some(album)).is_empty() => {
+                        format!("{}:{}", id_text(t.get("id")), id_text(Some(album)))
+                    }
+                    _ => id_text(t.get("id")),
+                })
+                .filter(|id| !id.is_empty())
+                .collect();
+            ids.shuffle(&mut rand::rng());
+            self.st().favorites = ids.into();
+        }
+        let mut tracks = Vec::new();
+        while tracks.len() < FAVORITES_BATCH / 2 {
+            let ids: Vec<String> = {
+                let mut state = self.st();
+                let take = FAVORITES_BATCH.min(state.favorites.len());
+                state.favorites.drain(..take).collect()
+            };
+            if ids.is_empty() {
+                break;
+            }
+            let answer = self
+                .request(
+                    Method::POST,
+                    &format!("{}/tracks", self.options.api),
+                    &[],
+                    Body::Form(vec![("track-ids", ids.join(","))]),
+                )
+                .await?;
+            let candidates: Vec<StationTrack> = answer
+                .as_ref()
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter(|t| t.is_object())
+                .map(StationTrack::of)
+                .filter(|t| !exclude_track_ids.contains(&t.track_id) && t.available)
+                .collect();
+            let loaded = futures_util::future::join_all(
+                candidates.iter().map(|t| self.get_download_info(&t.id)),
+            )
+            .await;
+            for (track, info) in candidates.into_iter().zip(loaded) {
+                let Some(info) = info? else { continue };
+                tracks.push(Track {
+                    track_id: track.track_id,
+                    title: track.title,
+                    artists: track.artists,
+                    codec: info.codec,
+                    bitrate_in_kbps: info.bitrate,
+                    genre: track.genre,
+                    cover: track.cover,
+                    batch_id: String::new(),
+                    mood: String::new(),
+                    source: String::new(),
+                    native_id: String::new(),
+                });
+            }
+        }
+        Ok(tracks)
     }
 
     /// One request of the API: what comes back is the `result` of it.
@@ -942,13 +1036,13 @@ impl MusicBackend for YandexBackend {
         DEFAULT_STATION.to_owned()
     }
 
-    /// The quality of the files: what is chosen, and what can be.
+    /// The quality of the files and where the tracks come from: what is chosen, and what can be.
     fn settings(&self) -> Option<(HashMap<String, String>, Vec<AuthField>)> {
-        let field = AuthField {
-            name: QUALITY.to_owned(),
-            label: "Quality".to_owned(),
+        let choice = |name: &str, label: &str, options: &[(&str, &str)]| AuthField {
+            name: name.to_owned(),
+            label: label.to_owned(),
             secret: false,
-            choices: QUALITIES
+            choices: options
                 .iter()
                 .map(|(value, label)| Choice {
                     value: (*value).to_owned(),
@@ -957,28 +1051,61 @@ impl MusicBackend for YandexBackend {
                 .collect(),
         };
         Some((
-            HashMap::from([(QUALITY.to_owned(), self.setting(QUALITY))]),
-            vec![field],
+            HashMap::from([
+                (QUALITY.to_owned(), self.setting(QUALITY)),
+                (
+                    TRACKS.to_owned(),
+                    match self.setting(TRACKS).as_str() {
+                        "" => WAVE.to_owned(),
+                        other => other.to_owned(),
+                    },
+                ),
+            ]),
+            vec![
+                choice(
+                    TRACKS,
+                    "Tracks",
+                    &[(WAVE, "My wave"), (FAVORITES, "Liked tracks")],
+                ),
+                choice(QUALITY, "Quality", &QUALITIES),
+            ],
         ))
     }
 
-    /// Choose the quality. It is kept in the settings file and is the one of the tracks that are fetched from now on.
+    /// Choose the quality, or where the tracks come from. They are kept in the settings and are the ones of the tracks
+    /// that are fetched from now on.
     async fn update_settings(&self, values: &HashMap<String, String>) -> Result<(), AuthError> {
-        let Some(quality) = values.get(QUALITY) else {
+        if !values.contains_key(QUALITY) && !values.contains_key(TRACKS) {
             return Err(AuthError("expected {\"quality\": \"...\"}".to_owned()));
-        };
-        if !QUALITIES.iter().any(|(value, _)| value == quality) {
+        }
+        if let Some(quality) = values.get(QUALITY)
+            && !QUALITIES.iter().any(|(value, _)| value == quality)
+        {
             return Err(AuthError(format!(
                 "unknown quality {}",
                 crate::api::py_repr(quality)
             )));
         }
-        self.st()
-            .settings
-            .insert(QUALITY.to_owned(), json!(quality));
+        if let Some(tracks) = values.get(TRACKS)
+            && ![WAVE, FAVORITES].contains(&tracks.as_str())
+        {
+            return Err(AuthError(format!(
+                "unknown tracks {}",
+                crate::api::py_repr(tracks)
+            )));
+        }
+        {
+            let mut state = self.st();
+            for key in [QUALITY, TRACKS] {
+                if let Some(value) = values.get(key) {
+                    state.settings.insert(key.to_owned(), json!(value));
+                }
+            }
+            state.favorites.clear();
+        }
         self.save()
             .map_err(|e| AuthError(format!("could not keep the settings: {e}")))?;
-        tracing::info!("Yandex Music: quality {quality}");
+        tracing::info!("Yandex Music: settings {values:?}");
         Ok(())
     }
 
@@ -1024,6 +1151,9 @@ impl MusicBackend for YandexBackend {
         station_id: &str,
         exclude_track_ids: &HashSet<String>,
     ) -> Result<Vec<Track>, BackendError> {
+        if self.setting(TRACKS) == FAVORITES {
+            return self.favorites_batch(exclude_track_ids).await;
+        }
         let queue = self.st().last_track.clone();
         let Some(station_tracks) = self
             .rotor_station_tracks(station_id, queue.as_deref())

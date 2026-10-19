@@ -12,7 +12,7 @@
 //! VK wants back to like it.
 
 use super::{
-    AuthError, AuthField, AuthPrompt, BackendError, Feedback, MusicBackend, Track,
+    AuthError, AuthField, AuthPrompt, BackendError, Choice, Feedback, MusicBackend, Track,
     yandex::SettingsStore,
 };
 use async_trait::async_trait;
@@ -43,6 +43,8 @@ const USER_ID: &str = "user_id";
 /// The station of the recommendations of VK, and the one of the music of the user.
 pub const WAVE: &str = "wave";
 pub const FAVORITES: &str = "favorites";
+/// The setting of where the tracks come from (one of the two stations); it wins over the station that is asked for.
+pub const TRACKS: &str = "tracks";
 /// Tracks asked for at once, and the most that `audio.getById` takes.
 const BATCH: usize = 20;
 const BY_ID_LIMIT: usize = 32;
@@ -96,6 +98,8 @@ struct State {
     /// The `Cookie` header of the session of the site.
     cookie: Option<String>,
     user_id: Option<i64>,
+    /// `wave` or `favorites`.
+    tracks: String,
     /// The ids of the music of the user not yet offered in this round.
     library: VecDeque<String>,
     recent: VecDeque<String>,
@@ -249,6 +253,12 @@ impl VkBackend {
                 .filter(|c| !c.is_empty())
                 .map(str::to_owned),
             user_id: kept.get(USER_ID).and_then(Value::as_i64),
+            tracks: kept
+                .get(TRACKS)
+                .and_then(Value::as_str)
+                .filter(|t| [WAVE, FAVORITES].contains(t))
+                .unwrap_or(WAVE)
+                .to_owned(),
             mix_id: unix_ms(),
             ..State::default()
         };
@@ -729,6 +739,50 @@ impl MusicBackend for VkBackend {
         Ok(())
     }
 
+    /// Where the tracks come from: the wave of VK or the music of the user.
+    fn settings(&self) -> Option<(HashMap<String, String>, Vec<AuthField>)> {
+        let field = AuthField {
+            name: TRACKS.to_owned(),
+            label: "Tracks".to_owned(),
+            secret: false,
+            choices: [(WAVE, "VK wave"), (FAVORITES, "My music")]
+                .iter()
+                .map(|(value, label)| Choice {
+                    value: (*value).to_owned(),
+                    label: (*label).to_owned(),
+                })
+                .collect(),
+        };
+        Some((
+            HashMap::from([(TRACKS.to_owned(), self.st().tracks.clone())]),
+            vec![field],
+        ))
+    }
+
+    async fn update_settings(&self, values: &HashMap<String, String>) -> Result<(), AuthError> {
+        let Some(tracks) = values.get(TRACKS) else {
+            return Err(AuthError("expected {\"tracks\": \"...\"}".to_owned()));
+        };
+        if ![WAVE, FAVORITES].contains(&tracks.as_str()) {
+            return Err(AuthError(format!(
+                "unknown tracks {}",
+                crate::api::py_repr(tracks)
+            )));
+        }
+        let mut settings = Map::new();
+        settings.insert(TRACKS.to_owned(), json!(tracks));
+        self.store
+            .save(&settings)
+            .map_err(|e| AuthError(format!("could not keep the settings: {e}")))?;
+        {
+            let mut state = self.st();
+            state.tracks = tracks.clone();
+            state.library.clear();
+        }
+        tracing::info!("VK: tracks from {tracks}");
+        Ok(())
+    }
+
     /// The tracks choose their mood by their sound.
     fn supports_moods(&self) -> bool {
         false
@@ -739,9 +793,11 @@ impl MusicBackend for VkBackend {
         station_id: &str,
         exclude_track_ids: &HashSet<String>,
     ) -> Result<Vec<Track>, BackendError> {
-        let result = match station_id {
-            FAVORITES => self.favorites(exclude_track_ids).await,
-            _ => self.wave(exclude_track_ids).await,
+        let chosen = self.st().tracks.clone();
+        let result = if chosen == FAVORITES || station_id == FAVORITES {
+            self.favorites(exclude_track_ids).await
+        } else {
+            self.wave(exclude_track_ids).await
         };
         match &result {
             Ok(tracks) => tracing::info!("VK {station_id}: {} tracks", tracks.len()),

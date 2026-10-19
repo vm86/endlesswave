@@ -188,6 +188,29 @@ async fn vk_signs_in_with_a_token_plays_the_wave_and_the_music_and_likes() {
     let favorites = backend.station_batch("favorites", &none).await.unwrap();
     assert_eq!(favorites.len(), 1, "the mock gives one audio for any ids");
 
+    // the setting wins over the station that is asked for: the music of the user instead of the wave
+    assert_eq!(backend.settings().unwrap().0["tracks"], "wave");
+    assert!(
+        backend
+            .update_settings(&HashMap::from([("tracks".to_owned(), "x".to_owned())]))
+            .await
+            .is_err()
+    );
+    backend
+        .update_settings(&HashMap::from([(
+            "tracks".to_owned(),
+            "favorites".to_owned(),
+        )]))
+        .await
+        .unwrap();
+    assert_eq!(Value::Object(store.load())["tracks"], "favorites");
+    let mine = backend.station_batch("wave", &none).await.unwrap();
+    assert_eq!(mine.len(), 1, "audio.get / getById, not the wave");
+    backend
+        .update_settings(&HashMap::from([("tracks".to_owned(), "wave".to_owned())]))
+        .await
+        .unwrap();
+
     // likes
     let track: Track = wave[0].clone();
     backend.set_like(&track, true).await.unwrap();
