@@ -213,6 +213,58 @@ async fn the_daemon_streams_a_mix_and_answers_the_api() {
         (80.0..=110.0).contains(&target),
         "the evening goes down from 110 BPM: {target}"
     );
+    // In the evening (and the morning) the cycle sets the mood: it cannot be changed by hand.
+    assert_eq!(set["locks_mood"], true);
+    let locked = client
+        .put(format!("http://{address}/api/moods"))
+        .body(r#"{"moods": ["calm"]}"#)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(locked.status(), 409);
+    let locked = client
+        .put(&arc_url)
+        .body(r#"{"enabled": true}"#)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(locked.status(), 409);
+
+    // The schedule: refused when wrong, kept when right.
+    assert_eq!(set["schedule"]["enabled"], false);
+    for wrong in [
+        r#"{"schedule": {"morning": "7am"}}"#,
+        r#"{"schedule": {"morning": "08:00", "day": "08:00"}}"#,
+        r#"{"schedule": {"enabled": "yes"}}"#,
+    ] {
+        let refused = client.put(&cycle_url).body(wrong).send().await.unwrap();
+        assert_eq!(refused.status(), 400, "{wrong}");
+    }
+    let scheduled: Value = client
+        .put(&cycle_url)
+        .body(r#"{"schedule": {"enabled": true, "morning": "05:00", "day": "10:00", "evening": "19:00"}}"#)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(scheduled["schedule"]["evening"], "19:00");
+    // With the schedule on the cycle is the clock's, at once: a choice by hand is refused.
+    assert_eq!(scheduled["active"], scheduled["scheduled"]);
+    let by_hand = client
+        .put(&cycle_url)
+        .body(r#"{"active": "off"}"#)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(by_hand.status(), 409);
+    let _ = client
+        .put(&cycle_url)
+        .body(r#"{"schedule": {"enabled": false}}"#)
+        .send()
+        .await
+        .unwrap();
     let off: Value = client
         .put(&cycle_url)
         .body(r#"{"active": "off"}"#)

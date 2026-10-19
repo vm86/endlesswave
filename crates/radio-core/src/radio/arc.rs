@@ -59,6 +59,7 @@ impl Radio {
         enabled: Option<bool>,
         plan: Option<(Vec<String>, usize)>,
     ) -> Result<(), RadioError> {
+        self.check_mood_free()?;
         let plan = match plan {
             None => None,
             Some((stages, tracks)) => Some(MoodArc::new(&stages, tracks).ok_or_else(|| {

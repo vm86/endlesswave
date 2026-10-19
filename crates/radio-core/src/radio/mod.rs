@@ -220,10 +220,8 @@ pub(crate) struct State {
     pub arc_on: bool,
     /// Morning, day, evening: the plans of the tempo, and the one that is on.
     pub cycles: cycle::Cycles,
-    /// Where in the set the cycle that is on began, and the cycle the schedule last put on (it changes things only when the
-    /// time of another cycle comes, so that a choice made by hand stays until then).
+    /// Where in the set the cycle that is on began.
     pub cycle_start: i64,
-    pub scheduled_last: Option<cycle::Cycle>,
     /// Whether the tracks played lately are liked, as far as the backend was asked.
     pub liked: HashMap<String, bool>,
     /// The tracks played lately, to like them after they are gone from the queue.
@@ -310,7 +308,6 @@ impl Radio {
                 arc_on: false,
                 cycles: cycle::Cycles::default(),
                 cycle_start: 0,
-                scheduled_last: None,
                 played_tracks: VecDeque::new(),
             }),
             slots: Semaphore::new(PREPARE_CONCURRENCY),

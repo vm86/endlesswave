@@ -150,6 +150,7 @@ impl Radio {
     /// Play only tracks of these moods, or any with none given. The station's mood setting is kept on the account: it is
     /// changed for as long as the radio runs and put back when it stops.
     pub async fn set_allowed_moods(&self, moods: Vec<String>) -> Result<(), RadioError> {
+        self.check_mood_free()?;
         let wanted: Vec<String> = ALL_MOODS
             .iter()
             .filter(|m| moods.iter().any(|c| c == *m))

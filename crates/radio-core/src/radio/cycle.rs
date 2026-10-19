@@ -254,6 +254,7 @@ impl Radio {
             "evening": cycles.evening.json(),
             "schedule": cycles.schedule.json(),
             "scheduled": cycles.schedule.cycle_at(local_minutes(self.clock.wall())).name(),
+            "locks_mood": matches!(cycles.active, Cycle::Morning | Cycle::Evening),
             "target_bpm": target.map(|t| t.round()),
             "stage": stage,
             "mood": steer.mood_at(state.position),
@@ -352,9 +353,41 @@ impl Radio {
         Ok(next)
     }
 
-    /// Change the plans and/or the cycle that is on. The queue follows it once it is rebuilt.
+    /// Change the plans and/or the cycle that is on. The queue follows it once it is rebuilt. With the schedule on, the cycle is
+    /// the clock's and is not chosen by hand.
     pub async fn set_cycle(&self, change: &Value) -> Result<(), RadioError> {
-        let next = Self::parse_cycles(&self.st().cycles, change).map_err(RadioError::Invalid)?;
+        self.put_cycle(change, true).await
+    }
+
+    /// The cycle that the moods are not the listener's to choose in (the morning and the evening have their own), if one is on.
+    pub(super) fn mood_locked_by(&self) -> Option<Cycle> {
+        let active = self.st().cycles.active;
+        matches!(active, Cycle::Morning | Cycle::Evening).then_some(active)
+    }
+
+    /// `Err` when a cycle sets the moods, so they cannot be changed by hand.
+    pub(super) fn check_mood_free(&self) -> Result<(), RadioError> {
+        match self.mood_locked_by() {
+            Some(cycle) => Err(RadioError::QueueChangeRefused(format!(
+                "the {} cycle sets the mood",
+                cycle.name()
+            ))),
+            None => Ok(()),
+        }
+    }
+
+    async fn put_cycle(&self, change: &Value, by_hand: bool) -> Result<(), RadioError> {
+        let mut next =
+            Self::parse_cycles(&self.st().cycles, change).map_err(RadioError::Invalid)?;
+        if next.schedule.enabled {
+            if by_hand && change.get("active").is_some() {
+                return Err(RadioError::QueueChangeRefused(
+                    "the schedule is on: the cycle follows the clock".to_owned(),
+                ));
+            }
+            // The clock says which cycle is on, at once when the schedule is switched on.
+            next.active = next.schedule.cycle_at(local_minutes(self.clock.wall()));
+        }
         if next.active != Cycle::Off && self.st().saved_settings.is_none() {
             // The station is steered along the plan: its settings are put back at the end.
             self.start_mood_arc().await?;
@@ -365,10 +398,6 @@ impl Radio {
                 // A cycle begins at its first stage.
                 state.cycle_start = state.position;
             }
-            if next.schedule != state.cycles.schedule {
-                // A new schedule says what is on now.
-                state.scheduled_last = None;
-            }
             state.cycles = next.clone();
         }
         self.remember(SETTING_CYCLE, &Self::cycles_json(&next));
@@ -378,27 +407,21 @@ impl Radio {
         Ok(())
     }
 
-    /// With the schedule on, put on the cycle that is due. It acts when the time of a cycle comes (and when the schedule is
-    /// set), so a cycle chosen by hand stays until the next one begins.
+    /// With the schedule on, the cycle that is on is the one that is due by the clock: put it on when it is not.
     pub async fn apply_schedule(&self) {
-        let (schedule, last) = {
+        let (schedule, active) = {
             let state = self.st();
-            (state.cycles.schedule.clone(), state.scheduled_last)
+            (state.cycles.schedule.clone(), state.cycles.active)
         };
         if !schedule.enabled {
-            self.st().scheduled_last = None;
             return;
         }
         let due = schedule.cycle_at(local_minutes(self.clock.wall()));
-        if last == Some(due) {
-            return;
-        }
-        self.st().scheduled_last = Some(due);
-        if self.st().cycles.active == due {
+        if active == due {
             return;
         }
         tracing::info!("Schedule: {} begins", due.name());
-        if let Err(error) = self.set_cycle(&json!({"active": due.name()})).await {
+        if let Err(error) = self.put_cycle(&json!({"active": due.name()}), false).await {
             tracing::warn!("The schedule could not put on the {}: {error}", due.name());
             return;
         }
