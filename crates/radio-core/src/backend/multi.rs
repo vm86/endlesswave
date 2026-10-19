@@ -16,6 +16,10 @@ use std::{
 };
 use tokio::sync::Notify;
 
+/// How many tracks ahead of the rest a backend may be in the share of tracks it has given. A backend that was away (it
+/// rested, or was turned on late) is not given more than this to make up for it.
+const MAX_DEFICIT: usize = 24;
+
 /// A backend that failed this many times in a row is left alone...
 pub const FAILURES_TO_REST: u32 = 2;
 /// ...for this long, doubling with each failure after that, up to the limit.
@@ -74,6 +78,9 @@ struct Running {
 struct State {
     running: IndexMap<String, Running>,
     last: String,
+    /// How many tracks each backend has given: the next batch is asked of the one that has given the fewest, so that the
+    /// pool holds about as many tracks of each and the choice of the next track has the whole range to pick from.
+    given: HashMap<String, usize>,
 }
 
 pub struct MultiBackend {
@@ -203,6 +210,10 @@ impl MultiBackend {
             let n = chosen.len();
             chosen.rotate_left((at + 1) % n);
         }
+        // The one that has given the fewest tracks first (a stable sort keeps the turn among equals).
+        let given = |r: &Running| state.given.get(&r.id).copied().unwrap_or(0);
+        let most = chosen.iter().map(|r| given(r)).max().unwrap_or(0);
+        chosen.sort_by_key(|r| given(r).max(most.saturating_sub(MAX_DEFICIT)));
         chosen.into_iter().map(owner).collect()
     }
 
@@ -378,7 +389,11 @@ impl MusicBackend for MultiBackend {
             {
                 Ok(batch) => {
                     self.worked(&running.id);
-                    self.st().last = running.id.clone();
+                    {
+                        let mut state = self.st();
+                        state.last = running.id.clone();
+                        *state.given.entry(running.id.clone()).or_insert(0) += batch.len();
+                    }
                     return Ok(batch
                         .into_iter()
                         .map(|track| Self::stamp(&running, track))
