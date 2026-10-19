@@ -3,6 +3,7 @@ mod engine;
 mod media;
 mod menu;
 mod radio;
+mod vk_login;
 
 use audio::{Audio, Status};
 use media::Media;
@@ -187,7 +188,8 @@ pub fn run() {
             player_status,
             media_metadata,
             media_playback,
-            set_dock_visible
+            set_dock_visible,
+            vk_login::vk_login
         ])
         .setup(|app| {
             let now = MenuItemBuilder::with_id("now", "Nothing playing")

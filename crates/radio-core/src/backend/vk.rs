@@ -1,10 +1,12 @@
-//! VK Music. Signing in is an access token that the user pastes in; the tracks come from the "wave" of VK (recommendations)
-//! or from the user's own music ("favourites"), through the `method/` API of VK.
+//! VK Music. Signing in is either the cookies of a session of the VK site (the app takes them from a window where the user
+//! signs in; the radio swaps them for an access token, and again when it expires) or an access token that is pasted in. The
+//! tracks come from the "wave" of VK (recommendations) or from the user's own music ("favourites"), through the `method/`
+//! API of VK.
 //!
 //! The way VK answers is taken from the Vk backend of plavno (https://github.com/gmelikov/plavno, Apache-2.0): the
 //! methods, their parameters and the shape of the answers, and the rewrite of the HLS link of a track into a link to a plain
-//! MP3 file. Only the signing in with a token is here, not the one with cookies. The token is kept in the database of the
-//! radio (see `SettingsStore`).
+//! MP3 file, and the swap of the cookies for a token. The cookies and the token are kept in the database of the radio (see
+//! `SettingsStore`).
 //!
 //! The ids of the tracks are `owner_id_id`, as VK writes them. `Track::batch_id` holds the `access_key` of the track, which
 //! VK wants back to like it.
@@ -23,16 +25,20 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use tokio::{io::AsyncWriteExt, sync::Notify};
+use tokio::{io::AsyncWriteExt, sync::Notify, time::Instant};
 
 /// The id of this backend in the settings.
 pub const ID: &str = "vk";
-pub const API: &str = "https://api.vk.ru/method/";
+pub const API: &str = "https://web.api.vk.ru/method/";
+pub const SITE: &str = "https://vk.ru";
+pub const LOGIN: &str = "https://login.vk.ru";
 const API_VERSION: &str = "5.289";
 /// The id of the VK app that the tokens are for (the one of the VK site and its apps).
 const CLIENT_ID: &str = "6287487";
 const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
 const TOKEN: &str = "token";
+const COOKIE: &str = "cookie";
+const USER_ID: &str = "user_id";
 
 /// The station of the recommendations of VK, and the one of the music of the user.
 pub const WAVE: &str = "wave";
@@ -53,16 +59,22 @@ const RECENT: usize = 200;
 const WAVE_TRIES: usize = 4;
 /// The codes of the API that say the token is no good.
 const REJECTED: [i64; 3] = [5, 1116, 1117];
+const REJECTED_TEXT: &str = "VK: the token is expired or no good; sign in again";
 
 #[derive(Debug, Clone)]
 pub struct VkOptions {
     pub api: String,
+    /// The site (the `Origin` of the requests) and the host that swaps the cookies for a token.
+    pub site: String,
+    pub login: String,
 }
 
 impl Default for VkOptions {
     fn default() -> Self {
         Self {
             api: API.to_owned(),
+            site: SITE.to_owned(),
+            login: LOGIN.to_owned(),
         }
     }
 }
@@ -70,6 +82,10 @@ impl Default for VkOptions {
 #[derive(Default)]
 struct State {
     token: Option<String>,
+    /// When the token that came for the cookies runs out; none for a token that was pasted in.
+    token_until: Option<Instant>,
+    /// The `Cookie` header of the session of the site.
+    cookie: Option<String>,
     user_id: Option<i64>,
     /// The ids of the music of the user not yet offered in this round.
     library: VecDeque<String>,
@@ -87,13 +103,37 @@ pub struct VkBackend {
     changed: Notify,
 }
 
-/// Whether the settings hold a token.
+/// Whether the settings hold a token or the cookies of a session.
 pub fn has_token(store: &dyn SettingsStore) -> bool {
-    store
-        .load()
-        .get(TOKEN)
-        .and_then(Value::as_str)
-        .is_some_and(|t| !t.is_empty())
+    let kept = store.load();
+    [TOKEN, COOKIE].iter().any(|key| {
+        kept.get(*key)
+            .and_then(Value::as_str)
+            .is_some_and(|t| !t.is_empty())
+    })
+}
+
+/// The id of the account from the cookie `remixuserid` of a `Cookie` header.
+pub fn user_of_cookie(cookie: &str) -> Option<i64> {
+    cookie.split(';').find_map(|part| {
+        let (name, value) = part.trim().split_once('=')?;
+        (name == "remixuserid").then(|| value.trim().parse().ok())?
+    })
+}
+
+/// The seconds a token lives, from the `expires` of VK: a time of the day or a number of seconds, as text or number.
+fn token_lifetime(expires: Option<&Value>, now_unix: u64) -> u64 {
+    let value = expires.and_then(|e| match e {
+        Value::Number(n) => n.as_u64(),
+        Value::String(s) => s.parse().ok(),
+        _ => None,
+    });
+    let seconds = match value {
+        Some(at) if at > 1_000_000_000 => at.saturating_sub(now_unix),
+        Some(left) => left,
+        None => 300,
+    };
+    seconds.min(86_400)
 }
 
 /// `owner_id_id` of an audio of the API.
@@ -194,7 +234,12 @@ impl VkBackend {
                 .and_then(Value::as_str)
                 .filter(|t| !t.is_empty())
                 .map(str::to_owned),
-            user_id: kept.get("user_id").and_then(Value::as_i64),
+            cookie: kept
+                .get(COOKIE)
+                .and_then(Value::as_str)
+                .filter(|c| !c.is_empty())
+                .map(str::to_owned),
+            user_id: kept.get(USER_ID).and_then(Value::as_i64),
             mix_id: unix_ms(),
             ..State::default()
         };
@@ -226,13 +271,96 @@ impl VkBackend {
         self.state.lock().expect("not poisoned")
     }
 
-    fn token(&self) -> Option<String> {
-        self.st().token.clone()
+    /// The token to call the API with: the one that was pasted in, or the one that the cookies were swapped for (asked for
+    /// again when it runs out).
+    async fn access_token(&self) -> Result<String, BackendError> {
+        {
+            let state = self.st();
+            if let Some(token) = &state.token
+                && state.token_until.is_none_or(|until| Instant::now() < until)
+            {
+                return Ok(token.clone());
+            }
+        }
+        self.exchange_cookie().await
     }
 
-    /// One call of the API; what comes back is the `response`.
+    /// Swap the cookies of the session for a token (`login.vk.ru/?act=web_token`).
+    async fn exchange_cookie(&self) -> Result<String, BackendError> {
+        let (cookie, user) = {
+            let state = self.st();
+            (state.cookie.clone(), state.user_id)
+        };
+        let Some(cookie) = cookie else {
+            return Err(BackendError("VK: not signed in".to_owned()));
+        };
+        let site = self.options.site.trim_end_matches('/');
+        let response = self
+            .http
+            .post(format!("{}/?act=web_token", self.options.login))
+            .header("Cookie", cookie)
+            .header("Origin", site)
+            .header("Referer", format!("{site}/"))
+            .form(&[("version", "1"), ("app_id", CLIENT_ID)])
+            .send()
+            .await
+            .map_err(|e| BackendError(format!("VK web_token: {e}")))?;
+        if !response.status().is_success() {
+            return Err(BackendError(format!(
+                "VK web_token: HTTP {}",
+                response.status()
+            )));
+        }
+        let body: Value = response
+            .json()
+            .await
+            .map_err(|_| BackendError("VK web_token: not a JSON answer".to_owned()))?;
+        let entry = match &body {
+            Value::Array(list) => list
+                .iter()
+                .find(|e| e.get("user_id").and_then(Value::as_i64) == user)
+                .or(list.first()),
+            other => other.get("data"),
+        };
+        let entry = entry.filter(|e| {
+            e.get("user_id")
+                .and_then(Value::as_i64)
+                .is_none_or(|id| Some(id) == user)
+        });
+        let token = entry
+            .and_then(|e| e.get("access_token"))
+            .and_then(Value::as_str)
+            .filter(|t| !t.is_empty())
+            .ok_or_else(|| BackendError("VK: the session is over; sign in again".to_owned()))?
+            .to_owned();
+        let left = token_lifetime(entry.and_then(|e| e.get("expires")), unix_ms() / 1000);
+        let until = Instant::now() + Duration::from_secs(left - (left / 10).min(30));
+        let mut state = self.st();
+        state.token = Some(token.clone());
+        state.token_until = Some(until);
+        Ok(token)
+    }
+
+    /// One call of the API; what comes back is the `response`. A token that VK turns down is asked for once more when there
+    /// are cookies to ask with.
     async fn call(&self, method: &str, fields: &[(&str, String)]) -> Result<Value, BackendError> {
-        self.call_with(method, fields, self.token()).await
+        for attempt in 0..2 {
+            let token = self.access_token().await?;
+            match self.call_with(method, fields, Some(token)).await {
+                Err(error) if error.0 == REJECTED_TEXT => {
+                    let again = attempt == 0 && self.st().cookie.is_some();
+                    let mut state = self.st();
+                    state.token = None;
+                    state.token_until = None;
+                    if !again {
+                        state.cookie = None;
+                        return Err(error);
+                    }
+                }
+                other => return other,
+            }
+        }
+        Err(BackendError(REJECTED_TEXT.to_owned()))
     }
 
     async fn call_with(
@@ -249,9 +377,13 @@ impl VkBackend {
         form.push(("client_id", CLIENT_ID.to_owned()));
         form.push(("access_token", token));
         let url = format!("{}{method}", self.options.api);
+        let site = self.options.site.trim_end_matches('/');
         let response = self
             .http
             .post(&url)
+            .header("Origin", site)
+            .header("Referer", format!("{site}/audio"))
+            .header("X-Requested-With", "XMLHttpRequest")
             .form(&form)
             .send()
             .await
@@ -267,10 +399,7 @@ impl VkBackend {
         if let Some(error) = body.get("error") {
             let code = error.get("error_code").and_then(Value::as_i64).unwrap_or(0);
             if REJECTED.contains(&code) {
-                self.st().token = None;
-                return Err(BackendError(
-                    "VK: the token is expired or no good; sign in again".to_owned(),
-                ));
+                return Err(BackendError(REJECTED_TEXT.to_owned()));
             }
             return Err(BackendError(format!(
                 "VK {method}: access denied (code {code})"
@@ -413,10 +542,12 @@ impl VkBackend {
         Ok(tracks)
     }
 
-    fn save_token(&self, token: &str, user: i64) -> Result<(), AuthError> {
+    /// Keep the way in: a token, or the cookies of a session (one of them is empty).
+    fn save_signin(&self, token: &str, cookie: &str, user: i64) -> Result<(), AuthError> {
         let mut settings = Map::new();
         settings.insert(TOKEN.to_owned(), json!(token));
-        settings.insert("user_id".to_owned(), json!(user));
+        settings.insert(COOKIE.to_owned(), json!(cookie));
+        settings.insert(USER_ID.to_owned(), json!(user));
         self.store
             .save(&settings)
             .map_err(|e| AuthError(format!("could not keep the token: {e}")))
@@ -454,7 +585,8 @@ fn unix_ms() -> u64 {
 #[async_trait]
 impl MusicBackend for VkBackend {
     fn authorized(&self) -> bool {
-        self.st().token.is_some() && self.st().user_id.is_some()
+        let state = self.st();
+        (state.token.is_some() || state.cookie.is_some()) && state.user_id.is_some()
     }
 
     fn auth_prompt(&self) -> AuthPrompt {
@@ -486,15 +618,40 @@ impl MusicBackend for VkBackend {
         }
     }
 
-    /// Nothing goes on by itself: the token is pasted in.
+    /// Nothing goes on by itself: the app brings the cookies of a session, or the token is pasted in.
     fn start_auth(&self) {}
 
-    /// Check the token (it must belong to an account) and keep it.
+    /// Sign in with the cookies of a session (`cookie`, and `user_id` if the cookies don't say it) or with a token. The
+    /// account is checked before anything is kept.
     async fn authorize(&self, values: &HashMap<String, String>) -> Result<(), AuthError> {
-        let token = values.get(TOKEN).map_or("", |t| t.trim()).to_owned();
-        if token.is_empty() {
+        let cookie = values.get(COOKIE).map_or("", |c| c.trim()).to_owned();
+        let typed = values.get(TOKEN).map_or("", |t| t.trim()).to_owned();
+        if cookie.is_empty() && typed.is_empty() {
             return Err(AuthError("paste the access token of VK".to_owned()));
         }
+        let (token, until, cookie, hint) = if cookie.is_empty() {
+            (typed, None, String::new(), None)
+        } else {
+            let hint = values
+                .get(USER_ID)
+                .and_then(|u| u.trim().parse().ok())
+                .or_else(|| user_of_cookie(&cookie));
+            {
+                let mut state = self.st();
+                state.cookie = Some(cookie.clone());
+                state.user_id = hint;
+                state.token = None;
+            }
+            let token = match self.exchange_cookie().await {
+                Ok(token) => token,
+                Err(error) => {
+                    self.st().cookie = None;
+                    return Err(AuthError(error.0));
+                }
+            };
+            let until = self.st().token_until;
+            (token, until, cookie, hint)
+        };
         let user = self
             .call_with("users.get", &[], Some(token.clone()))
             .await
@@ -506,10 +663,24 @@ impl MusicBackend for VkBackend {
         else {
             return Err(AuthError("VK did not say whose the token is".to_owned()));
         };
-        self.save_token(&token, user)?;
+        if hint.is_some_and(|id| id != user) {
+            self.st().cookie = None;
+            return Err(AuthError(
+                "the session is of another account than the one that signed in".to_owned(),
+            ));
+        }
+        // a token that came for cookies is not kept: it is asked for again
+        let kept_token = if cookie.is_empty() {
+            token.as_str()
+        } else {
+            ""
+        };
+        self.save_signin(kept_token, &cookie, user)?;
         {
             let mut state = self.st();
             state.token = Some(token);
+            state.token_until = until;
+            state.cookie = (!cookie.is_empty()).then_some(cookie);
             state.user_id = Some(user);
             state.library.clear();
         }

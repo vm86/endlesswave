@@ -71,10 +71,12 @@ Open the app: the radio service starts by itself (port `18000`, on `127.0.0.1` o
 
 ### Signing in to VK Music
 
-In **Sources** turn on VK Music and paste an access token of your VK account (the field is hidden as a password). The radio
-plays the VK wave (recommendations) by default, or your own music with the station `favorites`. The heart in the player adds
-a track to your VK music or takes it out. The token is kept in the database of the app. This uses the unofficial API of the
-VK site, so it may stop working when VK changes it.
+In **Sources** turn on VK Music and press **sign in with VK**: a window with the VK site opens, you sign in there as in a
+browser (password, code, QR), and the window closes by itself. The app takes the cookies of the session from it, swaps them
+for an access token, and asks for a new token when it runs out. The window keeps nothing; the cookies are kept in the
+database of the app (the file is readable by you only). You can also paste an access token instead. The radio plays the VK
+wave (recommendations) by default, or your own music with the station `favorites`. The heart in the player adds a track to
+your VK music or takes it out. This uses the unofficial API of the VK site, so it may stop working when VK changes it.
 
 ### Signing in to Yandex Music
 

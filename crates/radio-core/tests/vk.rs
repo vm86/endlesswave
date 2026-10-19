@@ -28,6 +28,21 @@ struct Mock {
 
 async fn handle(State(mock): State<Mock>, request: Request) -> axum::response::Response {
     let path = request.uri().path().to_owned();
+    if path == "/" {
+        // login.vk.ru/?act=web_token: the cookies of a session are swapped for a token
+        let cookie = request
+            .headers()
+            .get("cookie")
+            .and_then(|c| c.to_str().ok())
+            .unwrap_or("")
+            .to_owned();
+        mock.log.lock().unwrap().push(format!("web_token {cookie}"));
+        return json_answer(if cookie.contains("remixsid=ok") {
+            json!({"type": "okay", "data": {"access_token": "good", "expires": "3600", "user_id": 42}})
+        } else {
+            json!({"type": "error"})
+        });
+    }
     let body = axum::body::to_bytes(request.into_body(), 1 << 20)
         .await
         .unwrap();
@@ -117,6 +132,8 @@ async fn vk_signs_in_with_a_token_plays_the_wave_and_the_music_and_likes() {
         store.clone(),
         VkOptions {
             api: format!("{origin}/method/"),
+            site: origin.clone(),
+            login: origin.clone(),
         },
     )
     .unwrap();
@@ -208,6 +225,8 @@ async fn a_token_that_vk_refuses_is_dropped() {
         store,
         VkOptions {
             api: format!("{origin}/method/"),
+            site: origin.clone(),
+            login: origin.clone(),
         },
     )
     .unwrap();
@@ -218,4 +237,73 @@ async fn a_token_that_vk_refuses_is_dropped() {
         .unwrap_err();
     assert!(error.0.contains("sign in again"), "{error}");
     assert!(!backend.authorized(), "the radio asks for a new token");
+}
+
+#[tokio::test]
+async fn vk_signs_in_with_the_cookies_of_a_session_and_asks_for_a_token_again() {
+    let mock = Mock::default();
+    let log = mock.log.clone();
+    let app = Router::new().fallback(handle).with_state(mock.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    *mock.origin.lock().unwrap() = origin.clone();
+    tokio::spawn(async move { axum::serve(listener, app).await });
+    let options = || VkOptions {
+        api: format!("{origin}/method/"),
+        site: origin.clone(),
+        login: origin.clone(),
+    };
+
+    let store = Arc::new(MemoryStore::default());
+    let backend = VkBackend::new(store.clone(), options()).unwrap();
+    let wrong = HashMap::from([(
+        "cookie".to_owned(),
+        "remixsid=no; remixuserid=42".to_owned(),
+    )]);
+    assert!(backend.authorize(&wrong).await.is_err());
+    assert!(!backend.authorized());
+
+    let other = HashMap::from([("cookie".to_owned(), "remixsid=ok; remixuserid=7".to_owned())]);
+    assert!(
+        backend.authorize(&other).await.is_err(),
+        "the cookies are of another account"
+    );
+    assert!(!backend.authorized());
+
+    let session = HashMap::from([(
+        "cookie".to_owned(),
+        "remixsid=ok; remixuserid=42".to_owned(),
+    )]);
+    backend.authorize(&session).await.unwrap();
+    assert!(backend.authorized());
+    let kept = Value::Object(store.load());
+    assert_eq!(kept["cookie"], "remixsid=ok; remixuserid=42");
+    assert_eq!(
+        kept["token"], "",
+        "the token of a session is asked for again, not kept"
+    );
+    assert!(backend.station_batch("wave", &HashSet::new()).await.is_ok());
+
+    // after a restart there are the cookies only: the token comes first
+    log.lock().unwrap().clear();
+    let again = VkBackend::new(store, options()).unwrap();
+    assert!(again.authorized());
+    assert_eq!(
+        again
+            .station_batch("wave", &HashSet::new())
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
+    let log = log.lock().unwrap().clone();
+    assert!(log[0].starts_with("web_token remixsid=ok"), "{log:?}");
+}
+
+#[test]
+fn the_account_is_read_from_the_cookies() {
+    use radio_core::backend::vk::user_of_cookie;
+    assert_eq!(user_of_cookie("a=b; remixuserid=42; remixsid=x"), Some(42));
+    assert_eq!(user_of_cookie("remixsid=x"), None);
+    assert_eq!(user_of_cookie("remixuserid=abc"), None);
 }

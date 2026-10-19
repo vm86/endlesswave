@@ -2,7 +2,8 @@
 import { mdiFolderOutline } from "@mdi/js";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { reactive } from "vue";
+import { invoke } from "@tauri-apps/api/core";
+import { reactive, ref } from "vue";
 import type { AuthInfo, Backend } from "../api";
 
 defineProps<{ auth: AuthInfo | null }>();
@@ -17,6 +18,22 @@ const folderField = (b: Backend) => b.setting_fields?.find((f) => f.name === "di
 
 /** The settings of a backend that are a choice (the quality of Yandex Music): a row for each. */
 const choiceFields = (b: Backend) => b.setting_fields?.filter((f) => f.choices?.length) ?? [];
+
+/** VK is signed in to in a window of the app; the session is handed to the radio, which swaps it for a token. */
+const vkBusy = ref(false);
+const vkError = ref("");
+async function vkLogin(b: Backend) {
+  vkBusy.value = true;
+  vkError.value = "";
+  try {
+    const session = await invoke<{ cookie: string; user_id: string }>("vk_login");
+    emit("signIn", b.id, { cookie: session.cookie, user_id: session.user_id });
+  } catch (e) {
+    vkError.value = String(e);
+  } finally {
+    vkBusy.value = false;
+  }
+}
 
 async function chooseFolder(b: Backend) {
   const field = folderField(b);
@@ -57,6 +74,15 @@ async function chooseFolder(b: Backend) {
           <a href="#" @click.prevent="emit('copy', b.code)">copy</a> ·
           <a href="#" @click.prevent="emit('copy', b.url, 'Link')">copy link</a> ·
           <a href="#" @click.prevent="openUrl(b.url)">open the page</a>
+        </template>
+        <template v-else-if="b.id === 'vk'">
+          <button :disabled="vkBusy" @click="vkLogin(b)">{{ vkBusy ? "waiting for the sign-in…" : "sign in with VK" }}</button>
+          <span v-if="vkError" class="dim"> {{ vkError }}</span>
+          <form @submit.prevent="emit('signIn', b.id, values[b.id] ?? {})">
+            <input v-for="f in b.fields" :key="f.name" v-model="(values[b.id] ??= {})[f.name]" :placeholder="`or paste: ${f.label}`"
+              :type="f.secret ? 'password' : 'text'" />
+            <button type="submit">sign in</button>
+          </form>
         </template>
         <form v-else-if="b.fields.length" @submit.prevent="emit('signIn', b.id, values[b.id] ?? {})">
           <input v-for="f in b.fields" :key="f.name" v-model="(values[b.id] ??= {})[f.name]" :placeholder="f.label"
