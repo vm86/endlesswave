@@ -305,15 +305,15 @@ impl VkBackend {
             .send()
             .await
             .map_err(|e| BackendError(format!("VK web_token: {e}")))?;
-        if !response.status().is_success() {
-            return Err(BackendError(format!(
-                "VK web_token: HTTP {}",
-                response.status()
-            )));
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        let parsed: Option<Value> = serde_json::from_str(&text).ok();
+        let looks = parsed.as_ref().map_or_else(|| "not JSON".to_owned(), shape);
+        tracing::debug!("VK web_token: HTTP {status}, answer {looks}");
+        if !status.is_success() {
+            return Err(BackendError(format!("VK web_token: HTTP {status}")));
         }
-        let body: Value = response
-            .json()
-            .await
+        let body: Value = serde_json::from_str(&text)
             .map_err(|_| BackendError("VK web_token: not a JSON answer".to_owned()))?;
         let entry = match &body {
             Value::Array(list) => list
@@ -322,10 +322,13 @@ impl VkBackend {
                 .or(list.first()),
             other => other.get("data"),
         };
+        // whose the session is, when it was not known: VK says
         let entry = entry.filter(|e| {
-            e.get("user_id")
-                .and_then(Value::as_i64)
-                .is_none_or(|id| Some(id) == user)
+            user.is_none_or(|user| {
+                e.get("user_id")
+                    .and_then(Value::as_i64)
+                    .is_none_or(|id| id == user)
+            })
         });
         let token = entry
             .and_then(|e| e.get("access_token"))
@@ -338,6 +341,9 @@ impl VkBackend {
         let mut state = self.st();
         state.token = Some(token.clone());
         state.token_until = Some(until);
+        if state.user_id.is_none() {
+            state.user_id = entry.and_then(|e| e.get("user_id")).and_then(Value::as_i64);
+        }
         Ok(token)
     }
 
@@ -378,6 +384,7 @@ impl VkBackend {
         form.push(("access_token", token));
         let url = format!("{}{method}", self.options.api);
         let site = self.options.site.trim_end_matches('/');
+        tracing::debug!("VK {method}: asking");
         let response = self
             .http
             .post(&url)
@@ -389,6 +396,7 @@ impl VkBackend {
             .await
             .map_err(|e| BackendError(format!("VK {method}: {e}")))?;
         let status = response.status();
+        tracing::debug!("VK {method}: HTTP {status}");
         if !status.is_success() {
             return Err(BackendError(format!("VK {method}: HTTP {status}")));
         }
@@ -398,6 +406,8 @@ impl VkBackend {
             .map_err(|_| BackendError(format!("VK {method}: not a JSON answer")))?;
         if let Some(error) = body.get("error") {
             let code = error.get("error_code").and_then(Value::as_i64).unwrap_or(0);
+            let message = error.get("error_msg").and_then(Value::as_str).unwrap_or("");
+            tracing::warn!("VK {method}: error {code}: {message}");
             if REJECTED.contains(&code) {
                 return Err(BackendError(REJECTED_TEXT.to_owned()));
             }
@@ -495,7 +505,7 @@ impl VkBackend {
                 }
                 tracks.push(track);
             }
-            if !tracks.is_empty() {
+            if tracks.len() >= BATCH / 2 {
                 break;
             }
         }
@@ -573,6 +583,29 @@ impl VkBackend {
                     track.track_id
                 ))
             })
+    }
+}
+
+/// What a JSON value looks like, without the values (they may be secrets): the keys and the kinds.
+fn shape(value: &Value) -> String {
+    match value {
+        Value::Object(map) => format!(
+            "{{{}}}",
+            map.iter()
+                .map(|(k, v)| format!("{k}: {}", shape(v)))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        Value::Array(list) => format!(
+            "[{} items{}]",
+            list.len(),
+            list.first()
+                .map_or(String::new(), |f| format!(", first {}", shape(f)))
+        ),
+        Value::String(s) => format!("str({})", s.len()),
+        Value::Number(_) => "number".to_owned(),
+        Value::Bool(_) => "bool".to_owned(),
+        Value::Null => "null".to_owned(),
     }
 }
 
@@ -655,7 +688,9 @@ impl MusicBackend for VkBackend {
         let user = self
             .call_with("users.get", &[], Some(token.clone()))
             .await
+            .inspect_err(|e| tracing::warn!("VK sign-in: users.get failed: {e}"))
             .map_err(|e| AuthError(e.0))?;
+        tracing::debug!("VK users.get: {}", shape(&user));
         let Some(user) = user
             .get(0)
             .and_then(|u| u.get("id"))
@@ -664,6 +699,7 @@ impl MusicBackend for VkBackend {
             return Err(AuthError("VK did not say whose the token is".to_owned()));
         };
         if hint.is_some_and(|id| id != user) {
+            tracing::warn!("VK sign-in: the session is of {user}, not of {hint:?}");
             self.st().cookie = None;
             return Err(AuthError(
                 "the session is of another account than the one that signed in".to_owned(),
@@ -699,10 +735,15 @@ impl MusicBackend for VkBackend {
         station_id: &str,
         exclude_track_ids: &HashSet<String>,
     ) -> Result<Vec<Track>, BackendError> {
-        match station_id {
+        let result = match station_id {
             FAVORITES => self.favorites(exclude_track_ids).await,
             _ => self.wave(exclude_track_ids).await,
+        };
+        match &result {
+            Ok(tracks) => tracing::info!("VK {station_id}: {} tracks", tracks.len()),
+            Err(error) => tracing::warn!("VK {station_id}: {error}"),
         }
+        result
     }
 
     /// The file of the track: the plain MP3 that the link of the stream stands for, or else the stream taken apart by

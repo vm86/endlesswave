@@ -26,8 +26,8 @@ async function vkLogin(b: Backend) {
   vkBusy.value = true;
   vkError.value = "";
   try {
-    const session = await invoke<{ cookie: string; user_id: string }>("vk_login");
-    emit("signIn", b.id, { cookie: session.cookie, user_id: session.user_id });
+    const session = await invoke<{ cookie: string; user_id: string | null }>("vk_login");
+    emit("signIn", b.id, { cookie: session.cookie, ...(session.user_id ? { user_id: session.user_id } : {}) });
   } catch (e) {
     vkError.value = String(e);
   } finally {

@@ -17,7 +17,8 @@ const POLL: Duration = Duration::from_millis(1000);
 pub struct VkSession {
     /// The `Cookie` header of the session.
     cookie: String,
-    user_id: String,
+    /// The cookie `remixuserid`, when the site sets it; the radio finds out whose the session is when it asks for a token.
+    user_id: Option<String>,
 }
 
 /// The cookies of the hosts as a `Cookie` header, and the cookie `remixuserid` if the session is there.
@@ -25,7 +26,31 @@ async fn session(window: &WebviewWindow) -> Option<VkSession> {
     let mut cookies: Vec<(String, String)> = Vec::new();
     for host in HOSTS {
         let url = Url::parse(host).ok()?;
-        for cookie in window.cookies_for_url(url).ok()? {
+        let found = match window.cookies_for_url(url) {
+            Ok(found) => found,
+            Err(error) => {
+                eprintln!("[vk-login] cookies of {host}: error {error}");
+                return None;
+            }
+        };
+        eprintln!(
+            "[vk-login] cookies of {host}: {}",
+            found
+                .iter()
+                .map(|c| format!(
+                    "{}({}{})",
+                    c.name(),
+                    c.value().len(),
+                    if c.http_only() == Some(true) {
+                        ",httponly"
+                    } else {
+                        ""
+                    }
+                ))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
+        for cookie in found {
             let (name, value) = (cookie.name().to_owned(), cookie.value().to_owned());
             if !value.is_empty() && !cookies.iter().any(|(n, _)| *n == name) {
                 cookies.push((name, value));
@@ -39,7 +64,7 @@ async fn session(window: &WebviewWindow) -> Option<VkSession> {
             .map(|(_, v)| v.clone())
     };
     value("remixsid").or_else(|| value("remixsid6"))?;
-    let user_id = value("remixuserid").filter(|u| u.parse::<u64>().is_ok())?;
+    let user_id = value("remixuserid").filter(|u| u.parse::<u64>().is_ok());
     let cookie = cookies
         .iter()
         .map(|(n, v)| format!("{n}={v}"))

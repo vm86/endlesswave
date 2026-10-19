@@ -284,6 +284,12 @@ async fn vk_signs_in_with_the_cookies_of_a_session_and_asks_for_a_token_again() 
     );
     assert!(backend.station_batch("wave", &HashSet::new()).await.is_ok());
 
+    // a session whose cookies don't say whose it is: VK says
+    let nameless = VkBackend::new(Arc::new(MemoryStore::default()), options()).unwrap();
+    let cookie = HashMap::from([("cookie".to_owned(), "remixsid=ok".to_owned())]);
+    nameless.authorize(&cookie).await.unwrap();
+    assert!(nameless.authorized());
+
     // after a restart there are the cookies only: the token comes first
     log.lock().unwrap().clear();
     let again = VkBackend::new(store, options()).unwrap();
