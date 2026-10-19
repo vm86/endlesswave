@@ -165,6 +165,11 @@ async fn refresh_queue(State(api): State<Api>) -> Response {
     ok(&api.queue())
 }
 
+async fn clear_queue(State(api): State<Api>) -> Response {
+    api.radio.clear_queue();
+    ok(&api.queue())
+}
+
 async fn next_status(State(api): State<Api>) -> Response {
     ok(&api.radio.skip_info())
 }
@@ -388,6 +393,7 @@ pub fn router(api: Api) -> Router {
             get(get_moods).put(put_moods).delete(delete_moods),
         )
         .route("/api/queue/refresh", post(refresh_queue))
+        .route("/api/queue/clear", post(clear_queue))
         .route("/api/next", get(next_status).post(next_track))
         .route("/api/pause", post(pause))
         .route("/api/resume", post(resume))

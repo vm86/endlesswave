@@ -76,6 +76,19 @@ export function useRadio() {
     setTimeout(() => (refreshing.value = false), Math.max(0, REFRESH_MIN_MS - (performance.now() - started)));
   };
 
+  /** The button "rebuild the queue" held for a few seconds: the whole queue is dropped and loaded anew. */
+  const clearQueue = async () => {
+    if (refreshing.value) return;
+    refreshing.value = true;
+    const started = performance.now();
+    const q = await guarded(api.clearQueue);
+    if (q) {
+      take(q);
+      notice.value = "Queue cleared · loading the tracks anew";
+    }
+    setTimeout(() => (refreshing.value = false), Math.max(0, REFRESH_MIN_MS - (performance.now() - started)));
+  };
+
   async function guarded<T>(action: () => Promise<T>): Promise<T | undefined> {
     try {
       return await action();
@@ -342,5 +355,5 @@ export function useRadio() {
     unlisten.forEach((f) => f());
   });
 
-  return { likes, toggleLike, expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
+  return { clearQueue, likes, toggleLike, expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
 }

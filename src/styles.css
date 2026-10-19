@@ -107,6 +107,9 @@ html.inactive .seek div { background: var(--text2); }
 .tbtn:hover { background: var(--control-hover); }
 .tbtn:active { transform: scale(0.95); }
 .tbtn.on { color: var(--accent); }
+.tbtn.hold { position: relative; overflow: hidden; user-select: none; }
+.tbtn.hold.holding::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); opacity: 0.3; animation: hold-fill 3s linear forwards; }
+@keyframes hold-fill { to { width: 100%; } }
 .tbtn[disabled] { opacity: 0.35; pointer-events: none; }
 .vol { flex: 1; min-width: 80px; margin-left: 4px; }
 

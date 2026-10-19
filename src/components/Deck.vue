@@ -18,7 +18,34 @@ const props = defineProps<{
   liked: boolean;
 }>();
 const volume = defineModel<number>("volume", { required: true });
-defineEmits<{ toggle: []; stop: []; next: []; refresh: []; format: []; like: [] }>();
+const emit = defineEmits<{ toggle: []; stop: []; next: []; refresh: []; clear: []; format: []; like: [] }>();
+
+// "Rebuild the queue" held for HOLD_MS clears the whole queue and loads it anew; a short press rebuilds as before.
+const HOLD_MS = 3000;
+const holding = ref(false);
+let holdTimer: number | undefined;
+let held = false;
+function holdStart(e: PointerEvent) {
+  if (props.refreshing || e.button !== 0) return;
+  held = false;
+  holding.value = true;
+  holdTimer = window.setTimeout(() => {
+    held = true;
+    holding.value = false;
+    emit("clear");
+  }, HOLD_MS);
+}
+function holdCancel() {
+  clearTimeout(holdTimer);
+  holding.value = false;
+}
+function holdEnd() {
+  const fired = held;
+  held = false;
+  const pressing = holding.value;
+  holdCancel();
+  if (!fired && pressing && !props.refreshing) emit("refresh");
+}
 
 const title = computed(() => props.now?.title ?? "EndlessWave");
 const artist = computed(() => props.now?.artists.join(", ") || (props.now ? "" : "Waiting for the first track…"));
@@ -90,8 +117,9 @@ watch(title, () => void nextTick(measure));
         <v-progress-circular v-if="busy" indeterminate :size="16" :width="2" />
         <v-icon v-else :icon="mdiSkipNext" size="20" />
       </div>
-      <div class="tbtn" :class="{ loading: refreshing }" :title="refreshing ? 'Rebuilding…' : 'Rebuild the queue  (⌘R)'"
-        @click="refreshing || $emit('refresh')">
+      <div class="tbtn hold" :class="{ loading: refreshing, holding }"
+        :title="refreshing ? 'Rebuilding…' : 'Rebuild the queue  (⌘R)\nHold for 3 s: clear the queue and load it anew'"
+        @pointerdown="holdStart" @pointerup="holdEnd" @pointerleave="holdCancel" @pointercancel="holdCancel">
         <v-icon :icon="mdiRefresh" size="18" :class="{ spin: refreshing }" />
       </div>
       <div v-if="likesSupported && now" class="tbtn like" :class="{ on: liked }" :title="liked ? 'Remove the like' : 'Like'"

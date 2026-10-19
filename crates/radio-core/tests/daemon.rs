@@ -100,6 +100,29 @@ async fn the_daemon_streams_a_mix_and_answers_the_api() {
         "{queue}"
     );
 
+    // Clearing the queue drops what waits and loads it anew: tracks are in the queue again after a while.
+    let cleared = reqwest::Client::new()
+        .post(format!("http://{address}/api/queue/clear"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(cleared.status(), 200);
+    let mut refilled = false;
+    for _ in 0..120 {
+        let queue: Value = reqwest::get(format!("http://{address}/api/queue"))
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        if queue["next"].as_array().is_some_and(|n| !n.is_empty()) {
+            refilled = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    assert!(refilled, "the queue is loaded again after it is cleared");
+
     stop.send(()).unwrap();
     tokio::time::timeout(Duration::from_secs(30), server)
         .await

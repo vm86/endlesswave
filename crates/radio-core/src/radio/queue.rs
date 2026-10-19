@@ -67,6 +67,45 @@ impl Radio {
         self.consumed.notify_one();
     }
 
+    /// Clear the whole queue and load it anew: the track that plays stays (and the one being blended in), every other track
+    /// is dropped, with its file, and the refill fetches tracks from the backends again. The dropped tracks are not marked
+    /// as played, so they may come back.
+    pub fn clear_queue(&self) {
+        let deck = {
+            let mut state = self.st();
+            state.generation += 1;
+            state.order.clear();
+            if state.blending {
+                None
+            } else {
+                state.next.take()
+            }
+        };
+        if let Some(deck) = deck {
+            // Back to the pool, and out of it with the rest.
+            self.unpick(&deck);
+        }
+        let removed = {
+            let mut state = self.st();
+            let removed = std::mem::take(&mut state.pool);
+            for candidate in &removed {
+                if let Some(track) = &candidate.track {
+                    state.seen.remove(&track.track_id);
+                }
+            }
+            removed
+        };
+        for candidate in &removed {
+            let _ = std::fs::remove_file(&candidate.path);
+        }
+        self.save_playlist();
+        tracing::info!(
+            "Queue cleared: {} tracks dropped, loading anew",
+            removed.len()
+        );
+        self.consumed.notify_one();
+    }
+
     /// Whether the track is the one being blended in just now.
     fn locked(&self, track_id: &str) -> bool {
         let state = self.st();

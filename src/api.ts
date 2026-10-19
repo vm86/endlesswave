@@ -152,6 +152,7 @@ export const api = {
   likes: () => request<LikesInfo>("/api/likes"),
   setLike: (track_id: string, liked: boolean) => request<LikesInfo>("/api/likes", json("PUT", { track_id, liked })),
   nextTrack: () => request<Queue>("/api/next", { method: "POST" }),
+  clearQueue: () => request<Queue>("/api/queue/clear", { method: "POST" }),
   refreshQueue: () => request<Queue>("/api/queue/refresh", { method: "POST" }),
   setMoods: (moods: string[]) =>
     request<MoodsInfo>("/api/moods", moods.length ? json("PUT", { moods }) : json("DELETE")),
