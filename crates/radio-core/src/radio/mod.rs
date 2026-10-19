@@ -4,6 +4,7 @@
 //! The state is behind one `std::sync::Mutex` that is never held across an `.await`; the long work (downloads, decoding,
 //! analysis) is done outside it. What the Python radio waits on with `asyncio.Event` is a `tokio::sync::Notify` here.
 
+mod arc;
 mod likes;
 mod load;
 mod pool;
@@ -63,6 +64,7 @@ pub const SETTING_GENRES: &str = "genres";
 pub const SETTING_BLOCKED: &str = "blocked_genres";
 pub const SETTING_STATION: &str = "station_settings";
 pub const SETTING_LANGUAGE: &str = "language";
+pub const SETTING_ARC: &str = "mood_arc_plan";
 /// The tracks loaded and waiting for their turn: the files are kept as well.
 pub const SETTING_PLAYLIST: &str = "playlist";
 /// The order of the queue that was put in place by hand.
@@ -211,6 +213,9 @@ pub(crate) struct State {
     pub transition_keys: Counter,
     pub matched_transitions: i64,
     pub key_pairs: IndexMap<(String, String), i64>,
+    /// The arc of moods made by hand, and whether it is in force (it is, once it is switched on).
+    pub arc: crate::mix::choose::MoodArc,
+    pub arc_on: bool,
     /// Whether the tracks played lately are liked, as far as the backend was asked.
     pub liked: HashMap<String, bool>,
     /// The tracks played lately, to like them after they are gone from the queue.
@@ -293,6 +298,8 @@ impl Radio {
                 matched_transitions: 0,
                 key_pairs: IndexMap::new(),
                 liked: HashMap::new(),
+                arc: arc::default_arc(),
+                arc_on: false,
                 played_tracks: VecDeque::new(),
             }),
             slots: Semaphore::new(PREPARE_CONCURRENCY),

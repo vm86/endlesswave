@@ -137,6 +137,10 @@ impl Radio {
                 self.set_language(Some(&language)).await?;
             }
         }
+        self.restore_arc();
+        if self.st().arc_on && self.st().saved_settings.is_none() {
+            self.start_mood_arc().await?;
+        }
         Ok(())
     }
 
@@ -169,12 +173,13 @@ impl Radio {
     }
 
     /// Put the station's settings back once nothing here steers them.
-    async fn release_settings(&self) -> Result<(), RadioError> {
+    pub(super) async fn release_settings(&self) -> Result<(), RadioError> {
         let free = {
             let state = self.st();
             state.saved_settings.is_some()
                 && state.allowed_moods.is_empty()
                 && !self.config.mood_arc
+                && !state.arc_on
                 && state.picked_language.is_none()
         };
         if free {

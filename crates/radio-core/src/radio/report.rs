@@ -86,7 +86,9 @@ impl Radio {
                     mood: c.mood.clone(),
                 })
                 .collect();
-            let index = choose::choose_next(current.as_ref(), &entries, &history, position);
+            let arc = state.arc_on.then_some(&state.arc);
+            let index =
+                choose::choose_next_with(arc, current.as_ref(), &entries, &history, position);
             let playing = entries[index].analysis.clone();
             let chosen = pool.remove(index);
             found.push(TrackInfo::of(

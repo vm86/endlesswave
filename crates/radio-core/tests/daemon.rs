@@ -123,6 +123,56 @@ async fn the_daemon_streams_a_mix_and_answers_the_api() {
     }
     assert!(refilled, "the queue is loaded again after it is cleared");
 
+    // The arc of moods: refused when wrong, kept when right.
+    let client = reqwest::Client::new();
+    let arc_url = format!("http://{address}/api/arc");
+    let info: Value = client
+        .get(&arc_url)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(info["enabled"], false);
+    assert_eq!(
+        info["moods"],
+        serde_json::json!(["sad", "calm", "fun", "active"])
+    );
+    let refused = client
+        .put(&arc_url)
+        .body(r#"{"stages": ["sad", "glad"], "stage_tracks": 3}"#)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), 400);
+    let set: Value = client
+        .put(&arc_url)
+        .body(r#"{"enabled": true, "stages": ["sad", "fun", "active"], "stage_tracks": 2}"#)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(set["enabled"], true);
+    assert_eq!(set["stages"], serde_json::json!(["sad", "fun", "active"]));
+    assert_eq!(set["stage_tracks"], 2);
+    let off: Value = client
+        .put(&arc_url)
+        .body(r#"{"enabled": false}"#)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(
+        (off["enabled"].as_bool(), off["stage_tracks"].as_u64()),
+        (Some(false), Some(2)),
+        "the plan stays"
+    );
+
     stop.send(()).unwrap();
     tokio::time::timeout(Duration::from_secs(30), server)
         .await

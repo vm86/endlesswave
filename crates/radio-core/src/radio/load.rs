@@ -73,7 +73,7 @@ impl Radio {
         let steer = {
             let state = self.st();
             self.backend.supports_moods()
-                && (self.config.mood_arc || !state.allowed_moods.is_empty())
+                && (self.config.mood_arc || state.arc_on || !state.allowed_moods.is_empty())
         };
         if steer {
             // Tracks loaded now are played about when the pool has been worked through: aim for the mood wanted then, as
@@ -81,7 +81,10 @@ impl Radio {
             let wanted = {
                 let state = self.st();
                 let mood = if mood.is_empty() {
-                    choose::mood_for(state.position + state.pool.len() as i64)
+                    choose::mood_at(
+                        state.arc_on.then_some(&state.arc),
+                        state.position + state.pool.len() as i64,
+                    )
                 } else {
                     mood
                 };
@@ -167,8 +170,10 @@ impl Radio {
         let size = size.unwrap_or(self.config.pool_size);
         while self.st().pool.len() < size {
             let mut wanted = size - self.st().pool.len();
-            let steered = self.backend.supports_moods()
-                && (self.config.mood_arc || !self.st().allowed_moods.is_empty());
+            let steered = self.backend.supports_moods() && {
+                let state = self.st();
+                self.config.mood_arc || state.arc_on || !state.allowed_moods.is_empty()
+            };
             if steered {
                 // A few at a time: each round has its own mood.
                 wanted = wanted.min(EXTRA_TRACKS);
@@ -320,8 +325,9 @@ impl Radio {
             })
             .collect();
         let history: Vec<HashSet<String>> = state.history.iter().cloned().collect();
-        let index = choose::choose_next(current, &entries, &history, state.position);
-        let cost = choose::step_cost(current, &entries[index], &history, state.position);
+        let arc = state.arc_on.then_some(&state.arc);
+        let index = choose::choose_next_with(arc, current, &entries, &history, state.position);
+        let cost = choose::step_cost_with(arc, current, &entries[index], &history, state.position);
         (index, cost)
     }
 
@@ -358,7 +364,7 @@ impl Radio {
                 let state = self.st();
                 (
                     state.pool[index].title.clone(),
-                    choose::mood_for(state.position),
+                    choose::mood_at(state.arc_on.then_some(&state.arc), state.position),
                 )
             };
             tracing::info!("Nothing fits well (best: {title}, cost {cost:.1}), loading more");

@@ -67,6 +67,72 @@ pub fn arc_target(position: i64) -> f64 {
     0.5 - 0.35 * (2.0 * PI * position as f64 / ARC_TRACKS).cos()
 }
 
+/// An arc of moods made by hand: the set goes through the stages one after the other, each for `stage_tracks` tracks, and
+/// starts over when the last is done. Without one, the set follows the built-in arc (`arc_target`, `mood_for`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MoodArc {
+    /// The mood of each stage (members of `ALL_MOODS`).
+    pub stages: Vec<&'static str>,
+    /// How many tracks each stage lasts; the same for all.
+    pub stage_tracks: usize,
+}
+
+pub const MIN_STAGES: usize = 2;
+pub const MAX_STAGES: usize = 12;
+pub const MAX_STAGE_TRACKS: usize = 10;
+
+/// The energy that goes with a mood, for steering the choice of tracks.
+fn mood_energy(mood: &str) -> f64 {
+    match mood {
+        "sad" => 0.12,
+        "calm" => 0.25,
+        "fun" => 0.4,
+        _ => 0.65,
+    }
+}
+
+impl MoodArc {
+    /// The arc made of the moods named; `None` if there are too few or too many, a name is not a mood, or the stage is not
+    /// 1..=MAX_STAGE_TRACKS tracks long.
+    pub fn new(stages: &[String], stage_tracks: usize) -> Option<Self> {
+        if !(MIN_STAGES..=MAX_STAGES).contains(&stages.len())
+            || !(1..=MAX_STAGE_TRACKS).contains(&stage_tracks)
+        {
+            return None;
+        }
+        let stages = stages
+            .iter()
+            .map(|name| ALL_MOODS.iter().copied().find(|m| m == name))
+            .collect::<Option<Vec<_>>>()?;
+        Some(Self {
+            stages,
+            stage_tracks,
+        })
+    }
+
+    /// The place of the track in the arc: the stage it is in.
+    pub fn stage_at(&self, position: i64) -> usize {
+        (position.max(0) as usize / self.stage_tracks) % self.stages.len()
+    }
+
+    pub fn mood_at(&self, position: i64) -> &'static str {
+        self.stages[self.stage_at(position)]
+    }
+}
+
+/// The energy wanted at the place in the set, by the arc made by hand or else the built-in one.
+fn target_at(arc: Option<&MoodArc>, position: i64) -> f64 {
+    arc.map_or_else(
+        || arc_target(position),
+        |arc| mood_energy(arc.mood_at(position)),
+    )
+}
+
+/// The station mood that goes with the place in the set, by the arc made by hand or else the built-in one.
+pub fn mood_at(arc: Option<&MoodArc>, position: i64) -> &'static str {
+    arc.map_or_else(|| mood_for(position), |arc| arc.mood_at(position))
+}
+
 /// The station mood that goes with the place in the set.
 pub fn mood_for(position: i64) -> &'static str {
     let target = arc_target(position);
@@ -157,6 +223,17 @@ pub fn step_cost(
     history: &[HashSet<String>],
     position: i64,
 ) -> f64 {
+    step_cost_with(None, current, entry, history, position)
+}
+
+/// As `step_cost`, with the arc made by hand if there is one.
+pub fn step_cost_with(
+    arc: Option<&MoodArc>,
+    current: Option<&TrackAnalysis>,
+    entry: &Entry,
+    history: &[HashSet<String>],
+    position: i64,
+) -> f64 {
     let mut cost = current.map_or(0.0, |current| transition_cost(current, &entry.analysis));
     let recent = &history[history.len().saturating_sub(REPEAT_WINDOW)..];
     if recent
@@ -165,13 +242,14 @@ pub fn step_cost(
     {
         cost += REPEAT_ARTIST_COST;
     }
-    cost += ENERGY_ARC_COST * (energy(&entry.analysis) - arc_target(position)).abs();
-    cost += mood_cost(mood_for(position), &entry.mood);
+    cost += ENERGY_ARC_COST * (energy(&entry.analysis) - target_at(arc, position)).abs();
+    cost += mood_cost(mood_at(arc, position), &entry.mood);
     cost
 }
 
 /// The cost of the best queue from here and its first pick.
 fn best_path(
+    arc: Option<&MoodArc>,
     current: Option<&TrackAnalysis>,
     pool: &[&Entry],
     history: &[HashSet<String>],
@@ -181,7 +259,12 @@ fn best_path(
     let mut steps: Vec<(f64, usize)> = pool
         .iter()
         .enumerate()
-        .map(|(index, entry)| (step_cost(current, entry, history, position), index))
+        .map(|(index, entry)| {
+            (
+                step_cost_with(arc, current, entry, history, position),
+                index,
+            )
+        })
         .collect();
     // A stable sort: of equal costs the first stays first.
     steps.sort_by(|a, b| a.0.total_cmp(&b.0));
@@ -199,6 +282,7 @@ fn best_path(
             let mut later = history.to_vec();
             later.push(pool[index].artists.clone());
             total += best_path(
+                arc,
                 Some(&pool[index].analysis),
                 &rest,
                 &later,
@@ -224,9 +308,20 @@ pub fn choose_next(
     history: &[HashSet<String>],
     position: i64,
 ) -> usize {
+    choose_next_with(None, current, pool, history, position)
+}
+
+/// As `choose_next`, with the arc made by hand if there is one.
+pub fn choose_next_with(
+    arc: Option<&MoodArc>,
+    current: Option<&TrackAnalysis>,
+    pool: &[Entry],
+    history: &[HashSet<String>],
+    position: i64,
+) -> usize {
     let depth = LOOKAHEAD_WEIGHTS.len().min(pool.len());
     let pool: Vec<&Entry> = pool.iter().collect();
-    best_path(current, &pool, history, position, depth).1
+    best_path(arc, current, &pool, history, position, depth).1
 }
 
 /// As `choose_next`, with the cost of the best queue too (for the tests).
@@ -238,5 +333,46 @@ pub fn best_queue_cost(
 ) -> f64 {
     let depth = LOOKAHEAD_WEIGHTS.len().min(pool.len());
     let pool: Vec<&Entry> = pool.iter().collect();
-    best_path(current, &pool, history, position, depth).0
+    best_path(None, current, &pool, history, position, depth).0
+}
+
+#[cfg(test)]
+mod arc_tests {
+    use super::*;
+
+    fn names(list: &[&str]) -> Vec<String> {
+        list.iter().map(|s| (*s).to_owned()).collect()
+    }
+
+    #[test]
+    fn an_arc_made_by_hand_goes_through_its_stages_over_and_over() {
+        let arc = MoodArc::new(&names(&["sad", "fun", "active"]), 2).unwrap();
+        let moods: Vec<&str> = (0..8).map(|p| arc.mood_at(p)).collect();
+        assert_eq!(
+            moods,
+            ["sad", "sad", "fun", "fun", "active", "active", "sad", "sad"]
+        );
+        assert_eq!(arc.stage_at(5), 2);
+        assert_eq!(mood_at(Some(&arc), 4), "active");
+        assert_eq!(
+            mood_at(None, 0),
+            mood_for(0),
+            "without one, the built-in arc"
+        );
+    }
+
+    #[test]
+    fn an_arc_with_wrong_parts_is_refused() {
+        assert!(
+            MoodArc::new(&names(&["sad"]), 3).is_none(),
+            "too few stages"
+        );
+        assert!(
+            MoodArc::new(&names(&["sad", "glad"]), 3).is_none(),
+            "not a mood"
+        );
+        assert!(MoodArc::new(&names(&["sad", "fun"]), 0).is_none());
+        assert!(MoodArc::new(&names(&["sad", "fun"]), MAX_STAGE_TRACKS + 1).is_none());
+        assert!(MoodArc::new(&vec!["fun".to_owned(); MAX_STAGES + 1], 3).is_none());
+    }
 }

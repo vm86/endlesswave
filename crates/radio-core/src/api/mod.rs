@@ -220,6 +220,51 @@ async fn play_track(State(api): State<Api>, body: Bytes) -> Result<Response, Api
     Ok(json_response(StatusCode::ACCEPTED, &api.queue()))
 }
 
+async fn get_arc(State(api): State<Api>) -> Response {
+    ok(&api.radio.arc_info())
+}
+
+/// `{"enabled": bool, "stages": ["calm", ...], "stage_tracks": 3}`, every part optional (a plan needs both of its parts).
+async fn put_arc(State(api): State<Api>, body: Bytes) -> Result<Response, ApiError> {
+    let body = json_body(&body)?;
+    let enabled = match body.get("enabled") {
+        None => None,
+        Some(Value::Bool(b)) => Some(*b),
+        Some(_) => return Err(ApiError::bad_request("\"enabled\" must be true or false")),
+    };
+    let plan = match (body.get("stages"), body.get("stage_tracks")) {
+        (None, None) => None,
+        (Some(stages), Some(tracks)) => {
+            let stages = stages.as_array().and_then(|list| {
+                list.iter()
+                    .map(|v| v.as_str().map(str::to_owned))
+                    .collect::<Option<Vec<_>>>()
+            });
+            let tracks = tracks.as_u64().map(|n| n as usize);
+            match (stages, tracks) {
+                (Some(stages), Some(tracks)) => Some((stages, tracks)),
+                _ => {
+                    return Err(ApiError::bad_request(
+                        "expected {\"stages\": [...], \"stage_tracks\": 3}",
+                    ));
+                }
+            }
+        }
+        _ => {
+            return Err(ApiError::bad_request(
+                "expected both \"stages\" and \"stage_tracks\"",
+            ));
+        }
+    };
+    api.radio
+        .set_arc(enabled, plan)
+        .await
+        .map_err(radio_error)?;
+    // the queue follows the arc
+    api.radio.refresh_queue();
+    Ok(ok(&api.radio.arc_info()))
+}
+
 async fn get_likes(State(api): State<Api>) -> Response {
     ok(&api.radio.likes_info().await)
 }
@@ -417,6 +462,7 @@ pub fn router(api: Api) -> Router {
             put(put_blocked).delete(delete_blocked),
         )
         .route("/api/likes", get(get_likes).put(put_like))
+        .route("/api/arc", get(get_arc).put(put_arc))
         .route("/api/stats", get(stats))
         .route("/api/transitions", get(blends))
         .route("/api/stats/keys", get(key_pairs))
