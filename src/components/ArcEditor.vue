@@ -105,7 +105,8 @@ const setLength = (tracks: number) => emit("change", { stages: props.arc.stages,
 </template>
 
 <style scoped>
-.arc { margin-top: 4px; }
+/* The plot has a size of its own: in a wide window it does not grow with it. */
+.arc { margin-top: 4px; max-width: 360px; }
 .arc.off .line, .arc.off .dot { opacity: 0.45; }
 .arc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .arc-svg { width: 100%; height: auto; touch-action: none; user-select: none; display: block; }
