@@ -35,6 +35,11 @@ type Chunk = Vec<f32>;
 /// How long the reader tries to reach the radio (it may be starting).
 const CONNECT_PATIENCE: Duration = Duration::from_secs(30);
 const QUEUE_CHUNKS: usize = 80;
+/// A stream that was lost after it had played is asked for again, this many times in a row (the pause grows each time),
+/// before the player gives up; a stream that then played for a while makes the count start over.
+const RECONNECT_TRIES: u32 = 12;
+const RECONNECT_PAUSE: Duration = Duration::from_millis(1000);
+const STABLE_FOR: Duration = Duration::from_secs(20);
 /// How many pieces are kept before the sound starts: ~0.3 s against a gap at the very start.
 const PREBUFFER_CHUNKS: usize = 12;
 
@@ -148,11 +153,32 @@ impl Audio {
         {
             let (shared, stop, app) = (shared.clone(), stop.clone(), app.clone());
             std::thread::spawn(move || {
-                if let Err(message) = read_stream(&url, &chunk_tx, &ready_tx, &stop) {
-                    if !stop.load(Ordering::SeqCst) {
-                        // Before the first sound the page falls back; later it only says so.
-                        set_state(&app, &shared, ERROR, &message);
+                // The output keeps what it has and plays silence in a gap, so a stream that is lost (the radio restarted, the
+                // network blinked) is asked for again, and the listener hears a short gap and not a stop.
+                let mut tries = 0;
+                loop {
+                    let started = Instant::now();
+                    let mut played = false;
+                    let Err(message) = read_stream(&url, &chunk_tx, &ready_tx, &stop, &mut played)
+                    else {
+                        return;
+                    };
+                    if stop.load(Ordering::SeqCst) {
+                        return;
                     }
+                    if started.elapsed() >= STABLE_FOR {
+                        tries = 0;
+                    }
+                    // Before the first sound the page falls back to its own player; later it only says so.
+                    if !played && tries == 0 || tries >= RECONNECT_TRIES {
+                        set_state(&app, &shared, ERROR, &message);
+                        return;
+                    }
+                    tries += 1;
+                    eprintln!(
+                        "[player] {message}; asking for the stream again ({tries}/{RECONNECT_TRIES})"
+                    );
+                    std::thread::sleep(RECONNECT_PAUSE * tries.min(5));
                 }
             });
         }
@@ -328,6 +354,7 @@ fn read_stream(
     chunks: &SyncSender<Chunk>,
     ready: &Sender<Result<(u32, u16), String>>,
     stop: &AtomicBool,
+    played: &mut bool,
 ) -> Result<(), String> {
     let fail = |message: String| {
         let _ = ready.send(Err(message.clone()));
@@ -434,6 +461,7 @@ fn read_stream(
             kept += 1;
             if kept >= PREBUFFER_CHUNKS {
                 said = true;
+                *played = true;
                 let _ = ready.send(Ok((spec.rate(), spec.channels().count() as u16)));
             }
         }
