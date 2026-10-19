@@ -120,6 +120,88 @@ impl MoodArc {
     }
 }
 
+/// A plan of the tempo: the set goes from point to point (a BPM for each stage, `stage_tracks` tracks apart, in a straight
+/// line between them) and stays at the last. A track is wanted within `tolerance` BPM of where the plan is.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BpmPlan {
+    pub stages: Vec<f64>,
+    pub stage_tracks: usize,
+    pub tolerance: f64,
+    /// The plan takes the place of the arc of energy and moods (morning, evening); else it comes on top of it (day).
+    pub replaces_arc: bool,
+}
+
+pub const MIN_BPM: f64 = 30.0;
+pub const MAX_BPM: f64 = 200.0;
+/// Cost per BPM that a track is outside the plan's range.
+const BPM_PLAN_COST: f64 = 0.25;
+/// A track whose tempo is not known is as far from the plan as this.
+const UNKNOWN_BPM_DISTANCE: f64 = 20.0;
+/// A tempo read at half or double speed counts, at a small price.
+const OCTAVE_PENALTY_BPM: f64 = 3.0;
+
+impl BpmPlan {
+    /// The BPM the plan wants at the place in the set.
+    pub fn target_at(&self, position: i64) -> f64 {
+        let at = position.max(0) as f64 / self.stage_tracks.max(1) as f64;
+        let last = self.stages.len() - 1;
+        let index = (at.floor() as usize).min(last);
+        if index >= last {
+            return self.stages[last];
+        }
+        let frac = at - at.floor();
+        self.stages[index] + (self.stages[index + 1] - self.stages[index]) * frac
+    }
+
+    /// The stage the set is in.
+    pub fn stage_at(&self, position: i64) -> usize {
+        (position.max(0) as usize / self.stage_tracks.max(1)).min(self.stages.len() - 1)
+    }
+
+    /// The station mood that goes with the tempo wanted.
+    pub fn mood_at(&self, position: i64) -> &'static str {
+        match self.target_at(position) {
+            t if t < 75.0 => "calm",
+            t if t < 105.0 => "fun",
+            _ => "active",
+        }
+    }
+
+    /// How far (in BPM) the track is outside what the plan wants at the place; 0 inside. A tempo read at half or double
+    /// speed counts too, with a small penalty on top, so that a track that really is at the tempo wins the tie.
+    pub fn excess(&self, bpm: f64, position: i64) -> f64 {
+        let target = self.target_at(position);
+        if bpm <= 0.0 {
+            return (UNKNOWN_BPM_DISTANCE - self.tolerance).max(0.0);
+        }
+        let beyond = |b: f64| ((b - target).abs() - self.tolerance).max(0.0);
+        [
+            beyond(bpm),
+            beyond(bpm / 2.0) + OCTAVE_PENALTY_BPM,
+            beyond(bpm * 2.0) + OCTAVE_PENALTY_BPM,
+        ]
+        .into_iter()
+        .fold(f64::INFINITY, f64::min)
+    }
+}
+
+/// What steers the choice of the next track besides the cost of the transition: an arc of moods, a plan of the tempo.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Steer {
+    pub arc: Option<MoodArc>,
+    pub bpm: Option<BpmPlan>,
+}
+
+impl Steer {
+    /// The station mood that goes with the place in the set.
+    pub fn mood_at(&self, position: i64) -> &'static str {
+        match &self.bpm {
+            Some(plan) if plan.replaces_arc => plan.mood_at(position),
+            _ => mood_at(self.arc.as_ref(), position),
+        }
+    }
+}
+
 /// The energy wanted at the place in the set, by the arc made by hand or else the built-in one.
 fn target_at(arc: Option<&MoodArc>, position: i64) -> f64 {
     arc.map_or_else(
@@ -223,12 +305,12 @@ pub fn step_cost(
     history: &[HashSet<String>],
     position: i64,
 ) -> f64 {
-    step_cost_with(None, current, entry, history, position)
+    step_cost_with(&Steer::default(), current, entry, history, position)
 }
 
-/// As `step_cost`, with the arc made by hand if there is one.
+/// As `step_cost`, with what steers the choice besides.
 pub fn step_cost_with(
-    arc: Option<&MoodArc>,
+    steer: &Steer,
     current: Option<&TrackAnalysis>,
     entry: &Entry,
     history: &[HashSet<String>],
@@ -242,14 +324,26 @@ pub fn step_cost_with(
     {
         cost += REPEAT_ARTIST_COST;
     }
-    cost += ENERGY_ARC_COST * (energy(&entry.analysis) - target_at(arc, position)).abs();
-    cost += mood_cost(mood_at(arc, position), &entry.mood);
+    match &steer.bpm {
+        // The plan of the tempo takes the place of the arc.
+        Some(plan) if plan.replaces_arc => {
+            cost += BPM_PLAN_COST * plan.excess(entry.analysis.bpm, position);
+        }
+        plan => {
+            let arc = steer.arc.as_ref();
+            cost += ENERGY_ARC_COST * (energy(&entry.analysis) - target_at(arc, position)).abs();
+            cost += mood_cost(mood_at(arc, position), &entry.mood);
+            if let Some(plan) = plan {
+                cost += BPM_PLAN_COST * plan.excess(entry.analysis.bpm, position);
+            }
+        }
+    }
     cost
 }
 
 /// The cost of the best queue from here and its first pick.
 fn best_path(
-    arc: Option<&MoodArc>,
+    steer: &Steer,
     current: Option<&TrackAnalysis>,
     pool: &[&Entry],
     history: &[HashSet<String>],
@@ -261,7 +355,7 @@ fn best_path(
         .enumerate()
         .map(|(index, entry)| {
             (
-                step_cost_with(arc, current, entry, history, position),
+                step_cost_with(steer, current, entry, history, position),
                 index,
             )
         })
@@ -282,7 +376,7 @@ fn best_path(
             let mut later = history.to_vec();
             later.push(pool[index].artists.clone());
             total += best_path(
-                arc,
+                steer,
                 Some(&pool[index].analysis),
                 &rest,
                 &later,
@@ -308,12 +402,12 @@ pub fn choose_next(
     history: &[HashSet<String>],
     position: i64,
 ) -> usize {
-    choose_next_with(None, current, pool, history, position)
+    choose_next_with(&Steer::default(), current, pool, history, position)
 }
 
-/// As `choose_next`, with the arc made by hand if there is one.
+/// As `choose_next`, with what steers the choice besides.
 pub fn choose_next_with(
-    arc: Option<&MoodArc>,
+    steer: &Steer,
     current: Option<&TrackAnalysis>,
     pool: &[Entry],
     history: &[HashSet<String>],
@@ -321,7 +415,7 @@ pub fn choose_next_with(
 ) -> usize {
     let depth = LOOKAHEAD_WEIGHTS.len().min(pool.len());
     let pool: Vec<&Entry> = pool.iter().collect();
-    best_path(arc, current, &pool, history, position, depth).1
+    best_path(steer, current, &pool, history, position, depth).1
 }
 
 /// As `choose_next`, with the cost of the best queue too (for the tests).
@@ -333,7 +427,7 @@ pub fn best_queue_cost(
 ) -> f64 {
     let depth = LOOKAHEAD_WEIGHTS.len().min(pool.len());
     let pool: Vec<&Entry> = pool.iter().collect();
-    best_path(None, current, &pool, history, position, depth).0
+    best_path(&Steer::default(), current, &pool, history, position, depth).0
 }
 
 #[cfg(test)]
@@ -358,6 +452,80 @@ mod arc_tests {
             mood_at(None, 0),
             mood_for(0),
             "without one, the built-in arc"
+        );
+    }
+
+    #[test]
+    fn a_plan_of_the_tempo_goes_from_point_to_point_and_stays_at_the_last() {
+        let plan = BpmPlan {
+            stages: vec![60.0, 120.0],
+            stage_tracks: 4,
+            tolerance: 8.0,
+            replaces_arc: true,
+        };
+        assert_eq!(plan.target_at(0), 60.0);
+        assert_eq!(plan.target_at(2), 90.0, "half way");
+        assert_eq!(plan.target_at(4), 120.0);
+        assert_eq!(plan.target_at(40), 120.0, "stays");
+        // inside the tolerance costs nothing; outside, by the BPM beyond it
+        assert_eq!(plan.excess(64.0, 0), 0.0);
+        assert_eq!(plan.excess(80.0, 0), 12.0);
+        // a tempo read at double speed counts, at a small price
+        assert_eq!(plan.excess(120.0, 0), 3.0, "double speed: the penalty only");
+        assert_eq!(plan.excess(0.0, 0), 12.0, "an unknown tempo is not free");
+        assert_eq!(plan.mood_at(0), "calm");
+        assert_eq!(plan.mood_at(4), "active");
+    }
+
+    fn track(bpm: f64) -> Entry {
+        Entry {
+            analysis: TrackAnalysis {
+                bpm,
+                head_beat: 0.0,
+                tail_beat: 0.0,
+                start: 0,
+                end: 44100 * 200,
+                loudness_db: -10.0,
+                intro_end: -1,
+                outro_start: -1,
+                key: -1,
+            },
+            artists: HashSet::from([format!("artist{bpm}")]),
+            mood: String::new(),
+        }
+    }
+
+    #[test]
+    fn the_choice_follows_the_plan_of_the_tempo() {
+        let pool = [track(60.0), track(90.0), track(120.0)];
+        let plan = |target: f64| Steer {
+            arc: None,
+            bpm: Some(BpmPlan {
+                stages: vec![target, target],
+                stage_tracks: 3,
+                tolerance: 8.0,
+                replaces_arc: true,
+            }),
+        };
+        let pick = |target: f64| choose_next_with(&plan(target), None, &pool, &[], 0);
+        assert_eq!((pick(60.0), pick(92.0), pick(118.0)), (0, 1, 2));
+        // the day: the arc of moods stays, and the tempo has a range on top of it
+        let day = Steer {
+            arc: Some(MoodArc::new(&names(&["fun", "fun"]), 3).unwrap()),
+            bpm: Some(BpmPlan {
+                stages: vec![120.0],
+                stage_tracks: 1,
+                tolerance: 10.0,
+                replaces_arc: false,
+            }),
+        };
+        let costs: Vec<f64> = pool
+            .iter()
+            .map(|e| step_cost_with(&day, None, e, &[], 0))
+            .collect();
+        assert!(
+            costs[2] < costs[0],
+            "inside the range is cheaper: {costs:?}"
         );
     }
 

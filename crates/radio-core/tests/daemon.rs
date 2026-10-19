@@ -173,6 +173,58 @@ async fn the_daemon_streams_a_mix_and_answers_the_api() {
         "the plan stays"
     );
 
+    // Morning, day, evening: refused when wrong, kept when right.
+    let cycle_url = format!("http://{address}/api/cycle");
+    let info: Value = client
+        .get(&cycle_url)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(info["active"], "off");
+    assert_eq!(
+        info["morning"]["stages"],
+        serde_json::json!([60.0, 75.0, 90.0, 105.0, 120.0])
+    );
+    for wrong in [
+        r#"{"active": "noon"}"#,
+        r#"{"morning": {"stages": [60], "stage_tracks": 3, "tolerance": 8}}"#,
+        r#"{"evening": {"stages": [100, 60], "stage_tracks": 0, "tolerance": 8}}"#,
+        r#"{"day": {"bpm_min": 100, "bpm_max": 105}}"#,
+    ] {
+        let refused = client.put(&cycle_url).body(wrong).send().await.unwrap();
+        assert_eq!(refused.status(), 400, "{wrong}");
+    }
+    let set: Value = client
+        .put(&cycle_url)
+        .body(r#"{"active": "evening", "day": {"bpm_min": 90, "bpm_max": 120}}"#)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(set["active"], "evening");
+    assert_eq!(set["day"]["bpm_min"], 90.0);
+    let target = set["target_bpm"].as_f64().unwrap();
+    assert!(
+        (80.0..=110.0).contains(&target),
+        "the evening goes down from 110 BPM: {target}"
+    );
+    let off: Value = client
+        .put(&cycle_url)
+        .body(r#"{"active": "off"}"#)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(off["active"], "off");
+    assert_eq!(off["day"]["bpm_max"], 120.0, "the plans stay");
+
     stop.send(()).unwrap();
     tokio::time::timeout(Duration::from_secs(30), server)
         .await

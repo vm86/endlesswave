@@ -7,6 +7,9 @@ use serde_json::{Value, json};
 
 impl Radio {
     pub(crate) fn mood_allowed(state: &State, mood: &str) -> bool {
+        if let Some(forced) = super::cycle::forced_moods(state) {
+            return forced.contains(&mood);
+        }
         state.allowed_moods.is_empty() || state.allowed_moods.iter().any(|m| m == mood)
     }
 

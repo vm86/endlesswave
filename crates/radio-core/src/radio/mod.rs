@@ -5,6 +5,7 @@
 //! analysis) is done outside it. What the Python radio waits on with `asyncio.Event` is a `tokio::sync::Notify` here.
 
 mod arc;
+mod cycle;
 mod likes;
 mod load;
 mod pool;
@@ -65,6 +66,7 @@ pub const SETTING_BLOCKED: &str = "blocked_genres";
 pub const SETTING_STATION: &str = "station_settings";
 pub const SETTING_LANGUAGE: &str = "language";
 pub const SETTING_ARC: &str = "mood_arc_plan";
+pub const SETTING_CYCLE: &str = "cycle_plans";
 /// The tracks loaded and waiting for their turn: the files are kept as well.
 pub const SETTING_PLAYLIST: &str = "playlist";
 /// The order of the queue that was put in place by hand.
@@ -216,6 +218,8 @@ pub(crate) struct State {
     /// The arc of moods made by hand, and whether it is in force (it is, once it is switched on).
     pub arc: crate::mix::choose::MoodArc,
     pub arc_on: bool,
+    /// Morning, day, evening: the plans of the tempo, and the one that is on.
+    pub cycles: cycle::Cycles,
     /// Whether the tracks played lately are liked, as far as the backend was asked.
     pub liked: HashMap<String, bool>,
     /// The tracks played lately, to like them after they are gone from the queue.
@@ -300,6 +304,7 @@ impl Radio {
                 liked: HashMap::new(),
                 arc: arc::default_arc(),
                 arc_on: false,
+                cycles: cycle::Cycles::default(),
                 played_tracks: VecDeque::new(),
             }),
             slots: Semaphore::new(PREPARE_CONCURRENCY),

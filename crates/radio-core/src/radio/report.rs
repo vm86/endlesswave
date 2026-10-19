@@ -2,7 +2,7 @@
 //! docs/rust-port-radio.md, ported from `queue`, `upcoming`, `moods_info`, `language_info`, `genres_info`,
 //! `recent_blends`, `transition_stats`, `key_pair_stats`.
 
-use super::{KNOWN_GENRES, LANGUAGES, MAX_LISTED, Radio, TrackInfo};
+use super::{KNOWN_GENRES, LANGUAGES, MAX_LISTED, Radio, TrackInfo, cycle};
 use crate::{
     mix::{
         choose::{self, ALL_MOODS},
@@ -86,9 +86,9 @@ impl Radio {
                     mood: c.mood.clone(),
                 })
                 .collect();
-            let arc = state.arc_on.then_some(&state.arc);
+            let steer = cycle::steer(&state);
             let index =
-                choose::choose_next_with(arc, current.as_ref(), &entries, &history, position);
+                choose::choose_next_with(&steer, current.as_ref(), &entries, &history, position);
             let playing = entries[index].analysis.clone();
             let chosen = pool.remove(index);
             found.push(TrackInfo::of(

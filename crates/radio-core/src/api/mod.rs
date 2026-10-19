@@ -220,6 +220,20 @@ async fn play_track(State(api): State<Api>, body: Bytes) -> Result<Response, Api
     Ok(json_response(StatusCode::ACCEPTED, &api.queue()))
 }
 
+async fn get_cycle(State(api): State<Api>) -> Response {
+    ok(&api.radio.cycle_info())
+}
+
+/// `{"active": "off|morning|day|evening", "morning": {"stages": [BPM...], "stage_tracks": 3, "tolerance": 8},
+/// "day": {"bpm_min": 95, "bpm_max": 135}, "evening": {...}}`, every part optional.
+async fn put_cycle(State(api): State<Api>, body: Bytes) -> Result<Response, ApiError> {
+    let body = json_body(&body)?;
+    api.radio.set_cycle(&body).await.map_err(radio_error)?;
+    // the queue follows the plan
+    api.radio.refresh_queue();
+    Ok(ok(&api.radio.cycle_info()))
+}
+
 async fn get_arc(State(api): State<Api>) -> Response {
     ok(&api.radio.arc_info())
 }
@@ -463,6 +477,7 @@ pub fn router(api: Api) -> Router {
         )
         .route("/api/likes", get(get_likes).put(put_like))
         .route("/api/arc", get(get_arc).put(put_arc))
+        .route("/api/cycle", get(get_cycle).put(put_cycle))
         .route("/api/stats", get(stats))
         .route("/api/transitions", get(blends))
         .route("/api/stats/keys", get(key_pairs))

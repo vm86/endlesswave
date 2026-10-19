@@ -4,7 +4,7 @@
 
 use super::{
     Candidate, EXTRA_TRACKS, MAX_EMPTY_BATCHES, MAX_EXTRA_TRACKS, MAX_OFF_GENRE_BATCHES,
-    MAX_PLAYED_REMEMBERED, Played, REPLENISH_RETRY_SECONDS, Radio,
+    MAX_PLAYED_REMEMBERED, Played, REPLENISH_RETRY_SECONDS, Radio, cycle,
 };
 use crate::{
     backend::{BackendError, Track},
@@ -73,7 +73,10 @@ impl Radio {
         let steer = {
             let state = self.st();
             self.backend.supports_moods()
-                && (self.config.mood_arc || state.arc_on || !state.allowed_moods.is_empty())
+                && (self.config.mood_arc
+                    || state.arc_on
+                    || state.cycles.active != cycle::Cycle::Off
+                    || !state.allowed_moods.is_empty())
         };
         if steer {
             // Tracks loaded now are played about when the pool has been worked through: aim for the mood wanted then, as
@@ -81,14 +84,14 @@ impl Radio {
             let wanted = {
                 let state = self.st();
                 let mood = if mood.is_empty() {
-                    choose::mood_at(
-                        state.arc_on.then_some(&state.arc),
-                        state.position + state.pool.len() as i64,
-                    )
+                    cycle::steer(&state).mood_at(state.position + state.pool.len() as i64)
                 } else {
                     mood
                 };
-                let allowed: Vec<&str> = state.allowed_moods.iter().map(String::as_str).collect();
+                let allowed: Vec<&str> = match cycle::forced_moods(&state) {
+                    Some(forced) => forced.to_vec(),
+                    None => state.allowed_moods.iter().map(String::as_str).collect(),
+                };
                 choose::nearest_mood(mood, &allowed).to_owned()
             };
             self.set_mood(&wanted).await?;
@@ -172,7 +175,10 @@ impl Radio {
             let mut wanted = size - self.st().pool.len();
             let steered = self.backend.supports_moods() && {
                 let state = self.st();
-                self.config.mood_arc || state.arc_on || !state.allowed_moods.is_empty()
+                self.config.mood_arc
+                    || state.arc_on
+                    || state.cycles.active != cycle::Cycle::Off
+                    || !state.allowed_moods.is_empty()
             };
             if steered {
                 // A few at a time: each round has its own mood.
@@ -325,9 +331,10 @@ impl Radio {
             })
             .collect();
         let history: Vec<HashSet<String>> = state.history.iter().cloned().collect();
-        let arc = state.arc_on.then_some(&state.arc);
-        let index = choose::choose_next_with(arc, current, &entries, &history, state.position);
-        let cost = choose::step_cost_with(arc, current, &entries[index], &history, state.position);
+        let steer = cycle::steer(&state);
+        let index = choose::choose_next_with(&steer, current, &entries, &history, state.position);
+        let cost =
+            choose::step_cost_with(&steer, current, &entries[index], &history, state.position);
         (index, cost)
     }
 
@@ -364,7 +371,7 @@ impl Radio {
                 let state = self.st();
                 (
                     state.pool[index].title.clone(),
-                    choose::mood_at(state.arc_on.then_some(&state.arc), state.position),
+                    cycle::steer(&state).mood_at(state.position),
                 )
             };
             tracing::info!("Nothing fits well (best: {title}, cost {cost:.1}), loading more");

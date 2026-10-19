@@ -138,7 +138,10 @@ impl Radio {
             }
         }
         self.restore_arc();
-        if self.st().arc_on && self.st().saved_settings.is_none() {
+        self.restore_cycle();
+        if (self.st().arc_on || self.st().cycles.active != super::cycle::Cycle::Off)
+            && self.st().saved_settings.is_none()
+        {
             self.start_mood_arc().await?;
         }
         Ok(())
@@ -180,6 +183,7 @@ impl Radio {
                 && state.allowed_moods.is_empty()
                 && !self.config.mood_arc
                 && !state.arc_on
+                && state.cycles.active == super::cycle::Cycle::Off
                 && state.picked_language.is_none()
         };
         if free {
