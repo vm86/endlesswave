@@ -31,7 +31,7 @@ The radio is inside the app, and the packages hold ffmpeg: nothing else has to b
 | **A mix without gaps** | Beat-matched blends: bass swap, three-band EQ blend, filter sweeps, effects. Keys are chosen to sound harmonic |
 | **The queue under control** | Drag the tracks to reorder them, take out the ones you do not want, play any of them at once |
 | **Mood, genres, language** | Pick the mood (`calm`, `fun`...), the genres to play and the genres never to play, the language of the music |
-| **Sources** | Yandex Music and/or a local folder (`mp3`, `flac`, `m4a`, `ogg`, `opus`, `wav`...). Both can play at once |
+| **Sources** | Yandex Music, VK Music and/or a local folder (`mp3`, `flac`, `m4a`, `ogg`, `opus`, `wav`...). Any of them can play at once |
 | **MP3 or FLAC** | A switch for the stream: MP3 at 320 kbit/s, or lossless FLAC (16 bit) |
 | **Spectrum** | The real spectrum of the mix, in time with the sound |
 | **Native audio** | The app plays the stream itself, through the system's audio output (CoreAudio on macOS, PipeWire on Linux, ALSA where there is none) |
@@ -68,6 +68,13 @@ else is needed. For the tray icon, GNOME needs the AppIndicator extension.
 ## First start and setup
 
 Open the app: the radio service starts by itself (port `18000`, on `127.0.0.1` only).
+
+### Signing in to VK Music
+
+In **Sources** turn on VK Music and paste an access token of your VK account (the field is hidden as a password). The radio
+plays the VK wave (recommendations) by default, or your own music with the station `favorites`. The heart in the player adds
+a track to your VK music or takes it out. The token is kept in the database of the app. This uses the unofficial API of the
+VK site, so it may stop working when VK changes it.
 
 ### Signing in to Yandex Music
 

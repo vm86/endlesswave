@@ -7,6 +7,7 @@ use crate::{
         MusicBackend,
         local::LocalBackend,
         multi::{BackendSpec, MultiBackend},
+        vk::{self, VkBackend, VkOptions},
         yandex::{self, DbStore, MemoryStore, SettingsStore, YandexBackend, YandexOptions},
     },
     cache::TrackCache,
@@ -23,7 +24,7 @@ use std::{
 };
 
 /// The ids of `backend_specs`, for the command line. (YouTube Music comes later.)
-pub const BACKEND_IDS: [&str; 2] = ["yandex", "local"];
+pub const BACKEND_IDS: [&str; 3] = ["yandex", "vk", "local"];
 /// The cache setting that keeps the backends turned on (the older one, "backend", kept just the one).
 pub const SETTING_BACKENDS: &str = "backends";
 pub const SETTING_BACKEND: &str = "backend";
@@ -132,6 +133,11 @@ pub fn backend_specs(
         Some(cache) => Arc::new(DbStore::new(cache.clone())),
         None => Arc::new(MemoryStore::default()),
     };
+    let vk_store: Arc<dyn SettingsStore> = match cache {
+        Some(cache) => Arc::new(DbStore::of(cache.clone(), vk::ID)),
+        None => Arc::new(MemoryStore::default()),
+    };
+    let vk_check = vk_store.clone();
     let yandex_clock = clock.clone();
     let shown = directory.clone();
     let remember = cache.cloned();
@@ -150,6 +156,16 @@ pub fn backend_specs(
             }
         })
         .configured(move || yandex::has_token(&*store)),
+        BackendSpec::new("vk", "VK Music", {
+            let store = vk_store.clone();
+            let ffmpeg = options.ffmpeg.clone();
+            move || {
+                VkBackend::new(store.clone(), VkOptions::default())
+                    .expect("the VK backend can be made")
+                    .with_ffmpeg(ffmpeg.clone()) as Arc<dyn MusicBackend>
+            }
+        })
+        .configured(move || vk::has_token(&*vk_check)),
         BackendSpec::new("local", "Local folder", {
             let directory = directory.clone();
             move || {

@@ -106,11 +106,20 @@ impl SettingsStore for MemoryStore {
 /// In the database of the radio (`backend_settings`), which only its owner can read: it holds the token.
 pub struct DbStore {
     cache: Arc<Mutex<crate::cache::TrackCache>>,
+    backend: String,
 }
 
 impl DbStore {
     pub fn new(cache: Arc<Mutex<crate::cache::TrackCache>>) -> Self {
-        Self { cache }
+        Self::of(cache, ID)
+    }
+
+    /// The settings of another backend.
+    pub fn of(cache: Arc<Mutex<crate::cache::TrackCache>>, backend: &str) -> Self {
+        Self {
+            cache,
+            backend: backend.to_owned(),
+        }
     }
 }
 
@@ -119,14 +128,14 @@ impl SettingsStore for DbStore {
         self.cache
             .lock()
             .expect("not poisoned")
-            .backend_settings(ID)
+            .backend_settings(&self.backend)
     }
 
     fn save(&self, settings: &Map<String, Value>) -> std::io::Result<()> {
         self.cache
             .lock()
             .expect("not poisoned")
-            .put_backend_settings(ID, settings)
+            .put_backend_settings(&self.backend, settings)
             .map_err(std::io::Error::other)
     }
 }
