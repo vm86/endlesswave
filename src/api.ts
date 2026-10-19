@@ -25,6 +25,19 @@ export interface MoodsInfo {
   /** Whether the backends steer their stations by the mood. */
   steered?: boolean;
 }
+/** The arc of moods: the stages the set goes through, and how long each lasts. */
+export interface ArcInfo {
+  enabled: boolean;
+  stages: string[];
+  stage_tracks: number;
+  /** The stage the set is in, and its mood. */
+  stage: number;
+  mood: string;
+  moods: string[];
+  min_stages: number;
+  max_stages: number;
+  max_stage_tracks: number;
+}
 export interface GenresInfo {
   available: string[];
   selected: string[];
@@ -154,6 +167,9 @@ export const api = {
   nextTrack: () => request<Queue>("/api/next", { method: "POST" }),
   clearQueue: () => request<Queue>("/api/queue/clear", { method: "POST" }),
   refreshQueue: () => request<Queue>("/api/queue/refresh", { method: "POST" }),
+  arc: () => request<ArcInfo>("/api/arc"),
+  setArc: (change: { enabled?: boolean; stages?: string[]; stage_tracks?: number }) =>
+    request<ArcInfo>("/api/arc", json("PUT", change)),
   setMoods: (moods: string[]) =>
     request<MoodsInfo>("/api/moods", moods.length ? json("PUT", { moods }) : json("DELETE")),
   setGenres: (genres: string[]) =>

@@ -2,6 +2,7 @@
 import { mdiClose, mdiMusicNote, mdiPlay, mdiRadioTower } from "@mdi/js";
 import { computed, onUnmounted, ref } from "vue";
 import { clock, coverUrl, type AuthInfo, type GenresInfo, type LanguageInfo, type MoodsInfo, type NowTrack, type Queue, type Stats, type TrackInfo } from "../api";
+import type { ArcInfo } from "../api";
 import MixPanel from "./MixPanel.vue";
 import SourcesPanel from "./SourcesPanel.vue";
 import StatsPanel from "./StatsPanel.vue";
@@ -14,6 +15,7 @@ const props = defineProps<{
   auth: AuthInfo | null;
   stats: Stats | null;
   tab: string;
+  arc: ArcInfo | null;
 }>();
 /** The mark of the backend a track is from, and its name. */
 const SOURCES: Record<string, [string, string]> = { yandex: ["Я", "Yandex Music"], vk: ["VK", "VK Music"], local: ["♪", "Local folder"] };
@@ -22,6 +24,7 @@ const emit = defineEmits<{
   genres: [string[]];
   blocked: [string[]];
   language: [string | null];
+  arc: [change: { enabled?: boolean; stages?: string[]; stage_tracks?: number }];
   toggleBackend: [id: string, enabled: boolean];
   signIn: [id: string, values: Record<string, string>];
   backendSettings: [id: string, values: Record<string, string>];
@@ -153,7 +156,7 @@ window.addEventListener("keydown", (event) => event.key === "Escape" && closeMen
         <span>{{ queue ? "The radio is picking the first tracks…" : "Connecting to the radio…" }}</span>
       </div>
     </template>
-    <MixPanel v-else-if="tab === 'mix'" :moods="moods" :genres="genres" :language="language" @language="emit('language', $event)" @moods="emit('moods', $event)"
+    <MixPanel v-else-if="tab === 'mix'" :moods="moods" :genres="genres" :language="language" :arc="arc" @arc="emit('arc', $event)" @language="emit('language', $event)" @moods="emit('moods', $event)"
       @genres="emit('genres', $event)" @blocked="emit('blocked', $event)" />
     <SourcesPanel v-else-if="tab === 'sources'" :auth="auth" @toggle="(id, on) => emit('toggleBackend', id, on)"
       @sign-in="(id, v) => emit('signIn', id, v)"

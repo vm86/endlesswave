@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { usePlayer } from "./usePlayer";
 import { useSpectrum } from "./useSpectrum";
-import { api, coverUrl, setBase, streamUrl, type AuthInfo, type StreamFormat, type GenresInfo, type LikesInfo, type Queue, type Stats } from "../api";
+import { api, coverUrl, setBase, streamUrl, type AuthInfo, type StreamFormat, type ArcInfo, type GenresInfo, type LikesInfo, type Queue, type Stats } from "../api";
 
 const POLL_MS = 2000;
 const REFRESH_MIN_MS = 700;
@@ -199,9 +199,10 @@ export function useRadio() {
 
   async function refresh() {
     try {
-      const [a, q, g, st, l] = await Promise.all([api.auth(), api.queue(), api.genres(), api.stats(), api.likes()]);
+      const [a, q, g, st, l, ar] = await Promise.all([api.auth(), api.queue(), api.genres(), api.stats(), api.likes(), api.arc()]);
       auth.value = a;
       likes.value = l;
+      arc.value = ar;
       if (holding.value === 0) genres.value = steady(genres.value, g);
       stats.value = st;
       take(q);
@@ -232,6 +233,13 @@ export function useRadio() {
       setTimeout(() => holding.value--, 700);
     }
   }
+  /** The mood arc made by hand; it shows at once, and the queue follows it once the radio has it. */
+  const arc = ref<ArcInfo | null>(null);
+  const setArc = (change: { enabled?: boolean; stages?: string[]; stage_tracks?: number }) =>
+    tune(
+      () => arc.value && (arc.value = { ...arc.value, ...change }),
+      async () => void (arc.value = await api.setArc(change)),
+    );
   const setMoods = (moods: string[]) =>
     tune(
       () => queue.value && (queue.value = { ...queue.value, moods: { ...queue.value.moods, selected: moods } }),
@@ -355,5 +363,5 @@ export function useRadio() {
     unlisten.forEach((f) => f());
   });
 
-  return { clearQueue, likes, toggleLike, expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
+  return { arc, setArc, clearQueue, likes, toggleLike, expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
 }

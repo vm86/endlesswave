@@ -69,6 +69,14 @@ else is needed. For the tray icon, GNOME needs the AppIndicator extension.
 
 Open the app: the radio service starts by itself (port `18000`, on `127.0.0.1` only).
 
+### Mood arc
+
+In **Mix**, the **Mood arc** is a line of points: each point is a stage of the set, and its height is the mood, from sad
+(bottom) to lively (top). Drag a point up or down to change its mood, add or remove stages with **+** and **−**, and set how
+long each stage lasts (the same for all, in tracks). Switch it **on** and the radio goes through the stages one after the
+other and starts over after the last. It steers the stations that follow a mood (Yandex Music, VK) and favours tracks of
+the stage's mood in the queue, whatever the source. Off, the radio follows its built-in arc.
+
 ### Wave or liked tracks
 
 In **Sources**, under each signed-in service, the row **Tracks** chooses where its tracks come from: the wave (My wave of

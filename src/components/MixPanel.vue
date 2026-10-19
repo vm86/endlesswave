@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import type { GenresInfo, LanguageInfo, MoodsInfo } from "../api";
+import type { ArcInfo, GenresInfo, LanguageInfo, MoodsInfo } from "../api";
+import ArcEditor from "./ArcEditor.vue";
 
-const props = defineProps<{ moods: MoodsInfo | undefined; genres: GenresInfo | null; language: LanguageInfo | undefined }>();
-const emit = defineEmits<{ moods: [string[]]; genres: [string[]]; blocked: [string[]]; language: [string | null] }>();
+const props = defineProps<{ moods: MoodsInfo | undefined; genres: GenresInfo | null; language: LanguageInfo | undefined; arc: ArcInfo | null }>();
+const emit = defineEmits<{ moods: [string[]]; genres: [string[]]; blocked: [string[]]; language: [string | null]; arc: [{ enabled?: boolean; stages?: string[]; stage_tracks?: number }] }>();
 
 const mode = ref<"pick" | "block">("pick");
 const flip = (list: string[], item: string) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
@@ -22,6 +23,9 @@ function clickGenre(g: string) {
     <span v-for="m in moods?.available" :key="m" class="chip" :class="{ sel: moods?.selected.includes(m) }"
       @click="emit('moods', flip(moods?.selected ?? [], m))">{{ m }}</span>
     <div v-if="moods && moods.steered === false" class="dim">the radio judges moods by sound</div>
+
+    <h4>Mood arc</h4>
+    <ArcEditor v-if="arc" :arc="arc" @change="emit('arc', $event)" />
 
     <template v-if="language?.steered">
       <h4>Language</h4>
