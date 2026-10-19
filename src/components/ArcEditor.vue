@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { ArcInfo } from "../api";
+import Disclosure from "./Disclosure.vue";
 
 const props = defineProps<{ arc: ArcInfo }>();
 const emit = defineEmits<{ change: [change: { enabled?: boolean; stages?: string[]; stage_tracks?: number }] }>();
@@ -70,6 +71,7 @@ const setLength = (tracks: number) => emit("change", { stages: props.arc.stages,
         @click="emit('change', { enabled: !arc.enabled })">{{ arc.enabled ? "on" : "off" }}</span>
       <span class="dim">{{ arc.enabled ? `now: ${arc.mood}` : "the built-in arc" }}</span>
     </div>
+    <Disclosure id="arc" title="Stages" :summary="`${arc.stages.length} × ${arc.stage_tracks} ${arc.stage_tracks === 1 ? 'track' : 'tracks'}`">
     <svg ref="svg" :viewBox="`0 0 ${W} ${H}`" class="arc-svg" @pointermove="move" @pointerup="up" @pointercancel="up">
       <g v-for="m in arc.moods" :key="m">
         <line :x1="PAD_X - 8" :x2="W - 6" :y1="yOf(m)" :y2="yOf(m)" class="grid" />
@@ -101,6 +103,7 @@ const setLength = (tracks: number) => emit("change", { stages: props.arc.stages,
         <button :disabled="arc.stage_tracks >= arc.max_stage_tracks" @click="setLength(arc.stage_tracks + 1)">+</button>
       </div>
     </div>
+    </Disclosure>
   </div>
 </template>
 

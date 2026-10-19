@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import type { CycleInfo, CycleName, Ramp } from "../api";
 import BpmEditor from "./BpmEditor.vue";
+import Disclosure from "./Disclosure.vue";
 
 const props = defineProps<{ cycle: CycleInfo }>();
 const emit = defineEmits<{ change: [change: Record<string, unknown>] }>();
@@ -24,6 +25,13 @@ const ramp = computed<Ramp | null>(() => (active.value === "morning" ? props.cyc
 const setRamp = (value: Ramp) => emit("change", { [active.value]: value });
 
 const schedule = computed(() => props.cycle.schedule);
+// What is set, in short, for the closed rows.
+const planSummary = computed(() => {
+  const r = ramp.value;
+  if (r) return `${r.stages[0]} → ${r.stages[r.stages.length - 1]} BPM · ${r.stages.length} stages`;
+  return active.value === "day" ? `${props.cycle.day.bpm_min}–${props.cycle.day.bpm_max} BPM` : "";
+});
+const scheduleSummary = computed(() => (schedule.value.enabled ? `${schedule.value.morning} · ${schedule.value.day} · ${schedule.value.evening}` : "Off"));
 const TIMES: Array<["morning" | "day" | "evening", string]> = [
   ["morning", "Morning begins"],
   ["day", "Day begins"],
@@ -53,6 +61,7 @@ function setDay(low: number, high: number) {
       {{ HINT[active] }}
       <template v-if="active !== 'off' && cycle.target_bpm"> · now about {{ cycle.target_bpm }} BPM, {{ cycle.mood }}</template>
     </div>
+    <Disclosure v-if="active !== 'off'" id="cycle-plan" title="Tempo plan" :summary="planSummary">
     <BpmEditor v-if="ramp" :ramp="ramp" :limits="cycle" :stage="cycle.stage" :on="true" @change="setRamp" />
     <div v-else-if="active === 'day'" class="day">
       <div class="row">
@@ -72,10 +81,12 @@ function setDay(low: number, high: number) {
         </div>
       </div>
     </div>
+    </Disclosure>
 
+    <Disclosure id="cycle-schedule" title="Schedule" :summary="scheduleSummary">
     <div class="schedule">
       <div class="row">
-        <span>Schedule</span>
+        <span>By the time of day</span>
         <span class="chip" :class="{ sel: schedule.enabled }" :title="schedule.enabled ? 'The cycle follows the clock' : 'Switch by the time of day'"
           @click="emit('change', { schedule: { enabled: !schedule.enabled } })">{{ schedule.enabled ? "on" : "off" }}</span>
       </div>
@@ -88,6 +99,7 @@ function setDay(low: number, high: number) {
         stays until then.
       </div>
     </div>
+    </Disclosure>
   </div>
 </template>
 
@@ -98,7 +110,7 @@ function setDay(low: number, high: number) {
   transition: background 150ms var(--ease), color 150ms var(--ease), box-shadow 150ms var(--ease); }
 .seg-row button.on { background: var(--seg-on); color: var(--text); box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.14); }
 .hint { margin: 6px 0 4px; }
-.schedule { margin-top: 14px; padding-top: 6px; border-top: 0.5px solid var(--sep); }
+.schedule { padding-top: 2px; }
 .schedule input[type="time"] { font: inherit; font-size: 12px; color: inherit; background: var(--control); border: 0; border-radius: 6px; padding: 3px 6px; height: 26px; outline: none; }
 .schedule input[type="time"]:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 1px; }
 .row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin-top: 8px; }

@@ -25,7 +25,7 @@ function clickGenre(g: string) {
       @click="emit('moods', flip(moods?.selected ?? [], m))">{{ m }}</span>
     <div v-if="moods && moods.steered === false" class="dim">the radio judges moods by sound</div>
 
-    <h4>Morning · Day · Evening</h4>
+    <h4>Cycle</h4>
     <CycleEditor v-if="cycle" :cycle="cycle" @change="emit('cycle', $event)" />
 
     <h4>Mood arc</h4>
