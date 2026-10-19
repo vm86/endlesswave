@@ -72,6 +72,11 @@ Open the app: the radio service starts by itself (port `18000`, on `127.0.0.1` o
 Keyboard: `⌘R` rebuilds the queue, `⌘⇧R` (or holding the rebuild button for 3 s) clears it and loads it anew, `⌘D` likes or
 unlikes the playing track; `⌘/` lists all the shortcuts.
 
+### Equalizer
+
+**Settings** (`⌘,`) has a ten-band equalizer (32 Hz to 16 kHz, ±12 dB): drag the points, use the arrow keys, or pick a preset. It
+shapes the sound of the app's own player; other listeners of the stream (a browser, VLC) hear the radio as it is.
+
 ### Mood arc
 
 In **Mix**, the **Mood arc** is a line of points: each point is a stage of the set, and its height is the mood, from sad

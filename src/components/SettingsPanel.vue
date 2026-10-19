@@ -2,6 +2,7 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { ref } from "vue";
 import { dockIcon, hasDock } from "../composables/useDock";
+import EqualizerEditor from "./EqualizerEditor.vue";
 
 defineProps<{ checking: boolean; updateStatus: string; resetting: boolean }>();
 const emit = defineEmits<{ checkUpdate: []; reset: [] }>();
@@ -11,6 +12,12 @@ const SOURCE = "https://github.com/vm86/endlesswave";
 
 <template>
   <!-- Like the Settings window of a Mac app: a group of rows, the name on the left and the control on the right, the explanation under the group. -->
+  <div class="prefs-group eq-group">
+    <div class="prefs-row"><span>Equalizer</span></div>
+    <EqualizerEditor />
+  </div>
+  <p class="prefs-note">Drag a point up or down (or use the arrow keys, double-click for 0 dB). It shapes the sound of this app only.</p>
+
   <template v-if="hasDock">
     <div class="prefs-group">
       <div class="prefs-row">

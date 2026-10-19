@@ -1,5 +1,6 @@
 mod audio;
 mod engine;
+mod equalizer;
 mod media;
 mod menu;
 mod radio;
@@ -50,6 +51,11 @@ fn player_start(app: AppHandle, audio: State<Audio>, url: String, volume: f32) {
 #[tauri::command]
 fn player_stop(app: AppHandle, audio: State<Audio>) {
     audio.stop(&app);
+}
+
+#[tauri::command]
+fn player_eq(audio: State<Audio>, gains: Vec<f32>) {
+    audio.set_equalizer(gains);
 }
 
 #[tauri::command]
@@ -185,6 +191,7 @@ pub fn run() {
             player_start,
             player_stop,
             player_volume,
+            player_eq,
             player_status,
             media_metadata,
             media_playback,

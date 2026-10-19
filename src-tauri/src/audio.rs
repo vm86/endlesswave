@@ -10,6 +10,7 @@
 //! When something is wrong before the first sound (no device, no stream, a format that is not
 //! understood), the state is "error" and the page falls back to the `<audio>` of the webview.
 
+use crate::equalizer::Equalizer;
 use std::io::Read;
 use std::num::NonZero;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
@@ -53,6 +54,9 @@ struct Shared {
     /// The volume as the bits of an f32.
     volume: AtomicU32,
     message: Mutex<String>,
+    /// The gains of the equalizer (dB for each band), and a count that goes up whenever they change.
+    eq_gains: Mutex<Vec<f32>>,
+    eq_version: AtomicU32,
 }
 
 /// What `player_status` says.
@@ -183,6 +187,8 @@ impl Audio {
                 at: 0,
                 channels,
                 rate,
+                eq: Equalizer::new(rate.get(), channels.get()),
+                eq_seen: 0,
                 shared: shared.clone(),
                 gap: false,
             });
@@ -216,6 +222,13 @@ impl Audio {
         }
     }
 
+    /// Set the gains of the equalizer (dB for each band). They are heard from the next piece of audio on, and are kept for the
+    /// next listening.
+    pub fn set_equalizer(&self, gains: Vec<f32>) {
+        *self.shared.eq_gains.lock().unwrap() = gains;
+        self.shared.eq_version.fetch_add(1, Ordering::SeqCst);
+    }
+
     pub fn set_volume(&self, volume: f32) {
         self.shared.volume.store(volume.to_bits(), Ordering::SeqCst);
         if let Some(session) = self.session.lock().unwrap().as_ref() {
@@ -244,6 +257,8 @@ struct StreamSource {
     at: usize,
     channels: ChannelCount,
     rate: SampleRate,
+    eq: Equalizer,
+    eq_seen: u32,
     shared: Arc<Shared>,
     gap: bool,
 }
@@ -254,7 +269,13 @@ impl Iterator for StreamSource {
     fn next(&mut self) -> Option<f32> {
         if self.at >= self.current.len() {
             match self.chunks.try_recv() {
-                Ok(chunk) => {
+                Ok(mut chunk) => {
+                    let version = self.shared.eq_version.load(Ordering::Relaxed);
+                    if version != self.eq_seen {
+                        self.eq_seen = version;
+                        self.eq.set_gains(&self.shared.eq_gains.lock().unwrap());
+                    }
+                    self.eq.process(&mut chunk);
                     self.current = chunk;
                     self.at = 0;
                     self.gap = false;
