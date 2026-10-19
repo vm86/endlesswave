@@ -23,6 +23,16 @@ const active = computed(() => props.cycle.active);
 const ramp = computed<Ramp | null>(() => (active.value === "morning" ? props.cycle.morning : active.value === "evening" ? props.cycle.evening : null));
 const setRamp = (value: Ramp) => emit("change", { [active.value]: value });
 
+const schedule = computed(() => props.cycle.schedule);
+const TIMES: Array<["morning" | "day" | "evening", string]> = [
+  ["morning", "Morning begins"],
+  ["day", "Day begins"],
+  ["evening", "Evening begins"],
+];
+function setTime(key: "morning" | "day" | "evening", value: string) {
+  if (/^\d\d:\d\d$/.test(value)) emit("change", { schedule: { [key]: value } });
+}
+
 const day = computed(() => props.cycle.day);
 const STEP = 5;
 const MIN_SPAN = 10;
@@ -62,6 +72,22 @@ function setDay(low: number, high: number) {
         </div>
       </div>
     </div>
+
+    <div class="schedule">
+      <div class="row">
+        <span>Schedule</span>
+        <span class="chip" :class="{ sel: schedule.enabled }" :title="schedule.enabled ? 'The cycle follows the clock' : 'Switch by the time of day'"
+          @click="emit('change', { schedule: { enabled: !schedule.enabled } })">{{ schedule.enabled ? "on" : "off" }}</span>
+      </div>
+      <div v-for="[key, label] in TIMES" :key="key" class="row">
+        <label :for="`cycle-${key}`">{{ label }}</label>
+        <input :id="`cycle-${key}`" type="time" :value="schedule[key]" required @change="setTime(key, ($event.target as HTMLInputElement).value)" />
+      </div>
+      <div v-if="schedule.enabled" class="dim hint">
+        By the clock it is {{ cycle.scheduled }} now; the cycle changes by itself when the next one begins. A cycle chosen by hand
+        stays until then.
+      </div>
+    </div>
   </div>
 </template>
 
@@ -72,6 +98,9 @@ function setDay(low: number, high: number) {
   transition: background 150ms var(--ease), color 150ms var(--ease), box-shadow 150ms var(--ease); }
 .seg-row button.on { background: var(--seg-on); color: var(--text); box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.14); }
 .hint { margin: 6px 0 4px; }
+.schedule { margin-top: 14px; padding-top: 6px; border-top: 0.5px solid var(--sep); }
+.schedule input[type="time"] { font: inherit; font-size: 12px; color: inherit; background: var(--control); border: 0; border-radius: 6px; padding: 3px 6px; height: 26px; outline: none; }
+.schedule input[type="time"]:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 1px; }
 .row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin-top: 8px; }
 .stepper { display: flex; align-items: center; gap: 8px; }
 .stepper b { min-width: 84px; text-align: center; font-weight: 500; font-variant-numeric: tabular-nums; }

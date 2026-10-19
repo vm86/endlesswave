@@ -10,6 +10,7 @@
 use super::{Radio, RadioError, SETTING_CYCLE, State};
 use crate::mix::choose::{BpmPlan, MAX_BPM, MIN_BPM, Steer};
 use serde_json::{Value, json};
+use std::time::Duration;
 
 pub const MIN_STAGES: usize = 2;
 pub const MAX_STAGES: usize = 12;
@@ -98,6 +99,63 @@ impl Ramp {
     }
 }
 
+/// When each cycle begins in the day, as minutes after midnight, local time. A cycle goes on until the next one begins, the
+/// evening until the morning.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Schedule {
+    pub enabled: bool,
+    pub morning: u32,
+    pub day: u32,
+    pub evening: u32,
+}
+
+impl Schedule {
+    /// The cycle that is on at this time of the day: the one whose time came last (the evening's of yesterday before the
+    /// morning).
+    pub fn cycle_at(&self, minutes: u32) -> Cycle {
+        let starts = [
+            (self.morning, Cycle::Morning),
+            (self.day, Cycle::Day),
+            (self.evening, Cycle::Evening),
+        ];
+        starts
+            .iter()
+            .filter(|(start, _)| *start <= minutes)
+            .max_by_key(|(start, _)| *start)
+            .or_else(|| starts.iter().max_by_key(|(start, _)| *start))
+            .map_or(Cycle::Day, |(_, cycle)| *cycle)
+    }
+
+    fn json(&self) -> Value {
+        json!({
+            "enabled": self.enabled,
+            "morning": clock_text(self.morning),
+            "day": clock_text(self.day),
+            "evening": clock_text(self.evening),
+        })
+    }
+}
+
+fn clock_text(minutes: u32) -> String {
+    format!("{:02}:{:02}", minutes / 60, minutes % 60)
+}
+
+/// "HH:MM" as minutes after midnight.
+fn parse_clock(text: &str) -> Option<u32> {
+    let (hours, minutes) = text.split_once(':')?;
+    let (hours, minutes): (u32, u32) = (hours.parse().ok()?, minutes.parse().ok()?);
+    (hours < 24 && minutes < 60 && text.len() == 5).then_some(hours * 60 + minutes)
+}
+
+/// The local time of day now, in minutes after midnight.
+fn local_minutes(wall: f64) -> u32 {
+    use chrono::{Local, TimeZone, Timelike};
+    Local
+        .timestamp_opt(wall as i64, 0)
+        .single()
+        .map_or(0, |t| t.hour() * 60 + t.minute())
+}
+
 /// The plans of the three cycles, and which is on.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cycles {
@@ -106,6 +164,7 @@ pub struct Cycles {
     /// The range of the day, in BPM.
     pub day: (f64, f64),
     pub evening: Ramp,
+    pub schedule: Schedule,
 }
 
 impl Default for Cycles {
@@ -123,6 +182,12 @@ impl Default for Cycles {
                 stage_tracks: 3,
                 tolerance: 10.0,
             },
+            schedule: Schedule {
+                enabled: false,
+                morning: 6 * 60,
+                day: 11 * 60,
+                evening: 18 * 60,
+            },
         }
     }
 }
@@ -130,14 +195,21 @@ impl Default for Cycles {
 /// What steers the choice now: the cycle's plan of the tempo and, for the day, the arc of moods.
 pub(super) fn steer(state: &State) -> Steer {
     let cycles = &state.cycles;
+    let offset = if cycles.active == Cycle::Off {
+        0
+    } else {
+        state.cycle_start
+    };
     match cycles.active {
         Cycle::Off => Steer {
             arc: state.arc_on.then(|| state.arc.clone()),
             bpm: None,
+            offset,
         },
         Cycle::Morning => Steer {
             arc: None,
             bpm: Some(cycles.morning.plan()),
+            offset,
         },
         // The arc of moods, within the range.
         Cycle::Day => Steer {
@@ -148,10 +220,12 @@ pub(super) fn steer(state: &State) -> Steer {
                 tolerance: (cycles.day.1 - cycles.day.0) / 2.0,
                 replaces_arc: false,
             }),
+            offset,
         },
         Cycle::Evening => Steer {
             arc: None,
             bpm: Some(cycles.evening.plan()),
+            offset,
         },
     }
 }
@@ -166,10 +240,10 @@ impl Radio {
         let state = self.st();
         let steer = steer(&state);
         let (target, stage) = match &steer.bpm {
-            Some(plan) => (
-                Some(plan.target_at(state.position)),
-                Some(plan.stage_at(state.position)),
-            ),
+            Some(plan) => {
+                let at = steer.place(state.position);
+                (Some(plan.target_at(at)), Some(plan.stage_at(at)))
+            }
             None => (None, None),
         };
         let cycles = &state.cycles;
@@ -178,6 +252,8 @@ impl Radio {
             "morning": cycles.morning.json(),
             "day": {"bpm_min": cycles.day.0, "bpm_max": cycles.day.1},
             "evening": cycles.evening.json(),
+            "schedule": cycles.schedule.json(),
+            "scheduled": cycles.schedule.cycle_at(local_minutes(self.clock.wall())).name(),
             "target_bpm": target.map(|t| t.round()),
             "stage": stage,
             "mood": steer.mood_at(state.position),
@@ -197,6 +273,7 @@ impl Radio {
             "morning": cycles.morning.json(),
             "day": {"bpm_min": cycles.day.0, "bpm_max": cycles.day.1},
             "evening": cycles.evening.json(),
+            "schedule": cycles.schedule.json(),
         })
     }
 
@@ -241,6 +318,37 @@ impl Radio {
             }
             next.day = (low, high);
         }
+        if let Some(schedule) = change.get("schedule") {
+            let current = &next.schedule;
+            let time = |key: &str, now: u32| -> Result<u32, String> {
+                match schedule.get(key) {
+                    None => Ok(now),
+                    Some(Value::String(text)) => parse_clock(text)
+                        .ok_or_else(|| format!("schedule: \"{key}\" is a time like 06:30")),
+                    Some(_) => Err(format!("schedule: \"{key}\" is a time like 06:30")),
+                }
+            };
+            let enabled = match schedule.get("enabled") {
+                None => current.enabled,
+                Some(Value::Bool(b)) => *b,
+                Some(_) => return Err("schedule: \"enabled\" is true or false".to_owned()),
+            };
+            let next_schedule = Schedule {
+                enabled,
+                morning: time("morning", current.morning)?,
+                day: time("day", current.day)?,
+                evening: time("evening", current.evening)?,
+            };
+            let times = [
+                next_schedule.morning,
+                next_schedule.day,
+                next_schedule.evening,
+            ];
+            if times[0] == times[1] || times[1] == times[2] || times[0] == times[2] {
+                return Err("schedule: the cycles begin at different times".to_owned());
+            }
+            next.schedule = next_schedule;
+        }
         Ok(next)
     }
 
@@ -251,11 +359,116 @@ impl Radio {
             // The station is steered along the plan: its settings are put back at the end.
             self.start_mood_arc().await?;
         }
-        self.st().cycles = next.clone();
+        {
+            let mut state = self.st();
+            if next.active != state.cycles.active {
+                // A cycle begins at its first stage.
+                state.cycle_start = state.position;
+            }
+            if next.schedule != state.cycles.schedule {
+                // A new schedule says what is on now.
+                state.scheduled_last = None;
+            }
+            state.cycles = next.clone();
+        }
         self.remember(SETTING_CYCLE, &Self::cycles_json(&next));
         if next.active == Cycle::Off {
             let _ = self.release_settings().await;
         }
         Ok(())
+    }
+
+    /// With the schedule on, put on the cycle that is due. It acts when the time of a cycle comes (and when the schedule is
+    /// set), so a cycle chosen by hand stays until the next one begins.
+    pub async fn apply_schedule(&self) {
+        let (schedule, last) = {
+            let state = self.st();
+            (state.cycles.schedule.clone(), state.scheduled_last)
+        };
+        if !schedule.enabled {
+            self.st().scheduled_last = None;
+            return;
+        }
+        let due = schedule.cycle_at(local_minutes(self.clock.wall()));
+        if last == Some(due) {
+            return;
+        }
+        self.st().scheduled_last = Some(due);
+        if self.st().cycles.active == due {
+            return;
+        }
+        tracing::info!("Schedule: {} begins", due.name());
+        if let Err(error) = self.set_cycle(&json!({"active": due.name()})).await {
+            tracing::warn!("The schedule could not put on the {}: {error}", due.name());
+            return;
+        }
+        self.refresh_queue();
+    }
+
+    /// Background task: look at the schedule every so often, for ever.
+    pub async fn watch_schedule(&self) {
+        loop {
+            self.apply_schedule().await;
+            tokio::time::sleep(Duration::from_secs(20)).await;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn schedule() -> Schedule {
+        Schedule {
+            enabled: true,
+            morning: 6 * 60,
+            day: 11 * 60,
+            evening: 18 * 60 + 30,
+        }
+    }
+
+    #[test]
+    fn the_cycle_of_the_time_of_day_is_the_one_whose_time_came_last() {
+        let s = schedule();
+        assert_eq!(
+            s.cycle_at(6 * 60),
+            Cycle::Morning,
+            "at the minute it begins"
+        );
+        assert_eq!(s.cycle_at(10 * 60 + 59), Cycle::Morning);
+        assert_eq!(s.cycle_at(11 * 60), Cycle::Day);
+        assert_eq!(s.cycle_at(18 * 60 + 29), Cycle::Day);
+        assert_eq!(s.cycle_at(18 * 60 + 30), Cycle::Evening);
+        assert_eq!(s.cycle_at(23 * 60 + 59), Cycle::Evening);
+        assert_eq!(
+            s.cycle_at(0),
+            Cycle::Evening,
+            "the evening goes on past midnight"
+        );
+        assert_eq!(s.cycle_at(5 * 60 + 59), Cycle::Evening, "until the morning");
+    }
+
+    #[test]
+    fn the_times_are_read_as_hours_and_minutes() {
+        assert_eq!(parse_clock("06:30"), Some(390));
+        assert_eq!(parse_clock("00:00"), Some(0));
+        assert_eq!(parse_clock("23:59"), Some(23 * 60 + 59));
+        for bad in ["24:00", "6:30", "06:60", "0630", "ab:cd", "", "06:30:00"] {
+            assert_eq!(parse_clock(bad), None, "{bad}");
+        }
+        assert_eq!(clock_text(390), "06:30");
+    }
+
+    #[test]
+    fn a_schedule_with_the_same_time_twice_is_refused() {
+        let current = Cycles::default();
+        let same = json!({"schedule": {"morning": "07:00", "day": "07:00"}});
+        assert!(Radio::parse_cycles(&current, &same).is_err());
+        let wrong = json!({"schedule": {"evening": "late"}});
+        assert!(Radio::parse_cycles(&current, &wrong).is_err());
+        let fine = json!({"schedule": {"enabled": true, "morning": "05:30"}});
+        let next = Radio::parse_cycles(&current, &fine).unwrap();
+        assert_eq!((next.schedule.enabled, next.schedule.morning), (true, 330));
+        assert_eq!(next.schedule.day, current.schedule.day, "the rest stays");
     }
 }

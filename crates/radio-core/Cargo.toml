@@ -27,6 +27,8 @@ hmac = "0.13.0"
 sha2 = "0.11.1"
 base64 = "0.23.1"
 uuid = { version = "1.28.0", features = ["v4"] }
+# The local time of day, for the schedule of the cycles.
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 reqwest = { version = "0.13.5", default-features = false, features = ["json", "rustls", "stream", "form", "query"] }
 clap = { version = "4.6.7", features = ["derive"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }

@@ -51,6 +51,10 @@ export interface CycleInfo {
   morning: Ramp;
   day: { bpm_min: number; bpm_max: number };
   evening: Ramp;
+  /** When each cycle begins in the day (local time, "HH:MM"); with `enabled` the cycle follows the clock. */
+  schedule: { enabled: boolean; morning: string; day: string; evening: string };
+  /** The cycle the clock says is on now. */
+  scheduled: CycleName;
   target_bpm: number | null;
   stage: number | null;
   mood: string;

@@ -190,15 +190,23 @@ impl BpmPlan {
 pub struct Steer {
     pub arc: Option<MoodArc>,
     pub bpm: Option<BpmPlan>,
+    /// The place in the set where the plan began: a cycle starts from its first stage whenever it is switched on.
+    pub offset: i64,
 }
 
 impl Steer {
     /// The station mood that goes with the place in the set.
     pub fn mood_at(&self, position: i64) -> &'static str {
+        let position = position - self.offset;
         match &self.bpm {
             Some(plan) if plan.replaces_arc => plan.mood_at(position),
             _ => mood_at(self.arc.as_ref(), position),
         }
+    }
+
+    /// The place in the plan of the place in the set.
+    pub fn place(&self, position: i64) -> i64 {
+        position - self.offset
     }
 }
 
@@ -317,6 +325,7 @@ pub fn step_cost_with(
     position: i64,
 ) -> f64 {
     let mut cost = current.map_or(0.0, |current| transition_cost(current, &entry.analysis));
+    let position = steer.place(position);
     let recent = &history[history.len().saturating_sub(REPEAT_WINDOW)..];
     if recent
         .iter()
@@ -506,6 +515,7 @@ mod arc_tests {
                 tolerance: 8.0,
                 replaces_arc: true,
             }),
+            offset: 0,
         };
         let pick = |target: f64| choose_next_with(&plan(target), None, &pool, &[], 0);
         assert_eq!((pick(60.0), pick(92.0), pick(118.0)), (0, 1, 2));
@@ -518,6 +528,7 @@ mod arc_tests {
                 tolerance: 10.0,
                 replaces_arc: false,
             }),
+            offset: 0,
         };
         let costs: Vec<f64> = pool
             .iter()
@@ -527,6 +538,30 @@ mod arc_tests {
             costs[2] < costs[0],
             "inside the range is cheaper: {costs:?}"
         );
+    }
+
+    #[test]
+    fn a_plan_begins_where_the_cycle_was_put_on() {
+        let steer = Steer {
+            arc: None,
+            bpm: Some(BpmPlan {
+                stages: vec![60.0, 120.0],
+                stage_tracks: 3,
+                tolerance: 8.0,
+                replaces_arc: true,
+            }),
+            offset: 10,
+        };
+        assert_eq!(
+            steer.mood_at(10),
+            "calm",
+            "the first stage, at track 10 of the set"
+        );
+        assert_eq!(steer.mood_at(13), "active");
+        assert_eq!(steer.place(14), 4);
+        // the first track of the cycle wants 60 BPM, as if the set had begun there
+        let pool = [track(60.0), track(120.0)];
+        assert_eq!(choose_next_with(&steer, None, &pool, &[], 10), 0);
     }
 
     #[test]

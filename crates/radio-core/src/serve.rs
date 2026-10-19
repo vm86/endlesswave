@@ -216,6 +216,7 @@ pub async fn serve_with(
             // A task that ends (it panicked) leaves the radio half dead: end it all, whoever runs it starts it again.
             tokio::select! {
                 () = mix => {}
+                () = radio.watch_schedule() => {}
                 ended = &mut refill => tracing::error!("The refill of the pool ended: {ended:?}"),
             }
             refill.abort();
