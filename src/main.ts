@@ -30,4 +30,7 @@ markActive();
 
 document.documentElement.classList.toggle("mac", /Mac/.test(navigator.userAgent));
 
+// No browser menu (Reload, Inspect Element): the app is not a web page. The rows of the queue have a menu of their own.
+window.addEventListener("contextmenu", (event) => event.preventDefault());
+
 createApp(App).use(vuetify).mount("#app");
