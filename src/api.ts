@@ -55,6 +55,8 @@ export interface CycleInfo {
   schedule: { enabled: boolean; morning: string; day: string; evening: string };
   /** The cycle the clock says is on now. */
   scheduled: CycleName;
+  /** The morning and the evening set the mood themselves: the moods are not to be changed by hand. */
+  locks_mood: boolean;
   target_bpm: number | null;
   stage: number | null;
   mood: string;

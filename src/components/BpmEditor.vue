@@ -91,7 +91,7 @@ const setTolerance = (tolerance: number) => emit("change", { ...props.ramp, tole
         <title>stage {{ i + 1 }}: {{ p.bpm }} BPM</title>
       </g>
     </svg>
-    <div class="row">
+    <div class="c-row">
       <span>Stages</span>
       <div class="stepper">
         <button type="button" :disabled="n <= limits.min_stages" aria-label="Remove the last stage" @click="removeStage">−</button>
@@ -99,7 +99,7 @@ const setTolerance = (tolerance: number) => emit("change", { ...props.ramp, tole
         <button type="button" :disabled="n >= limits.max_stages" aria-label="Add a stage" @click="addStage">+</button>
       </div>
     </div>
-    <div class="row">
+    <div class="c-row">
       <span>Stage length</span>
       <div class="stepper">
         <button type="button" :disabled="ramp.stage_tracks <= 1" aria-label="Shorter" @click="setLength(ramp.stage_tracks - 1)">−</button>
@@ -107,7 +107,7 @@ const setTolerance = (tolerance: number) => emit("change", { ...props.ramp, tole
         <button type="button" :disabled="ramp.stage_tracks >= limits.max_stage_tracks" aria-label="Longer" @click="setLength(ramp.stage_tracks + 1)">+</button>
       </div>
     </div>
-    <div class="row">
+    <div class="c-row">
       <span>Range around the line</span>
       <div class="stepper">
         <button type="button" :disabled="ramp.tolerance <= limits.min_tolerance" aria-label="Narrower" @click="setTolerance(Math.max(limits.min_tolerance, ramp.tolerance - 1))">−</button>
@@ -133,7 +133,7 @@ const setTolerance = (tolerance: number) => emit("change", { ...props.ramp, tole
 .dot.now { fill: var(--accent); }
 .dot:hover, .dot.drag { r: 8; }
 .pt:focus-visible .dot { stroke-width: 3; filter: drop-shadow(0 0 3px var(--accent)); }
-.row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin-top: 8px; }
+.c-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin-top: 8px; }
 .stepper { display: flex; align-items: center; gap: 8px; }
 .stepper b { min-width: 84px; text-align: center; font-weight: 500; font-variant-numeric: tabular-nums; }
 .stepper button { width: 28px; height: 28px; border-radius: 6px; font-size: 14px; background: var(--control); color: inherit; border: 0; cursor: pointer; }

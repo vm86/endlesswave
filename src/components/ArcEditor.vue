@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import type { ArcInfo } from "../api";
 import Disclosure from "./Disclosure.vue";
 
-const props = defineProps<{ arc: ArcInfo }>();
+const props = defineProps<{ arc: ArcInfo; locked?: string }>();
 const emit = defineEmits<{ change: [change: { enabled?: boolean; stages?: string[]; stage_tracks?: number }] }>();
 
 // The line: a point for each stage, from the sad (bottom) to the lively (top).
@@ -65,11 +65,11 @@ const setLength = (tracks: number) => emit("change", { stages: props.arc.stages,
 </script>
 
 <template>
-  <div class="arc" :class="{ off: !arc.enabled }">
+  <div class="arc" :class="{ off: !arc.enabled, locked: !!locked }" :inert="!!locked">
     <div class="arc-head">
       <span class="chip" :class="{ sel: arc.enabled }" :title="arc.enabled ? 'Follow the mood arc' : 'The radio picks the energy by itself'"
         @click="emit('change', { enabled: !arc.enabled })">{{ arc.enabled ? "on" : "off" }}</span>
-      <span class="dim">{{ arc.enabled ? `now: ${arc.mood}` : "the built-in arc" }}</span>
+      <span class="dim">{{ locked || (arc.enabled ? `now: ${arc.mood}` : "the built-in arc") }}</span>
     </div>
     <Disclosure id="arc" title="Stages" :summary="`${arc.stages.length} × ${arc.stage_tracks} ${arc.stage_tracks === 1 ? 'track' : 'tracks'}`">
     <svg ref="svg" :viewBox="`0 0 ${W} ${H}`" class="arc-svg" @pointermove="move" @pointerup="up" @pointercancel="up">
@@ -111,6 +111,7 @@ const setLength = (tracks: number) => emit("change", { stages: props.arc.stages,
 /* The plot has a size of its own: in a wide window it does not grow with it. */
 .arc { margin-top: 4px; max-width: 360px; }
 .arc.off .line, .arc.off .dot { opacity: 0.45; }
+.arc.locked { opacity: 0.5; }
 .arc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .arc-svg { width: 100%; height: auto; touch-action: none; user-select: none; display: block; }
 .grid { stroke: var(--sep); stroke-width: 0.5; }

@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import type { ArcInfo, CycleInfo, GenresInfo, LanguageInfo, MoodsInfo } from "../api";
 import ArcEditor from "./ArcEditor.vue";
 import CycleEditor from "./CycleEditor.vue";
 
 const props = defineProps<{ moods: MoodsInfo | undefined; genres: GenresInfo | null; language: LanguageInfo | undefined; arc: ArcInfo | null; cycle: CycleInfo | null }>();
 const emit = defineEmits<{ moods: [string[]]; genres: [string[]]; blocked: [string[]]; language: [string | null]; cycle: [change: Record<string, unknown>]; arc: [{ enabled?: boolean; stages?: string[]; stage_tracks?: number }] }>();
+
+// The morning and the evening set the mood themselves: what the listener picks would only fight them.
+const locked = computed(() => props.cycle?.locks_mood === true);
+const lockNote = computed(() =>
+  props.cycle?.active === "evening"
+    ? "Set by the Evening cycle: quiet music only."
+    : "Set by the Morning cycle: the tempo plan chooses.",
+);
 
 const mode = ref<"pick" | "block">("pick");
 const flip = (list: string[], item: string) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
@@ -20,16 +28,19 @@ function clickGenre(g: string) {
 
 <template>
   <div class="mix">
-    <h4>Mood</h4>
-    <span v-for="m in moods?.available" :key="m" class="chip" :class="{ sel: moods?.selected.includes(m) }"
-      @click="emit('moods', flip(moods?.selected ?? [], m))">{{ m }}</span>
-    <div v-if="moods && moods.steered === false" class="dim">the radio judges moods by sound</div>
-
     <h4>Cycle</h4>
     <CycleEditor v-if="cycle" :cycle="cycle" @change="emit('cycle', $event)" />
 
+    <h4>Mood</h4>
+    <div :class="{ locked }" :inert="locked">
+      <span v-for="m in moods?.available" :key="m" class="chip" :class="{ sel: moods?.selected.includes(m) }"
+        @click="emit('moods', flip(moods?.selected ?? [], m))">{{ m }}</span>
+    </div>
+    <div v-if="locked" class="dim">{{ lockNote }}</div>
+    <div v-else-if="moods && moods.steered === false" class="dim">the radio judges moods by sound</div>
+
     <h4>Mood arc</h4>
-    <ArcEditor v-if="arc" :arc="arc" @change="emit('arc', $event)" />
+    <ArcEditor v-if="arc" :arc="arc" :locked="locked ? lockNote : ''" @change="emit('arc', $event)" />
 
     <template v-if="language?.steered">
       <h4>Language</h4>

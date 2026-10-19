@@ -177,6 +177,7 @@ html.inactive .seek div { background: var(--text2); }
 .chip.blocked { text-decoration: line-through; background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red); }
 .mode { margin-left: 8px; padding: 0 8px; border-radius: 6px; cursor: default; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 11px; }
 .mode.on { background: var(--control-hover); color: var(--text); }
+.mix .locked { opacity: 0.45; }
 .mix .dim { color: var(--text2); font-size: 11px; margin: 2px 0 6px; }
 .kv { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 0.5px solid var(--sep); font-variant-numeric: tabular-nums; }
 .kv:last-child { border-bottom: 0; }
