@@ -3,7 +3,8 @@
   "identifier": "default",
   "description": "What the main window may do: listen to the tray and the daemon's events, drag the window, talk to the radio on 127.0.0.1, ask GitHub for the latest release, open the sign-in page, pick a folder",
   "windows": [
-    "main"
+    "main",
+    "equalizer"
   ],
   "permissions": [
     "core:event:allow-listen",

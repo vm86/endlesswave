@@ -79,6 +79,7 @@ const label = (gain: number) => `${gain > 0 ? "+" : ""}${gain} dB`;
 </template>
 
 <style scoped>
+.eq-editor { max-width: 520px; margin: 0 auto; }
 .eq-presets { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
 .eq-svg { width: 100%; height: auto; touch-action: none; user-select: none; display: block; }
 .grid { stroke: var(--sep); stroke-width: 0.5; }

@@ -74,8 +74,9 @@ unlikes the playing track; `⌘/` lists all the shortcuts.
 
 ### Equalizer
 
-**Settings** (`⌘,`) has a ten-band equalizer (32 Hz to 16 kHz, ±12 dB): drag the points, use the arrow keys, or pick a preset. It
-shapes the sound of the app's own player; other listeners of the stream (a browser, VLC) hear the radio as it is.
+Click the level meter next to the track (or press `⌘E`) to open the equalizer in its own window: ten bands (32 Hz to 16 kHz,
+±12 dB) to drag, move with the arrow keys, or pick from the presets. It shapes the sound of the app's own player; other
+listeners of the stream (a browser, VLC) hear the radio as it is.
 
 ### Mood arc
 

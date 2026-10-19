@@ -89,7 +89,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .artist { font-size: 13px; color: var(--text2); line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tags { font-size: 11px; color: var(--text2); opacity: 0.8; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tags .paused { margin-left: 8px; padding: 0 6px; border-radius: 4px; background: var(--control); color: var(--text); opacity: 1; }
-.eq { flex: none; display: flex; align-items: flex-end; gap: 2px; height: 36px; width: 60px; }
+.eq { flex: none; display: flex; align-items: flex-end; gap: 2px; height: 36px; width: 60px; cursor: default; border-radius: 4px; transition: opacity 150ms var(--ease); }
+.eq:hover { opacity: 0.7; }
 .eq i {
   flex: 1; height: 100%; transform-origin: bottom; transform: scaleY(0.06);
   background: repeating-linear-gradient(to top, var(--accent) 0 3px, transparent 3px 5px);

@@ -9,6 +9,7 @@ import Deck from "./components/Deck.vue";
 import Playlist from "./components/Playlist.vue";
 import SettingsPanel from "./components/SettingsPanel.vue";
 import { copyText } from "./clipboard";
+import { useEqualizer } from "./composables/useEqualizer";
 import { useRadio } from "./composables/useRadio";
 import { useUpdate } from "./composables/useUpdate";
 
@@ -25,6 +26,7 @@ const SHORTCUTS: Array<[string[], string]> = [
   [["⌘", "R"], "Rebuild the queue"],
   [["⌘", "⇧", "R"], "Clear the queue and load it anew"],
   [["⌘", "D"], "Like / unlike the track"],
+  [["⌘", "E"], "Equalizer"],
   [["⌘", "L"], "Switch MP3 / FLAC"],
   [["⌘", "↑"], "Volume up"],
   [["⌘", "↓"], "Volume down"],
@@ -67,6 +69,8 @@ const prefs = ref(false);
 useDock();
 const { release, checking, status: updateStatus, check: checkUpdate, download, dismiss } = useUpdate();
 const { arc, setArc, clearQueue, likes, toggleLike, expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
+// The gains of the equalizer (set in its own window) are handed to the player when the app starts.
+useEqualizer();
 watch(loading, (value) => {
   clearTimeout(slowTimer);
   slowStart.value = false;
@@ -107,6 +111,7 @@ const actions: Record<string, () => void> = {
     hud("Next track");
   },
   refresh: () => void refreshQueue(),
+  equalizer: () => void invoke("open_equalizer").catch((e) => hud(String(e))),
   clear: () => {
     void clearQueue();
     hud("Queue cleared");
@@ -167,6 +172,7 @@ function onKey(event: KeyboardEvent) {
   if (event.shiftKey && event.key.toLowerCase() === "r") return run(actions.clear!);
   const byKey: Record<string, string> = {
     d: "like",
+    e: "equalizer",
     ".": "stop",
     ArrowRight: "next",
     r: "refresh",
@@ -228,7 +234,7 @@ onUnmounted(() => {
         :busy="skipping || (queue?.skip_pending ?? false) || (queue?.blending ?? false)" :levels="levels" :format="format"
         :likes-supported="likes.supported" :liked="!!queue?.now && likes.liked.includes(queue.now.track_id)" @like="queue?.now && toggleLike(queue.now.track_id)"
         :can-skip="queue?.can_skip ?? false" :paused="queue?.paused ?? false" @toggle="toggle" @stop="stop"
-        @next="next" @refresh="refreshQueue" @clear="clearQueue" @format="flipFormat" />
+        @next="next" @equalizer="actions.equalizer!()" @refresh="refreshQueue" @clear="clearQueue" @format="flipFormat" />
 
       <div v-if="auth && !auth.authorized" class="auth">
         <template v-if="auth.url && auth.code">

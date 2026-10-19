@@ -11,7 +11,7 @@ use media::Media;
 use menu::MenuState;
 use radio::Radio;
 use tauri::{
-    AppHandle, Emitter, Manager, RunEvent, State, WindowEvent,
+    AppHandle, Emitter, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder, WindowEvent,
     menu::{MenuBuilder, MenuItem, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
@@ -51,6 +51,28 @@ fn player_start(app: AppHandle, audio: State<Audio>, url: String, volume: f32) {
 #[tauri::command]
 fn player_stop(app: AppHandle, audio: State<Audio>) {
     audio.stop(&app);
+}
+
+/// The window of the equalizer: the same page, asked for as `?equalizer`. It opens once; the next call brings it forward.
+#[tauri::command]
+fn open_equalizer(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("equalizer") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+        return Ok(());
+    }
+    WebviewWindowBuilder::new(
+        &app,
+        "equalizer",
+        WebviewUrl::App("index.html?equalizer".into()),
+    )
+    .title("Equalizer")
+    .inner_size(500.0, 340.0)
+    .min_inner_size(420.0, 300.0)
+    .build()
+    .map(|_| ())
+    .map_err(|e| format!("could not open the equalizer: {e}"))
 }
 
 #[tauri::command]
@@ -192,6 +214,7 @@ pub fn run() {
             player_stop,
             player_volume,
             player_eq,
+            open_equalizer,
             player_status,
             media_metadata,
             media_playback,
@@ -267,9 +290,12 @@ pub fn run() {
                 let _ = app.emit("menu", action);
             }
         })
-        // The close button hides the player to the tray; "Quit" really quits.
+        // The close button of the player hides it to the tray; "Quit" really quits. The other windows (the equalizer, the
+        // sign-in) close as windows do.
         .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
+            if let WindowEvent::CloseRequested { api, .. } = event
+                && window.label() == "main"
+            {
                 api.prevent_close();
                 let _ = window.hide();
             }
