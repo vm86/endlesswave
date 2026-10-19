@@ -47,6 +47,15 @@ pub const FAVORITES: &str = "favorites";
 const BATCH: usize = 20;
 const BY_ID_LIMIT: usize = 32;
 const PAGE: usize = 200;
+/// The id of the track as `audio.getById` wants it: with the access key, if there is one.
+fn with_key(track: &Track) -> String {
+    if track.batch_id.is_empty() {
+        track.track_id.clone()
+    } else {
+        format!("{}_{}", track.track_id, track.batch_id)
+    }
+}
+
 /// A link that is safe to fetch the audio from: HTTPS (or loopback, for tests).
 fn usable(link: &str) -> bool {
     link.starts_with("https://")
@@ -565,12 +574,7 @@ impl VkBackend {
 
     /// The audio with this id, fresh: its link is short-lived.
     async fn link(&self, track: &Track) -> Result<String, BackendError> {
-        let id = if track.batch_id.is_empty() {
-            track.track_id.clone()
-        } else {
-            format!("{}_{}", track.track_id, track.batch_id)
-        };
-        let audios = self.audios_by_id(&[id]).await?;
+        let audios = self.audios_by_id(&[with_key(track)]).await?;
         audios
             .first()
             .and_then(|a| a.get("url"))
@@ -820,9 +824,22 @@ impl MusicBackend for VkBackend {
         true
     }
 
-    /// The music of the user is the likes.
-    async fn liked_track_ids(&self) -> Result<HashSet<String>, BackendError> {
-        Ok(self.library_ids().await?.into_iter().collect())
+    /// VK says whether an audio is liked (`like`); where it doesn't, an audio of the user's own is.
+    async fn liked_among(&self, tracks: &[Track]) -> Result<HashSet<String>, BackendError> {
+        let user = self.user_id()?;
+        let ids: Vec<String> = tracks.iter().map(with_key).collect();
+        let mut liked = HashSet::new();
+        for audio in self.audios_by_id(&ids).await? {
+            let state = match audio.get("like") {
+                Some(Value::Bool(b)) => *b,
+                Some(Value::Number(n)) => n.as_i64() == Some(1),
+                _ => audio.get("owner_id").and_then(Value::as_i64) == Some(user),
+            };
+            if let (true, Some(id)) = (state, audio_id(&audio)) {
+                liked.insert(id);
+            }
+        }
+        Ok(liked)
     }
 
     async fn set_like(&self, track: &Track, liked: bool) -> Result<(), BackendError> {

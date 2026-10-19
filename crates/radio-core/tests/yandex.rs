@@ -545,13 +545,17 @@ async fn likes_are_read_added_and_taken_back_on_the_account() {
     let backend = YandexBackend::new(store, options, Arc::new(ManualClock::new(WALL))).unwrap();
     assert!(backend.supports_likes());
 
-    let liked = backend.liked_track_ids().await.unwrap();
-    assert_eq!(liked, ["7", "8"].into_iter().map(str::to_owned).collect());
-
     let track: Track = serde_json::from_value(json!({
         "track_id": "7", "title": "t", "artists": [], "codec": "mp3"
     }))
     .unwrap();
+    let other: Track = serde_json::from_value(json!({
+        "track_id": "9", "title": "t", "artists": [], "codec": "mp3"
+    }))
+    .unwrap();
+    let liked = backend.liked_among(&[track.clone(), other]).await.unwrap();
+    assert_eq!(liked, ["7"].into_iter().map(str::to_owned).collect());
+
     backend.set_like(&track, true).await.unwrap();
     backend.set_like(&track, false).await.unwrap();
 

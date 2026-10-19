@@ -24,7 +24,7 @@ use crate::{
 use async_trait::async_trait;
 use indexmap::IndexMap;
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     path::PathBuf,
     sync::{Arc, Mutex, MutexGuard},
 };
@@ -211,8 +211,8 @@ pub(crate) struct State {
     pub transition_keys: Counter,
     pub matched_transitions: i64,
     pub key_pairs: IndexMap<(String, String), i64>,
-    /// The ids of the liked tracks, `None` before the backend has been asked.
-    pub liked: Option<HashSet<String>>,
+    /// Whether the tracks played lately are liked, as far as the backend was asked.
+    pub liked: HashMap<String, bool>,
     /// The tracks played lately, to like them after they are gone from the queue.
     pub played_tracks: VecDeque<Track>,
 }
@@ -292,7 +292,7 @@ impl Radio {
                 transition_keys: Counter::default(),
                 matched_transitions: 0,
                 key_pairs: IndexMap::new(),
-                liked: None,
+                liked: HashMap::new(),
                 played_tracks: VecDeque::new(),
             }),
             slots: Semaphore::new(PREPARE_CONCURRENCY),

@@ -1300,7 +1300,7 @@ impl MusicBackend for YandexBackend {
     }
 
     /// The tracks of "My favourites" of the account.
-    async fn liked_track_ids(&self) -> Result<HashSet<String>, BackendError> {
+    async fn liked_among(&self, tracks: &[Track]) -> Result<HashSet<String>, BackendError> {
         let uid = self.uid().await?;
         let result = self
             .request(
@@ -1310,7 +1310,7 @@ impl MusicBackend for YandexBackend {
                 Body::None,
             )
             .await?;
-        Ok(result
+        let all: HashSet<String> = result
             .as_ref()
             .and_then(|r| r.pointer("/library/tracks"))
             .and_then(Value::as_array)
@@ -1321,6 +1321,11 @@ impl MusicBackend for YandexBackend {
                 Value::Number(id) => Some(id.to_string()),
                 _ => None,
             })
+            .collect();
+        Ok(tracks
+            .iter()
+            .filter(|t| all.contains(&t.track_id))
+            .map(|t| t.track_id.clone())
             .collect())
     }
 

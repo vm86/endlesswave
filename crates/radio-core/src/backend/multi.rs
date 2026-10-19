@@ -434,7 +434,8 @@ impl MusicBackend for MultiBackend {
             .any(|r| r.backend.supports_likes())
     }
 
-    async fn liked_track_ids(&self) -> Result<HashSet<String>, BackendError> {
+    async fn liked_among(&self, tracks: &[Track]) -> Result<HashSet<String>, BackendError> {
+        let mut liked = HashSet::new();
         let owners: Vec<Owner> = self
             .st()
             .running
@@ -442,16 +443,23 @@ impl MusicBackend for MultiBackend {
             .filter(|r| r.backend.authorized() && r.backend.supports_likes())
             .map(owner)
             .collect();
-        let mut liked = HashSet::new();
         for owner in owners {
-            match owner.backend.liked_track_ids().await {
-                Ok(ids) => liked.extend(ids.into_iter().map(|id| {
-                    if owner.plain_ids {
-                        id
-                    } else {
-                        format!("{}:{id}", owner.id)
-                    }
-                })),
+            let mine: Vec<Track> = tracks
+                .iter()
+                .filter(|t| t.source == owner.id)
+                .cloned()
+                .collect();
+            if mine.is_empty() {
+                continue;
+            }
+            let native: Vec<Track> = mine.iter().map(Self::native).collect();
+            match owner.backend.liked_among(&native).await {
+                Ok(ids) => liked.extend(
+                    mine.iter()
+                        .zip(&native)
+                        .filter(|(_, n)| ids.contains(&n.track_id))
+                        .map(|(t, _)| t.track_id.clone()),
+                ),
                 Err(error) => tracing::warn!("Likes of {}: {error}", owner.id),
             }
         }

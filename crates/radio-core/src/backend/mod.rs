@@ -191,8 +191,8 @@ pub trait MusicBackend: Send + Sync {
     fn supports_likes(&self) -> bool {
         false
     }
-    /// The ids of the liked tracks, as the backend knows the tracks (`Track::track_id`). Empty for a backend with no likes.
-    async fn liked_track_ids(&self) -> Result<HashSet<String>, BackendError> {
+    /// The `track_id`s of those of `tracks` that are liked. Empty for a backend with no likes.
+    async fn liked_among(&self, _tracks: &[Track]) -> Result<HashSet<String>, BackendError> {
         Ok(HashSet::new())
     }
     /// Like the track, or take the like back.

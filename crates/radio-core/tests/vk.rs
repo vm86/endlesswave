@@ -79,7 +79,9 @@ async fn handle(State(mock): State<Mock>, request: Request) -> axum::response::R
         }
         "audio.get" => json!({"response": {"count": 2, "items": [audio(1, ""), audio(3, "")]}}),
         "audio.getById" => {
-            json!({"response": [audio(1, &format!("{origin}/file/1"))]})
+            let mut one = audio(1, &format!("{origin}/file/1"));
+            one["like"] = json!(true);
+            json!({"response": [one]})
         }
         "audio.add" | "audio.delete" => json!({"response": 1}),
         _ => json!({"error": {"error_code": 3, "error_msg": "unknown"}}),
@@ -178,11 +180,11 @@ async fn vk_signs_in_with_a_token_plays_the_wave_and_the_music_and_likes() {
     );
 
     // the music of the user: ids by `audio.get`, then tracks with links by `audio.getById`
-    let liked = backend.liked_track_ids().await.unwrap();
-    assert_eq!(
-        liked,
-        ["100_1", "100_3"].into_iter().map(str::to_owned).collect()
-    );
+    // likes are what VK says of the audio (`like`); the mock says it of the audio 1 only
+    let liked = backend.liked_among(&wave).await.unwrap();
+    assert_eq!(liked, ["100_1".to_owned()].into_iter().collect());
+
+    // the music of the user: ids by `audio.get`, then tracks with links by `audio.getById`
     let favorites = backend.station_batch("favorites", &none).await.unwrap();
     assert_eq!(favorites.len(), 1, "the mock gives one audio for any ids");
 
