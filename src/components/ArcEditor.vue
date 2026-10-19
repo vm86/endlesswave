@@ -7,8 +7,8 @@ const emit = defineEmits<{ change: [change: { enabled?: boolean; stages?: string
 
 // The line: a point for each stage, from the sad (bottom) to the lively (top).
 const W = 300;
-const H = 132;
-const PAD_X = 38;
+const H = 140;
+const PAD_X = 48;
 const PAD_Y = 16;
 const levels = computed(() => props.arc.moods.length);
 const stepY = computed(() => (H - 2 * PAD_Y) / (levels.value - 1));
@@ -27,6 +27,18 @@ function moodAt(event: PointerEvent): string {
   const y = ((event.clientY - box.top) / box.height) * H;
   const level = Math.round((H - PAD_Y - y) / stepY.value);
   return props.arc.moods[Math.max(0, Math.min(levels.value - 1, level))]!;
+}
+// A point can also be moved with the arrow keys (up: livelier, down: sadder), as a slider.
+function key(event: KeyboardEvent, index: number) {
+  const step = event.key === "ArrowUp" || event.key === "ArrowRight" ? 1 : event.key === "ArrowDown" || event.key === "ArrowLeft" ? -1 : 0;
+  if (!step) return;
+  event.preventDefault();
+  const at = props.arc.moods.indexOf(props.arc.stages[index]!) + step;
+  const mood = props.arc.moods[Math.max(0, Math.min(levels.value - 1, at))]!;
+  if (mood === props.arc.stages[index]) return;
+  const stages = [...props.arc.stages];
+  stages[index] = mood;
+  emit("change", { stages, stage_tracks: props.arc.stage_tracks });
 }
 function down(event: PointerEvent, index: number) {
   (event.target as Element).setPointerCapture(event.pointerId);
@@ -64,10 +76,14 @@ const setLength = (tracks: number) => emit("change", { stages: props.arc.stages,
         <text :x="PAD_X - 12" :y="yOf(m) + 3" class="label" text-anchor="end">{{ m }}</text>
       </g>
       <polyline :points="path" class="line" />
-      <circle v-for="(p, i) in points" :key="i" :cx="p.x" :cy="p.y" r="7" class="dot"
-        :class="{ now: arc.enabled && i === arc.stage, drag: dragging?.index === i }" @pointerdown.prevent="down($event, i)">
+      <g v-for="(p, i) in points" :key="i" class="pt" tabindex="0" role="slider" :aria-label="`Stage ${i + 1}`" aria-orientation="vertical"
+        :aria-valuemin="0" :aria-valuemax="levels - 1" :aria-valuenow="arc.moods.indexOf(p.mood)" :aria-valuetext="p.mood"
+        @keydown="key($event, i)" @pointerdown.prevent="down($event, i)">
+        <circle :cx="p.x" :cy="p.y" r="15" class="hit" />
+        <circle :cx="p.x" :cy="p.y" r="7" class="dot" :class="{ now: arc.enabled && i === arc.stage, drag: dragging?.index === i }" />
+        <text v-if="dragging?.index === i" :x="p.x" :y="p.y - 12" class="tip" text-anchor="middle">{{ p.mood }}</text>
         <title>stage {{ i + 1 }}: {{ p.mood }}</title>
-      </circle>
+      </g>
     </svg>
     <div class="arc-row">
       <span>Stages</span>
@@ -94,15 +110,19 @@ const setLength = (tracks: number) => emit("change", { stages: props.arc.stages,
 .arc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .arc-svg { width: 100%; height: auto; touch-action: none; user-select: none; display: block; }
 .grid { stroke: var(--sep); stroke-width: 0.5; }
-.label { font-size: 8px; fill: var(--text2); }
+.label { font-size: 10px; fill: var(--text2); }
+.tip { font-size: 10px; font-weight: 600; fill: var(--text); pointer-events: none; }
+.hit { fill: transparent; cursor: ns-resize; }
+.pt { outline: none; }
+.pt:focus-visible .dot { stroke-width: 3; filter: drop-shadow(0 0 3px var(--accent)); }
 .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.dot { fill: var(--panel, #1c1c1e); stroke: var(--accent); stroke-width: 2; cursor: ns-resize; transition: r 120ms; }
+.dot { fill: var(--panel, #1c1c1e); stroke: var(--accent); stroke-width: 2; cursor: ns-resize; transition: r 120ms, cx 150ms, cy 150ms; }
 .dot:hover, .dot.drag { r: 8; }
 .dot.now { fill: var(--accent); }
-.arc-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin-top: 6px; }
+.arc-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin-top: 8px; }
 .stepper { display: flex; align-items: center; gap: 8px; }
 .stepper b { min-width: 64px; text-align: center; font-weight: 500; font-variant-numeric: tabular-nums; }
-.stepper button { width: 24px; height: 22px; border-radius: 6px; background: var(--control); color: inherit; border: 0; cursor: pointer; }
+.stepper button { width: 28px; height: 28px; border-radius: 6px; font-size: 14px; background: var(--control); color: inherit; border: 0; cursor: pointer; }
 .stepper button:hover:not(:disabled) { background: var(--control-hover); }
 .stepper button:disabled { opacity: 0.35; cursor: default; }
 </style>

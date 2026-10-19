@@ -23,6 +23,8 @@ const SHORTCUTS: Array<[string[], string]> = [
   [["⌘", "."], "Stop"],
   [["⌘", "→"], "Next track"],
   [["⌘", "R"], "Rebuild the queue"],
+  [["⌘", "⇧", "R"], "Clear the queue and load it anew"],
+  [["⌘", "D"], "Like / unlike the track"],
   [["⌘", "L"], "Switch MP3 / FLAC"],
   [["⌘", "↑"], "Volume up"],
   [["⌘", "↓"], "Volume down"],
@@ -105,6 +107,17 @@ const actions: Record<string, () => void> = {
     hud("Next track");
   },
   refresh: () => void refreshQueue(),
+  clear: () => {
+    void clearQueue();
+    hud("Queue cleared");
+  },
+  like: () => {
+    const id = queue.value?.now?.track_id;
+    if (!id || !likes.value.supported) return hud(id ? "This source has no likes" : "Nothing is playing");
+    const liked = likes.value.liked.includes(id);
+    void toggleLike(id);
+    hud(liked ? "Like removed" : "Liked");
+  },
   lossless: () => {
     flipFormat();
     hud(format.value === "flac" ? "Lossless stream (FLAC)" : "MP3 stream (320 kbit/s)");
@@ -151,7 +164,9 @@ function onKey(event: KeyboardEvent) {
   if (!cmd || mac) return;
   const index = Number(event.key);
   if (index >= 1 && index <= TABS.length) return run(actions[`tab-${index}`]!);
+  if (event.shiftKey && event.key.toLowerCase() === "r") return run(actions.clear!);
   const byKey: Record<string, string> = {
+    d: "like",
     ".": "stop",
     ArrowRight: "next",
     r: "refresh",
@@ -201,12 +216,12 @@ onUnmounted(() => {
     <v-main class="player">
       <div class="topbar" data-tauri-drag-region>
         <div class="title" data-tauri-drag-region>EndlessWave</div>
-        <div class="icon-btn" title="Keyboard shortcuts  (⌘/)" @click="help = true">
+        <button class="icon-btn" type="button" title="Keyboard shortcuts  (⌘/)" aria-label="Keyboard shortcuts" @click="help = true">
           <v-icon :icon="mdiKeyboardOutline" size="18" />
-        </div>
-        <div class="icon-btn" title="Settings  (⌘,)" @click="prefs = true">
+        </button>
+        <button class="icon-btn" type="button" title="Settings  (⌘,)" aria-label="Settings" @click="prefs = true">
           <v-icon :icon="mdiCogOutline" size="18" />
-        </div>
+        </button>
       </div>
 
       <Deck v-model:volume="volume" :now="queue?.now ?? null" :elapsed="elapsed" :playing="playing" :loading="loading" :refreshing="refreshing"

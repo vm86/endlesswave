@@ -39,6 +39,10 @@ function holdCancel() {
   clearTimeout(holdTimer);
   holding.value = false;
 }
+// A click that came from the keyboard (Space or Return on the focused button) rebuilds the queue; the pointer has its own.
+function keyboardClick(event: MouseEvent) {
+  if (event.detail === 0 && !props.refreshing) emit("refresh");
+}
 function holdEnd() {
   const fired = held;
   held = false;
@@ -106,29 +110,32 @@ watch(title, () => void nextTick(measure));
     </div>
 
     <div class="transport">
-      <div class="tbtn" :class="{ on: playing && !loading, loading }" :title="loading ? 'Connecting…  (click to cancel)' : 'Play / Pause  (Space)'"
+      <button type="button" class="tbtn" :class="{ on: playing && !loading, loading }"
+        :title="loading ? 'Connecting…  (click to cancel)' : 'Play / Pause  (Space)'" :aria-label="loading ? 'Cancel' : playing ? 'Pause' : 'Play'"
         @click="$emit('toggle')">
         <v-progress-circular v-if="loading" indeterminate :size="16" :width="2" />
         <v-icon v-else :icon="playing ? mdiPause : mdiPlay" size="20" />
-      </div>
-      <div class="tbtn" title="Stop  (⌘.)" @click="$emit('stop')"><v-icon :icon="mdiStop" size="20" /></div>
-      <div class="tbtn" :class="{ loading: busy }" :disabled="(!canSkip && !busy) || undefined"
+      </button>
+      <button type="button" class="tbtn" title="Stop  (⌘.)" aria-label="Stop" @click="$emit('stop')"><v-icon :icon="mdiStop" size="20" /></button>
+      <button type="button" class="tbtn" :class="{ loading: busy }" :disabled="!canSkip && !busy" aria-label="Next track"
         :title="busy ? 'Switching…' : 'Next track  (⌘→)'" @click="busy || $emit('next')">
         <v-progress-circular v-if="busy" indeterminate :size="16" :width="2" />
         <v-icon v-else :icon="mdiSkipNext" size="20" />
-      </div>
-      <div class="tbtn hold" :class="{ loading: refreshing, holding }"
-        :title="refreshing ? 'Rebuilding…' : 'Rebuild the queue  (⌘R)\nHold for 3 s: clear the queue and load it anew'"
-        @pointerdown="holdStart" @pointerup="holdEnd" @pointerleave="holdCancel" @pointercancel="holdCancel">
+      </button>
+      <button type="button" class="tbtn hold" :class="{ loading: refreshing, holding }" aria-label="Rebuild the queue"
+        :title="refreshing ? 'Rebuilding…' : 'Rebuild the queue  (⌘R)\nHold for 3 s, or ⌘⇧R: clear the queue and load it anew'"
+        @pointerdown="holdStart" @pointerup="holdEnd" @pointerleave="holdCancel" @pointercancel="holdCancel" @click="keyboardClick">
         <v-icon :icon="mdiRefresh" size="18" :class="{ spin: refreshing }" />
-      </div>
-      <div v-if="likesSupported && now" class="tbtn like" :class="{ on: liked }" :title="liked ? 'Remove the like' : 'Like'"
+      </button>
+      <button v-if="likesSupported && now" type="button" class="tbtn like" :class="{ on: liked, liked }"
+        :title="liked ? 'Remove the like  (⌘D)' : 'Like  (⌘D)'" :aria-label="liked ? 'Remove the like' : 'Like the track'" :aria-pressed="liked"
         @click="$emit('like')">
         <v-icon :icon="liked ? mdiHeart : mdiHeartOutline" size="18" />
-      </div>
-      <div class="tbtn fmt" :title="`Stream: ${format.toUpperCase()}  (⌘L to switch)`" @click="$emit('format')">
+      </button>
+      <button type="button" class="tbtn fmt" :title="`Stream: ${format.toUpperCase()}  (⌘L to switch)`" :aria-label="`Stream format ${format.toUpperCase()}`"
+        @click="$emit('format')">
         {{ format.toUpperCase() }}
-      </div>
+      </button>
       <v-icon :icon="mdiVolumeHigh" size="18" class="ml-2" color="secondary" />
       <v-slider v-model="volume" class="vol" :min="0" :max="100" hide-details density="compact" color="primary"
         track-size="3" thumb-size="12" title="Volume  (⌘↑ ⌘↓)" />

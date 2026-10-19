@@ -69,6 +69,9 @@ else is needed. For the tray icon, GNOME needs the AppIndicator extension.
 
 Open the app: the radio service starts by itself (port `18000`, on `127.0.0.1` only).
 
+Keyboard: `⌘R` rebuilds the queue, `⌘⇧R` (or holding the rebuild button for 3 s) clears it and loads it anew, `⌘D` likes or
+unlikes the playing track; `⌘/` lists all the shortcuts.
+
 ### Mood arc
 
 In **Mix**, the **Mood arc** is a line of points: each point is a stage of the set, and its height is the mood, from sad

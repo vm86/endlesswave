@@ -60,6 +60,10 @@ body, .v-application { font-family: var(--font) !important; font-size: 13px; col
 .mac .topbar { padding-left: 80px; }
 .topbar .title { flex: 1; text-align: center; font-weight: 600; font-size: 13px; pointer-events: none; }
 .mac .topbar .title { margin-right: 70px; } /* centered between the lights and the right edge */
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; }
+/* The ring of the keyboard focus, as on a Mac: only when the key got there, in the accent color. */
+:focus { outline: none; }
+:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 1px; }
 .icon-btn {
   width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; cursor: default; color: var(--text2);
   transition: background 150ms var(--ease), color 150ms var(--ease);
@@ -107,10 +111,11 @@ html.inactive .seek div { background: var(--text2); }
 .tbtn:hover { background: var(--control-hover); }
 .tbtn:active { transform: scale(0.95); }
 .tbtn.on { color: var(--accent); }
+.tbtn.liked { color: var(--red); }
 .tbtn.hold { position: relative; overflow: hidden; user-select: none; }
 .tbtn.hold.holding::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); opacity: 0.3; animation: hold-fill 3s linear forwards; }
 @keyframes hold-fill { to { width: 100%; } }
-.tbtn[disabled] { opacity: 0.35; pointer-events: none; }
+.tbtn[disabled], .tbtn:disabled { opacity: 0.35; pointer-events: none; }
 .vol { flex: 1; min-width: 80px; margin-left: 4px; }
 
 /* Segmented control. */
@@ -137,7 +142,7 @@ html.inactive .seek div { background: var(--text2); }
 }
 .row .thumb { position: relative; overflow: visible; }
 .row .thumb img { border-radius: inherit; }
-.row .src { position: absolute; right: -4px; bottom: -4px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; font-size: 8px; font-weight: 700; font-style: normal; line-height: 14px; text-align: center; color: #fff; background: #666; box-shadow: 0 0 0 1.5px var(--bg, #1c1c1e); }
+.row .src { position: absolute; right: -4px; bottom: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; font-size: 9px; font-weight: 700; font-style: normal; line-height: 15px; text-align: center; color: #fff; background: #666; box-shadow: 0 0 0 1.5px var(--bg, #1c1c1e); }
 .row .src.yandex { background: #fc3f1d; }
 .row .src.vk { background: #0077ff; }
 .row .src.local { background: #34c759; }
@@ -312,3 +317,12 @@ html.mac .topbar { background: transparent; }
 .btn-danger:active { transform: scale(0.96); }
 .btn-danger[disabled] { opacity: 0.45; pointer-events: none; }
 .prefs-row .confirm { display: flex; gap: 6px; }
+
+/* Reduced motion: nothing slides or scrolls by itself; the title is cut with an ellipsis, the changes are instant. The fill of
+   the held button stays: it is what tells how long to hold. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+  .marquee span.scroll { animation: none; }
+  .marquee { text-overflow: ellipsis; }
+  .spin { animation: none; }
+}

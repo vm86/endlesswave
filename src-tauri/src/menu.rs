@@ -88,6 +88,8 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     let next = item("next", "Next Track", Some("CmdOrCtrl+Right"))?;
     let stop = item("stop", "Stop", Some("CmdOrCtrl+."))?;
     let refresh = item("refresh", "Rebuild the Queue", Some("CmdOrCtrl+R"))?;
+    let clear = item("clear", "Clear the Queue", Some("CmdOrCtrl+Shift+R"))?;
+    let like = item("like", "Like / Unlike Track", Some("CmdOrCtrl+D"))?;
     let lossless =
         CheckMenuItemBuilder::with_id(format!("{PREFIX}lossless"), "Lossless Stream (FLAC)")
             .accelerator("CmdOrCtrl+L")
@@ -97,7 +99,7 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     let controls = SubmenuBuilder::new(app, "Controls")
         .items(&[&play, &next, &stop])
         .separator()
-        .items(&[&refresh, &lossless])
+        .items(&[&refresh, &clear, &like, &lossless])
         .separator()
         .items(&[&volume_up, &volume_down])
         .build()?;
