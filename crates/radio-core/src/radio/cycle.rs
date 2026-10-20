@@ -402,7 +402,10 @@ impl Radio {
         }
         self.remember(SETTING_CYCLE, &Self::cycles_json(&next));
         if next.active == Cycle::Off {
-            let _ = self.release_settings().await;
+            // Putting the station's settings back goes to the service: it must not hold up the answer.
+            let _ =
+                tokio::time::timeout(std::time::Duration::from_secs(3), self.release_settings())
+                    .await;
         }
         Ok(())
     }

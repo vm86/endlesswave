@@ -202,8 +202,11 @@ export function useRadio() {
       const [a, q, g, st, l, ar, cy] = await Promise.all([api.auth(), api.queue(), api.genres(), api.stats(), api.likes(), api.arc(), api.cycle()]);
       auth.value = a;
       likes.value = l;
-      arc.value = ar;
-      cycle.value = cy;
+      // While a choice of the mix is on its way, a poll that left before it would put the old one back for a moment.
+      if (holding.value === 0) {
+        arc.value = ar;
+        cycle.value = cy;
+      }
       if (holding.value === 0) genres.value = steady(genres.value, g);
       stats.value = st;
       take(q);
@@ -245,7 +248,11 @@ export function useRadio() {
   const cycle = ref<CycleInfo | null>(null);
   const setCycle = (change: Record<string, unknown>) =>
     tune(
-      () => cycle.value && (cycle.value = { ...cycle.value, ...(change as Partial<CycleInfo>) }),
+      () => {
+        if (!cycle.value) return;
+        const { schedule, ...rest } = change as Partial<CycleInfo>;
+        cycle.value = { ...cycle.value, ...rest, schedule: { ...cycle.value.schedule, ...(schedule ?? {}) } };
+      },
       async () => void (cycle.value = await api.setCycle(change)),
     );
   /** What plays the set: nothing in particular ("free"), the arc of moods, or the parts of the day (morning, day, evening). */
