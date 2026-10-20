@@ -525,10 +525,17 @@ impl VkBackend {
                     ],
                 )
                 .await?;
+            // Tracks come with the mood the wave was steered to, as Yandex's do: the radio then does not have to guess it from
+            // the sound (and a quiet evening is not left without them).
+            let mood = self
+                .st()
+                .vibe
+                .map_or("", |vibe| if vibe == "active" { "active" } else { "calm" });
             for audio in answer.as_array().into_iter().flatten() {
-                let Some(track) = parse_track(audio) else {
+                let Some(mut track) = parse_track(audio) else {
                     continue;
                 };
+                track.mood = mood.to_owned();
                 let heard = self.st().recent.contains(&track.track_id);
                 if heard
                     || exclude.contains(&track.track_id)

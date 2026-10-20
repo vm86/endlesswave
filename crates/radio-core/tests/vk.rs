@@ -376,3 +376,44 @@ fn the_account_is_read_from_the_cookies() {
     assert_eq!(user_of_cookie("remixsid=x"), None);
     assert_eq!(user_of_cookie("remixuserid=abc"), None);
 }
+
+#[tokio::test]
+async fn the_tracks_of_a_steered_wave_come_with_its_mood() {
+    let mock = Mock::default();
+    let app = Router::new().fallback(handle).with_state(mock.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    *mock.origin.lock().unwrap() = origin.clone();
+    tokio::spawn(async move { axum::serve(listener, app).await });
+    let options = || VkOptions {
+        api: format!("{origin}/method/"),
+        site: origin.clone(),
+        login: origin.clone(),
+    };
+    let moods = |mood: &'static str| {
+        let options = options();
+        async move {
+            let store = Arc::new(MemoryStore::default());
+            store
+                .save(&serde_json::from_str(r#"{"token": "good", "user_id": 42}"#).unwrap())
+                .unwrap();
+            let backend = VkBackend::new(store, options).unwrap();
+            backend
+                .set_station_settings("wave", mood, "default", "any")
+                .await
+                .unwrap();
+            backend
+                .station_batch("wave", &HashSet::new())
+                .await
+                .unwrap()
+                .into_iter()
+                .map(|t| t.mood)
+                .collect::<Vec<_>>()
+        }
+    };
+    // like Yandex's, they are labelled with the mood the wave was steered to: the radio need not guess it from the sound
+    assert_eq!(moods("calm").await, ["calm", "calm"]);
+    assert_eq!(moods("sad").await, ["calm", "calm"], "VK has two vibes");
+    assert_eq!(moods("active").await, ["active", "active"]);
+    assert_eq!(moods("all").await, ["", ""], "not steered: not labelled");
+}
