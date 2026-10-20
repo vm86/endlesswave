@@ -263,6 +263,7 @@ export function useRadio() {
   const setMode = (next: Mode) => {
     // What the radio has now, before the page shows the change at once.
     const was = { cycle: cycle.value, arc: arc.value };
+    console.info(`[mode] ${mode.value} -> ${next}; cycle ${was.cycle?.active} (clock ${was.cycle?.schedule.enabled}), arc ${was.arc?.enabled}`);
     return tune(
       () => {
         if (!cycle.value || !arc.value) return;

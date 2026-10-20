@@ -154,8 +154,15 @@ export function streamUrl(format: StreamFormat, token: string): string {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = init?.method ?? "GET";
+  const changes = method !== "GET";
   const response = await fetch(base + path, init);
-  if (!response.ok) throw new Error((await response.text()) || response.statusText);
+  if (changes) console.info(`[api] ${method} ${path} ${typeof init?.body === "string" ? init.body.slice(0, 300) : ""} -> ${response.status}`);
+  if (!response.ok) {
+    const text = (await response.text()) || response.statusText;
+    if (changes) console.warn(`[api] ${method} ${path} refused: ${text}`);
+    throw new Error(text);
+  }
   return (await response.json()) as T;
 }
 const json = (method: string, body?: unknown): RequestInit => ({

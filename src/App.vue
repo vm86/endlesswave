@@ -234,7 +234,7 @@ onUnmounted(() => {
         :busy="skipping || (queue?.skip_pending ?? false) || (queue?.blending ?? false)" :levels="levels" :format="format"
         :likes-supported="likes.supported" :liked="!!queue?.now && likes.liked.includes(queue.now.track_id)" @like="queue?.now && toggleLike(queue.now.track_id)"
         :can-skip="queue?.can_skip ?? false" :paused="queue?.paused ?? false" @toggle="toggle" @stop="stop"
-        @next="next" @equalizer="actions.equalizer!()" @refresh="refreshQueue" @clear="clearQueue" @format="flipFormat" />
+        @next="next" @equalizer="actions.equalizer!()" :mode="mode" :cycle="cycle" :arc="arc" @plan="tab = 'mix'" @refresh="refreshQueue" @clear="clearQueue" @format="flipFormat" />
 
       <div v-if="auth && !auth.authorized" class="auth">
         <template v-if="auth.url && auth.code">

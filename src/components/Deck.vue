@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { mdiHeart, mdiHeartOutline, mdiMusicNote, mdiPause, mdiPlay, mdiRefresh, mdiSkipNext, mdiStop, mdiVolumeHigh } from "@mdi/js";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { clock, coverUrl, type NowTrack } from "../api";
+import PlanBadge from "./PlanBadge.vue";
+import { clock, coverUrl, type ArcInfo, type CycleInfo, type NowTrack } from "../api";
 
 const props = defineProps<{
   now: NowTrack | null;
@@ -16,9 +17,12 @@ const props = defineProps<{
   format: "mp3" | "flac";
   likesSupported: boolean;
   liked: boolean;
+  mode: "free" | "arc" | "dayparts";
+  cycle: CycleInfo | null;
+  arc: ArcInfo | null;
 }>();
 const volume = defineModel<number>("volume", { required: true });
-const emit = defineEmits<{ toggle: []; stop: []; next: []; refresh: []; clear: []; equalizer: []; format: []; like: [] }>();
+const emit = defineEmits<{ toggle: []; stop: []; next: []; refresh: []; clear: []; equalizer: []; format: []; like: []; plan: [] }>();
 
 // "Rebuild the queue" held for HOLD_MS clears the whole queue and loads it anew; a short press rebuilds as before.
 const HOLD_MS = 3000;
@@ -99,6 +103,7 @@ watch(title, () => void nextTick(measure));
         </div>
         <div class="artist">{{ artist || " " }}</div>
         <div class="tags">{{ tags || " " }}<span v-if="stopped" class="paused">Paused</span></div>
+        <PlanBadge :mode="mode" :cycle="cycle" :arc="arc" @open="emit('plan')" />
       </div>
       <button type="button" class="eq" title="Equalizer  (⌘E)" aria-label="Open the equalizer" @click="emit('equalizer')">
         <i v-for="(level, i) in levels" :key="i" :style="{ transform: `scaleY(${Math.max(0.06, level)})` }" />

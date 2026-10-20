@@ -78,6 +78,10 @@ Click the level meter next to the track (or press `⌘E`) to open the equalizer 
 ±12 dB) to drag, move with the arrow keys, or pick from the presets. It shapes the sound of the app's own player; other
 listeners of the stream (a browser, VLC) hear the radio as it is.
 
+The player's display shows what plays the set: a badge under the track (**Free**, **Mood arc** or the part of the day, with a
+clock when it follows the clock) with the tempo and the mood the plan is aiming at now, and dots for its stages (the one that
+is on is wider). Click it to open the Mix tab.
+
 ### Mix: what plays the set
 
 The **Mix** tab starts with one choice, and only its settings are shown: **Free** (the radio picks the energy by itself;
