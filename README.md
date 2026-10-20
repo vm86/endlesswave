@@ -78,6 +78,12 @@ Click the level meter next to the track (or press `⌘E`) to open the equalizer 
 ±12 dB) to drag, move with the arrow keys, or pick from the presets. It shapes the sound of the app's own player; other
 listeners of the stream (a browser, VLC) hear the radio as it is.
 
+### Mix: what plays the set
+
+The **Mix** tab starts with one choice, and only its settings are shown: **Free** (the radio picks the energy by itself;
+narrow it with the moods, language and genres), **Mood arc** (the set follows your arc of moods) or **Parts of the day**
+(morning, day, evening, below). Language and genres are always at the bottom.
+
 ### Morning, day, evening
 
 In **Mix**, **Morning · Day · Evening** plays the set along a plan of the tempo; each cycle has its own, which you can change:

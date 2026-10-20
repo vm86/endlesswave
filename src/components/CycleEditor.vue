@@ -13,7 +13,7 @@ const PARTS: Array<[Part, string, string]> = [
   ["day", "Day", "the mood arc, in a range of tempo"],
   ["evening", "Evening", "quiet music, slowing down"],
 ];
-const NAMES: Array<[CycleName, string]> = [["off", "Off"], ...PARTS.map(([id, label]) => [id, label] as [CycleName, string])];
+const NAMES: Array<[CycleName, string]> = PARTS.map(([id, label]) => [id, label] as [CycleName, string]);
 
 const active = computed(() => props.cycle.active);
 const schedule = computed(() => props.cycle.schedule);
@@ -69,10 +69,7 @@ function setDay(low: number, high: number) {
           @click="emit('change', { active: id })">{{ name }}</button>
       </div>
       <div class="dim hint">
-        <template v-if="active === 'off'">No cycle: the radio follows the mood arc (or its own).</template>
-        <template v-else>
-          {{ (PARTS.find(([id]) => id === active)?.[2] ?? '').replace(/^./, (c) => c.toUpperCase()) }} · now about {{ cycle.target_bpm }} BPM
-        </template>
+        {{ (PARTS.find(([id]) => id === active)?.[2] ?? '').replace(/^./, (c) => c.toUpperCase()) }} · now about {{ cycle.target_bpm }} BPM
       </div>
     </template>
 
@@ -97,7 +94,7 @@ function setDay(low: number, high: number) {
       </div>
       <BpmEditor v-if="ramp" :ramp="ramp" :limits="cycle" :stage="cycle.stage" :on="showsNow" @change="setRamp" />
       <div v-else class="day">
-        <div class="dim hint">The mood arc (below) plays inside this range of tempo.</div>
+        <div class="dim hint">The mood arc plays inside this range of tempo.</div>
         <div class="c-row">
           <span>Slowest</span>
           <div class="stepper">
@@ -114,6 +111,7 @@ function setDay(low: number, high: number) {
             <button type="button" aria-label="Faster" @click="setDay(day.bpm_min, day.bpm_max + STEP)">+</button>
           </div>
         </div>
+        <slot name="day" />
       </div>
     </Disclosure>
   </div>

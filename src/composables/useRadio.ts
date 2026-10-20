@@ -248,6 +248,35 @@ export function useRadio() {
       () => cycle.value && (cycle.value = { ...cycle.value, ...(change as Partial<CycleInfo>) }),
       async () => void (cycle.value = await api.setCycle(change)),
     );
+  /** What plays the set: nothing in particular ("free"), the arc of moods, or the parts of the day (morning, day, evening). */
+  type Mode = "free" | "arc" | "dayparts";
+  const mode = computed<Mode>(() =>
+    cycle.value && (cycle.value.active !== "off" || cycle.value.schedule.enabled) ? "dayparts" : arc.value?.enabled ? "arc" : "free",
+  );
+  const setMode = (next: Mode) => {
+    // What the radio has now, before the page shows the change at once.
+    const was = { cycle: cycle.value, arc: arc.value };
+    return tune(
+      () => {
+        if (!cycle.value || !arc.value) return;
+        if (next === "dayparts") {
+          const c = cycle.value;
+          cycle.value = { ...c, active: c.active === "off" ? c.scheduled : c.active, schedule: { ...c.schedule, enabled: c.active === "off" ? true : c.schedule.enabled } };
+        } else {
+          cycle.value = { ...cycle.value, active: "off", locks_mood: false, schedule: { ...cycle.value.schedule, enabled: false } };
+          arc.value = { ...arc.value, enabled: next === "arc" };
+        }
+      },
+      async () => {
+        const c = was.cycle;
+        // One thing plays the set at a time: the cycle goes first (it locks the moods), then the arc.
+        if (next !== "dayparts" && c && (c.active !== "off" || c.schedule.enabled)) cycle.value = await api.setCycle({ schedule: { enabled: false }, active: "off" });
+        if (next === "arc" && !was.arc?.enabled) arc.value = await api.setArc({ enabled: true });
+        if (next === "free" && was.arc?.enabled) arc.value = await api.setArc({ enabled: false });
+        if (next === "dayparts" && c && c.active === "off") cycle.value = await api.setCycle({ schedule: { enabled: true } });
+      },
+    );
+  };
   const setMoods = (moods: string[]) =>
     tune(
       () => queue.value && (queue.value = { ...queue.value, moods: { ...queue.value.moods, selected: moods } }),
@@ -371,5 +400,5 @@ export function useRadio() {
     unlisten.forEach((f) => f());
   });
 
-  return { cycle, setCycle, arc, setArc, clearQueue, likes, toggleLike, expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
+  return { mode, setMode, cycle, setCycle, arc, setArc, clearQueue, likes, toggleLike, expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
 }

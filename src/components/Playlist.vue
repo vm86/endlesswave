@@ -17,6 +17,7 @@ const props = defineProps<{
   tab: string;
   arc: ArcInfo | null;
   cycle: CycleInfo | null;
+  mode: "free" | "arc" | "dayparts";
 }>();
 /** The mark of the backend a track is from, and its name. */
 const SOURCES: Record<string, [string, string]> = { yandex: ["Я", "Yandex Music"], vk: ["VK", "VK Music"], local: ["♪", "Local folder"] };
@@ -27,6 +28,7 @@ const emit = defineEmits<{
   language: [string | null];
   arc: [change: { enabled?: boolean; stages?: string[]; stage_tracks?: number }];
   cycle: [change: Record<string, unknown>];
+  mode: [mode: "free" | "arc" | "dayparts"];
   toggleBackend: [id: string, enabled: boolean];
   signIn: [id: string, values: Record<string, string>];
   backendSettings: [id: string, values: Record<string, string>];
@@ -158,7 +160,7 @@ window.addEventListener("keydown", (event) => event.key === "Escape" && closeMen
         <span>{{ queue ? "The radio is picking the first tracks…" : "Connecting to the radio…" }}</span>
       </div>
     </template>
-    <MixPanel v-else-if="tab === 'mix'" :moods="moods" :genres="genres" :language="language" :arc="arc" @arc="emit('arc', $event)" :cycle="cycle" @cycle="emit('cycle', $event)" @language="emit('language', $event)" @moods="emit('moods', $event)"
+    <MixPanel v-else-if="tab === 'mix'" :moods="moods" :genres="genres" :language="language" :arc="arc" @arc="emit('arc', $event)" :cycle="cycle" :mode="mode" @mode="emit('mode', $event)" @cycle="emit('cycle', $event)" @language="emit('language', $event)" @moods="emit('moods', $event)"
       @genres="emit('genres', $event)" @blocked="emit('blocked', $event)" />
     <SourcesPanel v-else-if="tab === 'sources'" :auth="auth" @toggle="(id, on) => emit('toggleBackend', id, on)"
       @sign-in="(id, v) => emit('signIn', id, v)"

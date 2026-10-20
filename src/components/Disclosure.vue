@@ -3,13 +3,14 @@ import { mdiChevronRight } from "@mdi/js";
 import { ref, watch } from "vue";
 
 /** A row that opens: the name on the left, what is set (in short) on the right, a chevron. Like a disclosure group of a Mac app. */
-const props = defineProps<{ title: string; summary?: string; id: string }>();
+const props = defineProps<{ title: string; summary?: string; id: string; openByDefault?: boolean }>();
 const KEY = `open:${props.id}`;
 const read = () => {
   try {
-    return localStorage.getItem(KEY) === "1";
+    const kept = localStorage.getItem(KEY);
+    return kept === null ? !!props.openByDefault : kept === "1";
   } catch {
-    return false;
+    return !!props.openByDefault;
   }
 };
 const open = ref(read());
