@@ -20,12 +20,8 @@ const props = defineProps<{ mode: Mode; moods: MoodsInfo | undefined; genres: Ge
 const emit = defineEmits<{ moods: [string[]]; genres: [string[]]; blocked: [string[]]; language: [string | null]; mode: [Mode]; cycle: [change: Record<string, unknown>]; arc: [{ enabled?: boolean; stages?: string[]; stage_tracks?: number }] }>();
 
 // The morning and the evening set the mood themselves: what the listener picks would only fight them.
-const locked = computed(() => props.cycle?.locks_mood === true);
-const lockNote = computed(() =>
-  props.cycle?.active === "evening"
-    ? "Set by the Evening cycle: quiet music only."
-    : "Set by the Morning cycle: the tempo plan chooses.",
-);
+const locked = computed(() => props.mode === 'dayparts' && props.cycle?.locks_mood === true);
+
 
 const pick = ref<"pick" | "block">("pick");
 const flip = (list: string[], item: string) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
@@ -50,17 +46,18 @@ function clickGenre(g: string) {
     <ArcEditor v-if="mode === 'arc' && arc" always :arc="arc" @change="emit('arc', $event)" />
     <CycleEditor v-else-if="mode === 'dayparts' && cycle" :cycle="cycle" @change="emit('cycle', $event)">
       <template #day>
-        <ArcEditor v-if="arc" always :arc="arc" @change="emit('arc', $event)" />
+        <ArcEditor v-if="arc && !locked" always :arc="arc" @change="emit('arc', $event)" />
+        <div v-else-if="arc" class="dim">The mood arc of the day can be changed while the morning or the evening is not on.</div>
       </template>
     </CycleEditor>
 
-    <h4>Mood</h4>
-    <div :class="{ locked }" :inert="locked">
+    <!-- The morning and the evening set the mood themselves: there is nothing to set, so it is not shown. -->
+    <template v-if="!locked">
+      <h4>Mood</h4>
       <span v-for="m in moods?.available" :key="m" class="chip" :class="{ sel: moods?.selected.includes(m) }"
         @click="emit('moods', flip(moods?.selected ?? [], m))">{{ m }}</span>
-    </div>
-    <div v-if="locked" class="dim">{{ lockNote }}</div>
-    <div v-else-if="moods && moods.steered === false" class="dim">the radio judges moods by sound</div>
+      <div v-if="moods && moods.steered === false" class="dim">the radio judges moods by sound</div>
+    </template>
 
     <template v-if="language?.steered">
       <h4>Language</h4>
