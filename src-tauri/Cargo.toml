@@ -36,6 +36,14 @@ souvlaki = { version = "0.8", default-features = false, features = ["use_zbus"] 
 [features]
 essentia = ["radio-core/essentia"]
 
+# `tauri dev` builds without optimizing: decoding and analysis of a track (symphonia, rustfft, resampling, essentia) then
+# take many times longer and the queue fills slowly. The dependencies and the radio itself are optimized; the app is not.
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev.package.radio-core]
+opt-level = 3
+
 [profile.release]
 codegen-units = 1
 lto = true
