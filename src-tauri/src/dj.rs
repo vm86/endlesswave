@@ -429,6 +429,16 @@ impl Biquad {
     }
 }
 
+/// Linear up to 0.8, then bent smoothly towards 1.
+fn soft_clip(x: f32) -> f32 {
+    const KNEE: f32 = 0.8;
+    let magnitude = x.abs();
+    if magnitude <= KNEE {
+        return x;
+    }
+    x.signum() * (KNEE + (1.0 - KNEE) * ((magnitude - KNEE) / (1.0 - KNEE)).tanh())
+}
+
 /// What the console keeps of one deck inside the audio callback.
 struct Voice {
     pcm: Arc<Vec<f32>>,
@@ -550,9 +560,9 @@ impl Console {
         for n in 0..BLOCK {
             self.master += (master_target - self.master) * 0.004;
             for channel in 0..2 {
-                // The sum of two decks may pass full scale; it is held there and not wrapped.
+                // Two loud decks add up past full scale: the peaks are rounded off, not cut.
                 let sample = &mut self.block[n * 2 + channel];
-                *sample = (*sample * self.master).clamp(-1.0, 1.0);
+                *sample = soft_clip(*sample * self.master);
             }
         }
     }
@@ -656,6 +666,13 @@ mod tests {
         shared_cut.decks[0].low.set(MIN_DB);
         let after = energy(&mut cut, 300);
         assert!(after < before * 0.05, "{after} vs {before}");
+    }
+
+    #[test]
+    fn the_sum_of_two_decks_is_rounded_off_below_full_scale() {
+        assert_eq!(soft_clip(0.5), 0.5);
+        assert!(soft_clip(1.4) < 1.0 && soft_clip(1.4) > soft_clip(1.0));
+        assert_eq!(soft_clip(-1.4), -soft_clip(1.4));
     }
 
     #[test]

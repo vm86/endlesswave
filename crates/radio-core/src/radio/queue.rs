@@ -177,7 +177,12 @@ impl Radio {
         let found = {
             let state = self.st();
             let wanted = |t: &Option<crate::backend::Track>| t.as_ref().is_some_and(|t| t.track_id == track_id);
-            if let Some(deck) = state.next.as_ref().filter(|d| wanted(&d.track)) {
+            // The track on the air and the one that waits to come next are decks with their sound at hand.
+            if let Some(deck) = [state.now.as_ref(), state.next.as_ref()]
+                .into_iter()
+                .flatten()
+                .find(|d| wanted(&d.track))
+            {
                 Some(Found::Pcm(deck.pcm.to_vec()))
             } else {
                 state
