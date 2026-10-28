@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mdiArrowBottomRight, mdiArrowRight, mdiArrowTopRight } from "@mdi/js";
 import { invoke } from "@tauri-apps/api/core";
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { api, baseUrl, clock, coverUrl, setBase, type TrackInfo } from "./api";
@@ -100,7 +101,7 @@ const moveOf = (from: TrackInfo, to: TrackInfo): Move => {
   const delta = energy(to) - energy(from);
   return delta > SHIFT ? "lift" : delta < -SHIFT ? "drop" : "level";
 };
-const MOVE_MARK: Record<Move, string> = { lift: "↗", drop: "↘", level: "→" };
+const MOVE_ICON: Record<Move, string> = { lift: mdiArrowTopRight, drop: mdiArrowBottomRight, level: mdiArrowRight };
 const MOVE_WORDS: Record<Move, string> = { lift: "The energy rises", drop: "The energy falls", level: "The energy stays" };
 const wanted = ref<Move | "any">("any");
 
@@ -203,7 +204,7 @@ const loaded = (track: TrackInfo) => (tracks.a?.track_id === track.track_id ? "A
         <span v-if="reference" class="hint">goes with deck {{ reference.toUpperCase() }} · {{ tracks[reference]?.camelot || "?" }}</span>
         <span class="moves" role="group" aria-label="Energy of the transition">
           <button v-for="m in (['any', 'lift', 'level', 'drop'] as const)" :key="m" type="button" :class="{ sel: wanted === m }" :disabled="!reference && m !== 'any'" :title="m === 'any' ? 'Any transition' : MOVE_WORDS[m]" @click="wanted = m">
-            {{ m === "any" ? "Any" : `${MOVE_MARK[m]} ${m}` }}
+            <v-icon v-if="m !== 'any'" :icon="MOVE_ICON[m]" size="13" />{{ m === "any" ? "Any" : m }}
           </button>
         </span>
         <button type="button" class="wheelbtn" :class="{ shown: sheet }" :aria-expanded="sheet" title="The rules of the wheel of Camelot" @click="sheet = !sheet">Wheel ?</button>
@@ -219,7 +220,7 @@ const loaded = (track: TrackInfo) => (tracks.a?.track_id === track.track_id ? "A
           <div class="a">{{ track.artists.join(", ") }}</div>
         </div>
         <span class="bpm">{{ track.bpm ? track.bpm.toFixed(0) : "?" }}</span>
-        <span class="move" :class="fit?.move" :title="fit ? MOVE_WORDS[fit.move] : ''">{{ fit ? MOVE_MARK[fit.move] : "" }}</span>
+        <span class="move" :class="fit?.move" :title="fit ? MOVE_WORDS[fit.move] : ''"><v-icon v-if="fit" :icon="MOVE_ICON[fit.move]" size="18" /></span>
         <span class="key" :class="fit ? `k${fit.key}` : ''" :title="fit ? `Key: ${KEY_WORDS[fit.key]}` : ''">{{ track.camelot || "—" }}</span>
         <span class="gap" :class="{ far: fit && fit.gap !== null && Math.abs(fit.gap) > 8 }" :title="fit?.gap == null ? '' : 'The pitch fader move that matches the tempo'">{{ fit?.gap == null ? "" : `${fit.gap > 0 ? "+" : ""}${fit.gap.toFixed(1)}%` }}</span>
         <span class="len">{{ clock(track.duration_seconds) }}</span>
@@ -254,10 +255,10 @@ label { font-size: 11px; color: var(--text2); }
 .lhead { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 6px 4px; }
 .hint { font-size: 11px; color: var(--text2); }
 .moves { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; background: var(--control); margin-left: auto; }
-.moves button { height: 20px; padding: 0 8px; border-radius: 5px; font-size: 11px; cursor: default; color: var(--text2); }
+.moves button { display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 8px; border-radius: 5px; font-size: 11px; cursor: default; color: var(--text2); }
 .moves button.sel { background: var(--seg-on); color: var(--text); box-shadow: 0 0 0 0.5px var(--panel-border); }
 .moves button:disabled { opacity: 0.4; }
-.move { flex: none; width: 16px; text-align: center; font-weight: 700; }
+.move { flex: none; width: 20px; display: grid; place-items: center; }
 .move.lift { color: #ff9f0a; }
 .move.drop { color: var(--accent); }
 .move.level { color: var(--text2); }
