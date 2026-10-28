@@ -111,10 +111,12 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         item("tab-4", "Stats", Some("CmdOrCtrl+4"))?,
     ];
     let equalizer = item("equalizer", "Equalizer", Some("CmdOrCtrl+E"))?;
+    let console = item("dj", "DJ Console", Some("CmdOrCtrl+J"))?;
     let view = SubmenuBuilder::new(app, "View")
         .items(&[&tabs[0], &tabs[1], &tabs[2], &tabs[3]])
         .separator()
         .item(&equalizer)
+        .item(&console)
         .build()?;
 
     // Closing the window only hides it to the tray (⌘W).

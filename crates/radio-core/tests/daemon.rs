@@ -123,6 +123,23 @@ async fn the_daemon_streams_a_mix_and_answers_the_api() {
     }
     assert!(refilled, "the queue is loaded again after it is cleared");
 
+    // The console takes the sound of a track of the queue as raw float32 (stereo, 44.1 kHz); an unknown track is a 404.
+    let queue: Value = reqwest::get(format!("http://{address}/api/queue"))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let wanted = queue["next"][0]["track_id"].as_str().expect("a track waits").to_owned();
+    let pcm = reqwest::get(format!("http://{address}/api/track/{wanted}/pcm"))
+        .await
+        .unwrap();
+    assert_eq!(pcm.status(), 200);
+    let bytes = pcm.bytes().await.unwrap();
+    assert!(bytes.len() > 44_100 * 8 && bytes.len() % 8 == 0, "{} bytes", bytes.len());
+    let unknown = reqwest::get(format!("http://{address}/api/track/nope/pcm")).await.unwrap();
+    assert_eq!(unknown.status(), 404);
+
     // The arc of moods: refused when wrong, kept when right.
     let client = reqwest::Client::new();
     let arc_url = format!("http://{address}/api/arc");

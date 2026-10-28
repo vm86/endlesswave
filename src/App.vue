@@ -112,6 +112,7 @@ const actions: Record<string, () => void> = {
   },
   refresh: () => void refreshQueue(),
   equalizer: () => void invoke("open_equalizer").catch((e) => hud(String(e))),
+  dj: () => void invoke("open_dj").catch((e) => hud(String(e))),
   clear: () => {
     void clearQueue();
     hud("Queue cleared");
@@ -173,6 +174,7 @@ function onKey(event: KeyboardEvent) {
   const byKey: Record<string, string> = {
     d: "like",
     e: "equalizer",
+    j: "dj",
     ".": "stop",
     ArrowRight: "next",
     r: "refresh",

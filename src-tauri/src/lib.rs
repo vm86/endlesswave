@@ -1,4 +1,5 @@
 mod audio;
+mod dj;
 mod engine;
 mod equalizer;
 mod media;
@@ -7,6 +8,7 @@ mod radio;
 mod vk_login;
 
 use audio::{Audio, Status};
+use dj::Dj;
 use media::Media;
 use menu::MenuState;
 use radio::Radio;
@@ -73,6 +75,51 @@ fn open_equalizer(app: AppHandle) -> Result<(), String> {
     .build()
     .map(|_| ())
     .map_err(|e| format!("could not open the equalizer: {e}"))
+}
+
+/// The console of two decks: its own window, the same page asked for as `?dj`. The next call brings it forward.
+#[tauri::command]
+fn open_dj(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("dj") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+        return Ok(());
+    }
+    WebviewWindowBuilder::new(&app, "dj", WebviewUrl::App("index.html?dj".into()))
+        .title("DJ Console")
+        .inner_size(980.0, 720.0)
+        .min_inner_size(820.0, 600.0)
+        .build()
+        .map(|_| ())
+        .map_err(|e| format!("could not open the console: {e}"))
+}
+
+/// The console is switched on: the player of the stream is stopped (two sounds at once are no mix).
+#[tauri::command]
+fn dj_start(app: AppHandle, audio: State<Audio>, dj: State<Dj>) -> Result<(), String> {
+    audio.stop(&app);
+    dj.start()
+}
+
+#[tauri::command]
+fn dj_stop(dj: State<Dj>) {
+    dj.stop();
+}
+
+#[tauri::command]
+fn dj_load(dj: State<Dj>, deck: String, url: String) -> Result<(), String> {
+    dj.load(&deck, url)
+}
+
+#[tauri::command]
+fn dj_set(dj: State<Dj>, name: String, value: f32) -> Result<(), String> {
+    dj.set(&name, value)
+}
+
+#[tauri::command]
+fn dj_status(dj: State<Dj>) -> dj::Status {
+    dj.status()
 }
 
 #[tauri::command]
@@ -203,6 +250,7 @@ pub fn run() {
         .manage(Radio::default())
         .manage(MenuState::default())
         .manage(Audio::default())
+        .manage(Dj::default())
         .manage(Media::default())
         .invoke_handler(tauri::generate_handler![
             radio_url,
@@ -215,6 +263,12 @@ pub fn run() {
             player_volume,
             player_eq,
             open_equalizer,
+            open_dj,
+            dj_start,
+            dj_stop,
+            dj_load,
+            dj_set,
+            dj_status,
             player_status,
             media_metadata,
             media_playback,
@@ -298,6 +352,12 @@ pub fn run() {
             {
                 api.prevent_close();
                 let _ = window.hide();
+            }
+            // The console is on only while its window is.
+            if let WindowEvent::Destroyed = event
+                && window.label() == "dj"
+            {
+                window.state::<Dj>().stop();
             }
         })
         .build(tauri::generate_context!())

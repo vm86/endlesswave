@@ -5,6 +5,7 @@ import * as directives from "vuetify/directives";
 import { aliases, mdi } from "vuetify/iconsets/mdi-svg";
 import "vuetify/styles";
 import App from "./App.vue";
+import DjWindow from "./DjWindow.vue";
 import EqualizerWindow from "./EqualizerWindow.vue";
 import "./styles.css";
 
@@ -35,5 +36,6 @@ document.documentElement.classList.toggle("mac", /Mac/.test(navigator.userAgent)
 window.addEventListener("contextmenu", (event) => event.preventDefault());
 
 // The window of the equalizer is the same page, asked for as `?equalizer`.
-const root = location.search.includes("equalizer") ? EqualizerWindow : App;
+// The console of the decks is `?dj`.
+const root = location.search.includes("dj") ? DjWindow : location.search.includes("equalizer") ? EqualizerWindow : App;
 createApp(root).use(vuetify).mount("#app");

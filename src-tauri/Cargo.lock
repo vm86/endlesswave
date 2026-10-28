@@ -4215,6 +4215,7 @@ dependencies = [
  "base64 0.23.1",
  "bytes",
  "cc",
+ "chrono",
  "clap",
  "ebur128",
  "flacenc",
