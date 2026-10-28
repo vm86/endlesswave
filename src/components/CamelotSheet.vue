@@ -60,7 +60,7 @@ const RULES = [
           <div><b>{{ rule.head }}</b><span>{{ rule.text }}</span></div>
         </li>
       </ul>
-      <p class="tip">A is minor (the inner ring), B is major (the outer ring). The wheel is a circle: 12 is next to 1. The tempo goes along: within about 8% the pitch fader hides the difference; the rise of the energy (↗) is best made by +1 and by the tempo going up.</p>
+      <p class="tip">A is minor (the inner ring), B is major (the outer ring). The wheel is a circle: 12 is next to 1. The tempo goes along: within about 8% the pitch fader hides the difference; a rise of energy is best made by +1 and by the tempo going up.</p>
     </div>
   </div>
 </template>
