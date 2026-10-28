@@ -6,6 +6,7 @@ mod media;
 mod menu;
 mod radio;
 mod vk_login;
+mod waveform;
 
 use audio::{Audio, Status};
 use dj::Dj;
@@ -108,8 +109,13 @@ fn dj_stop(dj: State<Dj>) {
 }
 
 #[tauri::command]
-fn dj_load(dj: State<Dj>, deck: String, url: String) -> Result<(), String> {
-    dj.load(&deck, url)
+fn dj_load(dj: State<Dj>, deck: String, url: String, bpm: Option<f64>) -> Result<(), String> {
+    dj.load(&deck, url, bpm.unwrap_or(0.0))
+}
+
+#[tauri::command]
+fn dj_overview(dj: State<Dj>, deck: String) -> Result<Option<waveform::Overview>, String> {
+    dj.overview(&deck)
 }
 
 #[tauri::command]
@@ -267,6 +273,7 @@ pub fn run() {
             dj_start,
             dj_stop,
             dj_load,
+            dj_overview,
             dj_set,
             dj_status,
             player_status,

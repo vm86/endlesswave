@@ -49,6 +49,8 @@ impl Float {
 
 struct Deck {
     pcm: Mutex<Arc<Vec<f32>>>,
+    /// The waveform and the places to mix at, made when the track is in.
+    overview: Mutex<Option<crate::waveform::Overview>>,
     /// Goes up whenever `pcm` is replaced.
     version: AtomicU32,
     state: AtomicU8,
@@ -72,6 +74,7 @@ impl Deck {
     fn new() -> Self {
         Self {
             pcm: Mutex::new(Arc::new(Vec::new())),
+            overview: Mutex::new(None),
             version: AtomicU32::new(0),
             state: AtomicU8::new(EMPTY),
             message: Mutex::new(String::new()),
@@ -185,16 +188,19 @@ impl Dj {
     }
 
     /// Fetch a track from the radio into a deck. It stops what the deck played.
-    pub fn load(&self, deck: &str, url: String) -> Result<(), String> {
+    pub fn load(&self, deck: &str, url: String, bpm: f64) -> Result<(), String> {
         let index = deck_index(deck)?;
         let shared = self.shared.clone();
         let target = &shared.decks[index];
         target.playing.store(false, Ordering::Relaxed);
+        *target.overview.lock().unwrap() = None;
         target.state.store(LOADING, Ordering::SeqCst);
         std::thread::spawn(move || {
             let deck = &shared.decks[index];
             match fetch(&url) {
                 Ok(pcm) => {
+                    // Before the deck is ready: the page asks for the overview as soon as it is.
+                    *deck.overview.lock().unwrap() = Some(crate::waveform::analyze(&pcm, bpm));
                     *deck.pcm.lock().unwrap() = Arc::new(pcm);
                     deck.version.fetch_add(1, Ordering::SeqCst);
                     deck.position.store(0f64.to_bits(), Ordering::SeqCst);
@@ -257,6 +263,15 @@ impl Dj {
             _ => return Err(format!("unknown control {name:?}")),
         }
         Ok(())
+    }
+
+    /// The waveform and the markers of the track on a deck, once it is loaded.
+    pub fn overview(&self, deck: &str) -> Result<Option<crate::waveform::Overview>, String> {
+        Ok(self.shared.decks[deck_index(deck)?]
+            .overview
+            .lock()
+            .unwrap()
+            .clone())
     }
 
     pub fn status(&self) -> Status {

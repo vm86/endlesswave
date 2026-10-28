@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { mdiArrowBottomRight, mdiArrowRight, mdiArrowTopRight } from "@mdi/js";
 import { invoke } from "@tauri-apps/api/core";
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { api, baseUrl, clock, coverUrl, setBase, type TrackInfo } from "./api";
 import { keyFit } from "./camelot";
 import CamelotSheet from "./components/CamelotSheet.vue";
-import DjDeck, { type DeckState } from "./components/DjDeck.vue";
+import DjDeck, { type DeckState, type Overview } from "./components/DjDeck.vue";
 
 type Id = "a" | "b";
 interface Status {
@@ -14,6 +14,7 @@ interface Status {
 }
 
 const status = ref<Status | null>(null);
+const overviews = reactive<Record<Id, Overview | null>>({ a: null, b: null });
 const error = ref("");
 const library = ref<TrackInfo[]>([]);
 const tracks = reactive<Record<Id, TrackInfo | null>>({ a: null, b: null });
@@ -37,7 +38,7 @@ async function load(deck: Id, track: TrackInfo) {
   tracks[deck] = track;
   lastLoaded.value = deck;
   try {
-    await invoke("dj_load", { deck, url: `${baseUrl()}/api/track/${encodeURIComponent(track.track_id)}/pcm` });
+    await invoke("dj_load", { deck, url: `${baseUrl()}/api/track/${encodeURIComponent(track.track_id)}/pcm`, bpm: track.bpm || 0 });
     // A new track begins at its own tempo, with its own sound.
     for (const name of ["low", "mid", "high"]) set(`${deck}.${name}`, 0);
     set(`${deck}.tempo`, 1);
@@ -68,6 +69,18 @@ function sync(deck: Id) {
 }
 
 const stateOf = (id: Id) => status.value?.decks[id === "a" ? 0 : 1] ?? null;
+// The waveform comes when the track is in a deck, and goes when another is asked for.
+for (const id of ["a", "b"] as const) {
+  watch([() => stateOf(id)?.state, () => tracks[id]?.track_id], ([state]) => {
+    if (state !== "ready") {
+      overviews[id] = null;
+      return;
+    }
+    invoke<Overview | null>("dj_overview", { deck: id })
+      .then((overview) => (overviews[id] = overview))
+      .catch(() => (overviews[id] = null));
+  });
+}
 /** How far the two decks are from each other, in BPM: what the ear hears as the beats drifting. */
 const drift = computed(() => {
   const [a, b] = [tracks.a, tracks.b];
@@ -172,7 +185,7 @@ const loaded = (track: TrackInfo) => (tracks.a?.track_id === track.track_id ? "A
     <div v-if="error" class="err" role="alert">{{ error }}</div>
 
     <div class="decks">
-      <DjDeck id="a" :track="tracks.a" :deck="stateOf('a')" :eq="knobs.a" :fader="knobs.a.fader" :syncable="!!tracks.b" @set="setNow" @sync="sync('a')" />
+      <DjDeck id="a" :track="tracks.a" :deck="stateOf('a')" :eq="knobs.a" :fader="knobs.a.fader" :syncable="!!tracks.b" :overview="overviews.a" @set="setNow" @sync="sync('a')" />
 
       <section class="mixer" aria-label="Mixer">
         <div class="drift" :class="{ ok: drift !== null && Math.abs(drift) < 0.5 }" title="The difference of the tempos of the two decks">
@@ -195,7 +208,7 @@ const loaded = (track: TrackInfo) => (tracks.a?.track_id === track.track_id ? "A
         </div>
       </section>
 
-      <DjDeck id="b" :track="tracks.b" :deck="stateOf('b')" :eq="knobs.b" :fader="knobs.b.fader" :syncable="!!tracks.a" @set="setNow" @sync="sync('b')" />
+      <DjDeck id="b" :track="tracks.b" :deck="stateOf('b')" :eq="knobs.b" :fader="knobs.b.fader" :syncable="!!tracks.a" :overview="overviews.b" @set="setNow" @sync="sync('b')" />
     </div>
 
     <section class="library" aria-label="Tracks of the queue">
