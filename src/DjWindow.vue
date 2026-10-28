@@ -95,7 +95,25 @@ function keyFit(a: string, b: string): number {
 }
 const KEY_WORDS = ["same key", "fits", "possible", "clashes"];
 
-interface Fit { key: number; gap: number | null; score: number }
+const MOOD_LEVEL: Record<string, number> = { sad: 0, calm: 1 / 3, fun: 2 / 3, active: 1 };
+/** How much is going on in a track, 0 to 1: the tempo (60 BPM is nothing, 180 is all) and the mood, when the service knows it. */
+function energy(track: TrackInfo): number {
+  const tempo = Math.max(0, Math.min(1, ((track.bpm || 110) - 60) / 120));
+  const mood = MOOD_LEVEL[track.mood];
+  return mood === undefined ? tempo : 0.55 * tempo + 0.45 * mood;
+}
+/** The change of energy from the reference to a track: a lift, a drop or about the same. */
+const SHIFT = 0.1;
+type Move = "lift" | "drop" | "level";
+const moveOf = (from: TrackInfo, to: TrackInfo): Move => {
+  const delta = energy(to) - energy(from);
+  return delta > SHIFT ? "lift" : delta < -SHIFT ? "drop" : "level";
+};
+const MOVE_MARK: Record<Move, string> = { lift: "↗", drop: "↘", level: "→" };
+const MOVE_WORDS: Record<Move, string> = { lift: "The energy rises", drop: "The energy falls", level: "The energy stays" };
+const wanted = ref<Move | "any">("any");
+
+interface Fit { key: number; gap: number | null; score: number; move: Move }
 /** How a track goes with the reference deck: the key on the wheel and how far the tempo has to be moved to match. */
 function fitOf(track: TrackInfo): Fit | null {
   const ref = reference.value;
@@ -110,11 +128,13 @@ function fitOf(track: TrackInfo): Fit | null {
   }
   // A tempo out of reach of the pitch fader (±16%) is no match, however the key goes.
   const reach = gap === null ? 2 : Math.abs(gap) > 16 ? 4 : Math.abs(gap) / 8;
-  return { key, gap, score: key + reach };
+  return { key, gap, score: key + reach, move: moveOf(other, track) };
 }
 const bestFirst = ref(false);
 const listed = computed(() => {
-  const rows = library.value.map((track) => ({ track, fit: fitOf(track) }));
+  const rows = library.value
+    .map((track) => ({ track, fit: fitOf(track) }))
+    .filter((row) => wanted.value === "any" || !row.fit || row.fit.move === wanted.value);
   return bestFirst.value && reference.value ? [...rows].sort((a, b) => (a.fit?.score ?? 99) - (b.fit?.score ?? 99)) : rows;
 });
 
@@ -189,6 +209,11 @@ const loaded = (track: TrackInfo) => (tracks.a?.track_id === track.track_id ? "A
       <div class="lhead">
         <h4>Queue</h4>
         <span v-if="reference" class="hint">goes with deck {{ reference.toUpperCase() }} · {{ tracks[reference]?.camelot || "?" }}</span>
+        <span class="moves" role="group" aria-label="Energy of the transition">
+          <button v-for="m in (['any', 'lift', 'level', 'drop'] as const)" :key="m" type="button" :class="{ on: wanted === m }" :disabled="!reference && m !== 'any'" :title="m === 'any' ? 'Any transition' : MOVE_WORDS[m]" @click="wanted = m">
+            {{ m === "any" ? "Any" : `${MOVE_MARK[m]} ${m}` }}
+          </button>
+        </span>
         <label class="best"><input type="checkbox" v-model="bestFirst" :disabled="!reference" /> Best match first</label>
       </div>
       <div v-if="!library.length" class="empty">The queue is empty: the radio is loading tracks.</div>
@@ -200,6 +225,7 @@ const loaded = (track: TrackInfo) => (tracks.a?.track_id === track.track_id ? "A
           <div class="a">{{ track.artists.join(", ") }}</div>
         </div>
         <span class="bpm">{{ track.bpm ? track.bpm.toFixed(0) : "?" }}</span>
+        <span class="move" :class="fit?.move" :title="fit ? MOVE_WORDS[fit.move] : ''">{{ fit ? MOVE_MARK[fit.move] : "" }}</span>
         <span class="key" :class="fit ? `k${fit.key}` : ''" :title="fit ? `Key: ${KEY_WORDS[fit.key]}` : ''">{{ track.camelot || "—" }}</span>
         <span class="gap" :class="{ far: fit && fit.gap !== null && Math.abs(fit.gap) > 8 }" :title="fit?.gap == null ? '' : 'The pitch fader move that matches the tempo'">{{ fit?.gap == null ? "" : `${fit.gap > 0 ? "+" : ""}${fit.gap.toFixed(1)}%` }}</span>
         <span class="len">{{ clock(track.duration_seconds) }}</span>
@@ -233,7 +259,15 @@ label { font-size: 11px; color: var(--text2); }
 .library { display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 12px; background: var(--panel); box-shadow: 0 0 0 0.5px var(--panel-border); min-height: 120px; }
 .lhead { display: flex; align-items: baseline; gap: 12px; margin: 0 0 6px 4px; }
 .hint { font-size: 11px; color: var(--text2); }
-.best { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+.moves { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; background: var(--control); margin-left: auto; }
+.moves button { height: 20px; padding: 0 8px; border-radius: 5px; font-size: 11px; cursor: default; color: var(--text2); }
+.moves button.on { background: var(--seg-on); color: var(--text); box-shadow: 0 0 0 0.5px var(--panel-border); }
+.moves button:disabled { opacity: 0.4; }
+.move { flex: none; width: 16px; text-align: center; font-weight: 700; }
+.move.lift { color: #ff9f0a; }
+.move.drop { color: var(--accent); }
+.move.level { color: var(--text2); }
+.best { margin-left: 4px; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
 .key { border-radius: 8px; padding: 0 6px; }
 .key.k0, .key.k1 { color: #fff; background: #30d158; }
 .key.k1 { background: color-mix(in srgb, #30d158 70%, transparent); }
