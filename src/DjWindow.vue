@@ -32,6 +32,7 @@ const setNow = (name: string, value: number) => set(name, value);
 async function load(deck: Id, track: TrackInfo) {
   error.value = "";
   tracks[deck] = track;
+  lastLoaded.value = deck;
   try {
     await invoke("dj_load", { deck, url: `${baseUrl()}/api/track/${encodeURIComponent(track.track_id)}/pcm` });
     // A new track begins at its own tempo, with its own sound.
@@ -70,6 +71,51 @@ const drift = computed(() => {
   if (!a?.bpm || !b?.bpm || !status.value) return null;
   const [sa, sb] = [stateOf("a")!, stateOf("b")!];
   return a.bpm * sa.tempo - b.bpm * sb.tempo;
+});
+
+/** The deck the next track is to be mixed with: the one that is heard (by the crossfader) while it plays, else the one loaded last. */
+const lastLoaded = ref<Id>("a");
+const reference = computed<Id | null>(() => {
+  const playing = (["a", "b"] as const).filter((id) => stateOf(id)?.playing && tracks[id]);
+  if (playing.length === 2) return xfade.value < 0.5 ? "a" : "b";
+  if (playing.length === 1) return playing[0]!;
+  return tracks[lastLoaded.value] ? lastLoaded.value : null;
+});
+
+/** The wheel of Camelot: the same key, a step round the wheel, or the relative major/minor go together. 0 is the best, 3 clashes. */
+function keyFit(a: string, b: string): number {
+  const [x, y] = [a.match(/^(\d+)([AB])$/), b.match(/^(\d+)([AB])$/)];
+  if (!x || !y) return 3;
+  const [nx, ny, lx, ly] = [Number(x[1]), Number(y[1]), x[2], y[2]];
+  const round = Math.min((nx - ny + 12) % 12, (ny - nx + 12) % 12);
+  if (round === 0) return lx === ly ? 0 : 1;
+  if (round === 1 && lx === ly) return 1;
+  if (round === 2 && lx === ly) return 2;
+  return 3;
+}
+const KEY_WORDS = ["same key", "fits", "possible", "clashes"];
+
+interface Fit { key: number; gap: number | null; score: number }
+/** How a track goes with the reference deck: the key on the wheel and how far the tempo has to be moved to match. */
+function fitOf(track: TrackInfo): Fit | null {
+  const ref = reference.value;
+  const other = ref ? tracks[ref] : null;
+  if (!ref || !other || track.track_id === other.track_id) return null;
+  const key = keyFit(track.camelot, other.camelot);
+  const target = other.bpm * (stateOf(ref)?.tempo ?? 1);
+  let gap: number | null = null;
+  if (track.bpm && target) {
+    const ratio = [target / track.bpm, (target * 2) / track.bpm, target / 2 / track.bpm].reduce((a, b) => (Math.abs(b - 1) < Math.abs(a - 1) ? b : a));
+    gap = (ratio - 1) * 100;
+  }
+  // A tempo out of reach of the pitch fader (±16%) is no match, however the key goes.
+  const reach = gap === null ? 2 : Math.abs(gap) > 16 ? 4 : Math.abs(gap) / 8;
+  return { key, gap, score: key + reach };
+}
+const bestFirst = ref(false);
+const listed = computed(() => {
+  const rows = library.value.map((track) => ({ track, fit: fitOf(track) }));
+  return bestFirst.value && reference.value ? [...rows].sort((a, b) => (a.fit?.score ?? 99) - (b.fit?.score ?? 99)) : rows;
 });
 
 let poll: ReturnType<typeof setInterval> | undefined;
@@ -140,9 +186,13 @@ const loaded = (track: TrackInfo) => (tracks.a?.track_id === track.track_id ? "A
     </div>
 
     <section class="library" aria-label="Tracks of the queue">
-      <h4>Queue</h4>
+      <div class="lhead">
+        <h4>Queue</h4>
+        <span v-if="reference" class="hint">goes with deck {{ reference.toUpperCase() }} · {{ tracks[reference]?.camelot || "?" }}</span>
+        <label class="best"><input type="checkbox" v-model="bestFirst" :disabled="!reference" /> Best match first</label>
+      </div>
       <div v-if="!library.length" class="empty">The queue is empty: the radio is loading tracks.</div>
-      <div v-for="track in library" :key="track.track_id" class="item">
+      <div v-for="{ track, fit } in listed" :key="track.track_id" class="item">
         <img v-if="track.cover" :src="coverUrl(track.cover, 60)" alt="" />
         <div v-else class="noart"></div>
         <div class="who">
@@ -150,7 +200,8 @@ const loaded = (track: TrackInfo) => (tracks.a?.track_id === track.track_id ? "A
           <div class="a">{{ track.artists.join(", ") }}</div>
         </div>
         <span class="bpm">{{ track.bpm ? track.bpm.toFixed(0) : "?" }}</span>
-        <span class="key">{{ track.camelot || "—" }}</span>
+        <span class="key" :class="fit ? `k${fit.key}` : ''" :title="fit ? `Key: ${KEY_WORDS[fit.key]}` : ''">{{ track.camelot || "—" }}</span>
+        <span class="gap" :class="{ far: fit && fit.gap !== null && Math.abs(fit.gap) > 8 }" :title="fit?.gap == null ? '' : 'The pitch fader move that matches the tempo'">{{ fit?.gap == null ? "" : `${fit.gap > 0 ? "+" : ""}${fit.gap.toFixed(1)}%` }}</span>
         <span class="len">{{ clock(track.duration_seconds) }}</span>
         <span class="on">{{ loaded(track) }}</span>
         <button type="button" class="load a" @click="load('a', track)">A</button>
@@ -180,7 +231,16 @@ label { font-size: 11px; color: var(--text2); }
 .cuts button { height: 22px; padding: 0 8px; border-radius: 6px; font-size: 11px; background: var(--control); cursor: default; }
 .cuts button:hover { background: var(--control-hover); }
 .library { display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 12px; background: var(--panel); box-shadow: 0 0 0 0.5px var(--panel-border); min-height: 120px; }
-.library h4 { margin: 0 0 6px 4px; }
+.lhead { display: flex; align-items: baseline; gap: 12px; margin: 0 0 6px 4px; }
+.hint { font-size: 11px; color: var(--text2); }
+.best { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+.key { border-radius: 8px; padding: 0 6px; }
+.key.k0, .key.k1 { color: #fff; background: #30d158; }
+.key.k1 { background: color-mix(in srgb, #30d158 70%, transparent); }
+.key.k2 { color: var(--text); background: color-mix(in srgb, #ff9f0a 45%, transparent); }
+.key.k3 { color: var(--text2); text-decoration: line-through; }
+.gap { flex: none; width: 48px; text-align: right; font-size: 11px; color: var(--text2); font-variant-numeric: tabular-nums; }
+.gap.far { color: var(--red); }
 .empty { padding: 10px; color: var(--text2); }
 .item { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-radius: 6px; }
 .item:hover { background: var(--control); }
@@ -189,7 +249,8 @@ label { font-size: 11px; color: var(--text2); }
 .t, .a { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .t { font-weight: 500; }
 .a { font-size: 11px; color: var(--text2); }
-.bpm, .key, .len { flex: none; width: 34px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text2); font-size: 12px; }
+.bpm, .len { flex: none; width: 34px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text2); font-size: 12px; }
+.key { flex: none; min-width: 34px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; }
 .on { flex: none; width: 14px; font-weight: 700; color: var(--accent); font-size: 11px; }
 .load { flex: none; width: 30px; height: 24px; border-radius: 6px; font-weight: 700; color: #fff; cursor: default; }
 .load.a { background: var(--accent); }
