@@ -45,15 +45,15 @@ const RULES = [
     <svg viewBox="0 0 220 220" role="img" aria-label="The wheel of Camelot" class="wheel">
       <g v-for="c in cells" :key="c.code">
         <path :d="c.d" :class="['cell', c.fit === null ? '' : `k${c.fit}`, { own: c.own }]" />
-        <text :x="c.mx" :y="c.my - 1" class="code">{{ c.code }}</text>
+        <text :x="c.mx" :y="c.my - 1" class="cell-code">{{ c.code }}</text>
         <text :x="c.mx" :y="c.my + 8" class="note">{{ c.note }}</text>
       </g>
       <text :x="C" :y="C - 2" class="mid">outer B</text>
       <text :x="C" :y="C + 8" class="mid">inner A</text>
     </svg>
     <div class="rules">
-      <p v-if="reference" class="now">With <b>{{ reference }}</b> (the deck that is heard) go the cells that are lit.</p>
-      <p v-else class="now">Load a track into a deck and the cells that go with it light up.</p>
+      <p v-if="reference" class="now-line">With <b>{{ reference }}</b> (the deck that is heard) go the cells that are lit.</p>
+      <p v-else class="now-line">Load a track into a deck and the cells that go with it light up.</p>
       <ul>
         <li v-for="rule in RULES" :key="rule.head">
           <i :class="rule.mark"></i>
@@ -74,13 +74,13 @@ const RULES = [
 .cell.k2 { fill: color-mix(in srgb, #ff9f0a 70%, transparent); }
 .cell.k3 { fill: var(--control); opacity: 0.55; }
 .cell.own { stroke: var(--text); stroke-width: 2; }
-.code { font-size: 9.5px; font-weight: 700; text-anchor: middle; fill: var(--text); pointer-events: none; }
+.cell-code { font-size: 9.5px; font-weight: 700; text-anchor: middle; fill: var(--text); pointer-events: none; }
 .note { font-size: 7px; text-anchor: middle; fill: var(--text2); pointer-events: none; }
-.cell.k0 + .code, .cell.k1 + .code { fill: #fff; }
+.cell.k0 + .cell-code, .cell.k1 + .cell-code { fill: #fff; }
 .cell.k0 ~ .note, .cell.k1 ~ .note { fill: rgba(255, 255, 255, 0.85); }
 .mid { font-size: 7.5px; text-anchor: middle; fill: var(--text2); }
 .rules { min-width: 0; flex: 1; font-size: 12px; }
-.now { margin: 0 0 8px; color: var(--text2); }
+.now-line { margin: 0 0 8px; color: var(--text2); }
 ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 7px; }
 li { display: flex; gap: 8px; align-items: flex-start; }
 li i { flex: none; width: 10px; height: 10px; margin-top: 3px; border-radius: 3px; background: var(--control); }

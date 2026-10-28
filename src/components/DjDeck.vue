@@ -48,18 +48,18 @@ const bands = [
 </script>
 
 <template>
-  <section class="djdeck" :class="[id, { empty: !track }]" :aria-label="`Deck ${id.toUpperCase()}`">
+  <section class="djdeck" :class="[id, { 'dj-empty': !track }]" :aria-label="`Deck ${id.toUpperCase()}`">
     <header>
       <span class="letter">{{ id.toUpperCase() }}</span>
-      <img v-if="track?.cover" class="art" :src="coverUrl(track.cover, 100)" alt="" />
-      <div v-else class="art"></div>
-      <div class="meta">
+      <img v-if="track?.cover" class="dj-art" :src="coverUrl(track.cover, 100)" alt="" />
+      <div v-else class="dj-art"></div>
+      <div class="dj-meta">
         <div class="title">{{ track?.title ?? "Empty" }}</div>
-        <div class="artist">{{ track ? track.artists.join(", ") : "Load a track from the list below" }}</div>
+        <div class="dj-artist">{{ track ? track.artists.join(", ") : "Load a track from the list below" }}</div>
         <div class="chips" v-if="track">
-          <span class="chip bpm">{{ bpm ? bpm.toFixed(1) : "?" }} BPM</span>
-          <span class="chip">{{ track.camelot || "—" }}</span>
-          <span v-if="track.mood" class="chip">{{ track.mood }}</span>
+          <span class="dj-chip bpm">{{ bpm ? bpm.toFixed(1) : "?" }} BPM</span>
+          <span class="dj-chip">{{ track.camelot || "—" }}</span>
+          <span v-if="track.mood" class="dj-chip">{{ track.mood }}</span>
         </div>
       </div>
     </header>
@@ -68,7 +68,7 @@ const bands = [
       <template v-if="deck?.state === 'loading'">Loading…</template>
       <template v-else-if="deck?.state === 'error'">{{ deck.message }}</template>
       <template v-else-if="ready && deck">
-        <span class="now">{{ clock(deck.position) }}</span>
+        <span class="dj-now">{{ clock(deck.position) }}</span>
         <span class="left">−{{ clock(Math.max(0, deck.duration - deck.position)) }}</span>
       </template>
       <template v-else>0:00</template>
@@ -78,7 +78,7 @@ const bands = [
       <i class="cue" :style="{ left: `${cuePlace * 100}%` }"></i>
     </div>
 
-    <div class="transport">
+    <div class="dj-transport">
       <button type="button" class="pad" :disabled="!ready" title="Back to the cue point" @click="emit('set', `${id}.cue`, 1)">
         <v-icon :icon="mdiSkipPrevious" size="18" /><span>Cue</span>
       </button>
@@ -91,7 +91,7 @@ const bands = [
     </div>
 
     <div class="controls">
-      <div class="col eq" v-for="[band, label] in bands" :key="band">
+      <div class="col dj-eq" v-for="[band, label] in bands" :key="band">
         <input type="range" class="vert" min="-40" max="9" step="0.5" :value="eq[band]" :aria-label="`${label} of deck ${id.toUpperCase()}`"
           @input="emit('set', `${id}.${band}`, num($event))" @dblclick="emit('set', `${id}.${band}`, 0)" />
         <label>{{ label }}</label>
@@ -118,14 +118,14 @@ const bands = [
 header { display: flex; gap: 10px; align-items: center; min-width: 0; }
 .letter { flex: none; width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; font-weight: 700; color: #fff; background: var(--accent); }
 .b .letter { background: #ff9f0a; }
-.art { flex: none; width: 56px; height: 56px; border-radius: 6px; background: var(--control); object-fit: cover; }
-.meta { min-width: 0; flex: 1; }
+.dj-art { flex: none; width: 56px; height: 56px; border-radius: 6px; background: var(--control); object-fit: cover; }
+.dj-meta { min-width: 0; flex: 1; }
 .title { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.artist { color: var(--text2); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.empty .title { color: var(--text2); }
+.dj-artist { color: var(--text2); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dj-empty .title { color: var(--text2); }
 .chips { display: flex; gap: 5px; margin-top: 4px; }
-.chip { padding: 0 6px; border-radius: 8px; font-size: 11px; line-height: 16px; background: var(--control); color: var(--text2); }
-.chip.bpm { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+.dj-chip { padding: 0 6px; border-radius: 8px; font-size: 11px; line-height: 16px; background: var(--control); color: var(--text2); }
+.dj-chip.bpm { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
 .time { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 22px; min-height: 28px; }
 .time.off { font-size: 13px; color: var(--text2); font-family: var(--font); }
 .time .left { font-size: 13px; color: var(--text2); }
@@ -134,7 +134,7 @@ header { display: flex; gap: 10px; align-items: center; min-width: 0; }
 .bar .fill { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--accent) 55%, transparent); }
 .b .bar .fill { background: color-mix(in srgb, #ff9f0a 55%, transparent); }
 .bar .cue { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--red); }
-.transport { display: flex; gap: 8px; justify-content: center; }
+.dj-transport { display: flex; gap: 8px; justify-content: center; }
 .pad { min-width: 64px; height: 38px; padding: 0 12px; border-radius: 8px; display: inline-flex; gap: 5px; align-items: center; justify-content: center; font-size: 12px; font-weight: 500;
   background: var(--control); color: var(--text); cursor: default; transition: background 120ms var(--ease); }
 .pad:hover:not(:disabled) { background: var(--control-hover); }

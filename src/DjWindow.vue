@@ -211,7 +211,7 @@ const loaded = (track: TrackInfo) => (tracks.a?.track_id === track.track_id ? "A
         <label class="best"><input type="checkbox" v-model="bestFirst" :disabled="!reference" /> Best match first</label>
       </div>
       <CamelotSheet v-if="sheet" :reference="reference ? tracks[reference]?.camelot || null : null" />
-      <div v-if="!library.length" class="empty">The queue is empty: the radio is loading tracks.</div>
+      <div v-if="!library.length" class="dj-empty">The queue is empty: the radio is loading tracks.</div>
       <div v-for="{ track, fit } in listed" :key="track.track_id" class="item">
         <img v-if="track.cover" :src="coverUrl(track.cover, 60)" alt="" />
         <div v-else class="noart"></div>
@@ -220,7 +220,7 @@ const loaded = (track: TrackInfo) => (tracks.a?.track_id === track.track_id ? "A
           <div class="a">{{ track.artists.join(", ") }}</div>
         </div>
         <span class="bpm">{{ track.bpm ? track.bpm.toFixed(0) : "?" }}</span>
-        <span class="move" :class="fit?.move" :title="fit ? MOVE_WORDS[fit.move] : ''"><v-icon v-if="fit" :icon="MOVE_ICON[fit.move]" size="18" /></span>
+        <span class="move" :class="fit ? `m-${fit.move}` : ''" :title="fit ? MOVE_WORDS[fit.move] : ''"><v-icon v-if="fit" :icon="MOVE_ICON[fit.move]" size="18" /></span>
         <span class="key" :class="fit ? `k${fit.key}` : ''" :title="fit ? `Key: ${KEY_WORDS[fit.key]}` : ''">{{ track.camelot || "—" }}</span>
         <span class="gap" :class="{ far: fit && fit.gap !== null && Math.abs(fit.gap) > 8 }" :title="fit?.gap == null ? '' : 'The pitch fader move that matches the tempo'">{{ fit?.gap == null ? "" : `${fit.gap > 0 ? "+" : ""}${fit.gap.toFixed(1)}%` }}</span>
         <span class="len">{{ clock(track.duration_seconds) }}</span>
@@ -259,9 +259,9 @@ label { font-size: 11px; color: var(--text2); }
 .moves button.sel { background: var(--seg-on); color: var(--text); box-shadow: 0 0 0 0.5px var(--panel-border); }
 .moves button:disabled { opacity: 0.4; }
 .move { flex: none; width: 20px; display: grid; place-items: center; }
-.move.lift { color: #ff9f0a; }
-.move.drop { color: var(--accent); }
-.move.level { color: var(--text2); }
+.move.m-lift { color: #ff9f0a; }
+.move.m-drop { color: var(--accent); }
+.move.m-level { color: var(--text2); }
 .wheelbtn { flex: none; white-space: nowrap; height: 22px; padding: 0 9px; border-radius: 7px; font-size: 11px; background: var(--control); color: var(--text2); cursor: default; }
 .wheelbtn:hover { background: var(--control-hover); }
 .wheelbtn.shown { background: var(--accent); color: #fff; }
@@ -273,7 +273,7 @@ label { font-size: 11px; color: var(--text2); }
 .key.k3 { color: var(--text2); text-decoration: line-through; }
 .gap { flex: none; width: 48px; text-align: right; font-size: 11px; color: var(--text2); font-variant-numeric: tabular-nums; }
 .gap.far { color: var(--red); }
-.empty { padding: 10px; color: var(--text2); }
+.dj-empty { padding: 10px; color: var(--text2); }
 .item { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-radius: 6px; }
 .item:hover { background: var(--control); }
 .item img, .noart { flex: none; width: 30px; height: 30px; border-radius: 4px; background: var(--control); }
