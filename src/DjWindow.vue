@@ -2,6 +2,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { api, baseUrl, clock, coverUrl, setBase, type TrackInfo } from "./api";
+import { keyFit } from "./camelot";
+import CamelotSheet from "./components/CamelotSheet.vue";
 import DjDeck, { type DeckState } from "./components/DjDeck.vue";
 
 type Id = "a" | "b";
@@ -82,17 +84,6 @@ const reference = computed<Id | null>(() => {
   return tracks[lastLoaded.value] ? lastLoaded.value : null;
 });
 
-/** The wheel of Camelot: the same key, a step round the wheel, or the relative major/minor go together. 0 is the best, 3 clashes. */
-function keyFit(a: string, b: string): number {
-  const [x, y] = [a.match(/^(\d+)([AB])$/), b.match(/^(\d+)([AB])$/)];
-  if (!x || !y) return 3;
-  const [nx, ny, lx, ly] = [Number(x[1]), Number(y[1]), x[2], y[2]];
-  const round = Math.min((nx - ny + 12) % 12, (ny - nx + 12) % 12);
-  if (round === 0) return lx === ly ? 0 : 1;
-  if (round === 1 && lx === ly) return 1;
-  if (round === 2 && lx === ly) return 2;
-  return 3;
-}
 const KEY_WORDS = ["same key", "fits", "possible", "clashes"];
 
 const MOOD_LEVEL: Record<string, number> = { sad: 0, calm: 1 / 3, fun: 2 / 3, active: 1 };
@@ -131,6 +122,7 @@ function fitOf(track: TrackInfo): Fit | null {
   return { key, gap, score: key + reach, move: moveOf(other, track) };
 }
 const bestFirst = ref(false);
+const sheet = ref(false);
 const listed = computed(() => {
   const rows = library.value
     .map((track) => ({ track, fit: fitOf(track) }))
@@ -210,12 +202,14 @@ const loaded = (track: TrackInfo) => (tracks.a?.track_id === track.track_id ? "A
         <h4>Queue</h4>
         <span v-if="reference" class="hint">goes with deck {{ reference.toUpperCase() }} · {{ tracks[reference]?.camelot || "?" }}</span>
         <span class="moves" role="group" aria-label="Energy of the transition">
-          <button v-for="m in (['any', 'lift', 'level', 'drop'] as const)" :key="m" type="button" :class="{ on: wanted === m }" :disabled="!reference && m !== 'any'" :title="m === 'any' ? 'Any transition' : MOVE_WORDS[m]" @click="wanted = m">
+          <button v-for="m in (['any', 'lift', 'level', 'drop'] as const)" :key="m" type="button" :class="{ sel: wanted === m }" :disabled="!reference && m !== 'any'" :title="m === 'any' ? 'Any transition' : MOVE_WORDS[m]" @click="wanted = m">
             {{ m === "any" ? "Any" : `${MOVE_MARK[m]} ${m}` }}
           </button>
         </span>
+        <button type="button" class="wheelbtn" :class="{ shown: sheet }" :aria-expanded="sheet" title="The rules of the wheel of Camelot" @click="sheet = !sheet">Wheel ?</button>
         <label class="best"><input type="checkbox" v-model="bestFirst" :disabled="!reference" /> Best match first</label>
       </div>
+      <CamelotSheet v-if="sheet" :reference="reference ? tracks[reference]?.camelot || null : null" />
       <div v-if="!library.length" class="empty">The queue is empty: the radio is loading tracks.</div>
       <div v-for="{ track, fit } in listed" :key="track.track_id" class="item">
         <img v-if="track.cover" :src="coverUrl(track.cover, 60)" alt="" />
@@ -243,7 +237,7 @@ h4 { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-
 .top { display: flex; align-items: baseline; gap: 12px; }
 .note { font-size: 11px; color: var(--text2); }
 .err { padding: 6px 10px; border-radius: 6px; font-size: 12px; color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
-.decks { display: grid; grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr); gap: 12px; align-items: start; }
+.decks { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr); gap: 12px; align-items: start; }
 .mixer { display: flex; flex-direction: column; gap: 14px; align-items: center; padding: 14px 10px; border-radius: 12px; background: var(--panel); box-shadow: 0 0 0 0.5px var(--panel-border); }
 .drift { text-align: center; font-size: 11px; color: var(--text2); display: flex; flex-direction: column; gap: 2px; }
 .drift b { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text); }
@@ -256,17 +250,20 @@ label { font-size: 11px; color: var(--text2); }
 .cuts { display: flex; gap: 4px; margin-top: 2px; }
 .cuts button { height: 22px; padding: 0 8px; border-radius: 6px; font-size: 11px; background: var(--control); cursor: default; }
 .cuts button:hover { background: var(--control-hover); }
-.library { display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 12px; background: var(--panel); box-shadow: 0 0 0 0.5px var(--panel-border); min-height: 120px; }
-.lhead { display: flex; align-items: baseline; gap: 12px; margin: 0 0 6px 4px; }
+.library { flex: none; display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 12px; background: var(--panel); box-shadow: 0 0 0 0.5px var(--panel-border); min-height: 120px; }
+.lhead { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 6px 4px; }
 .hint { font-size: 11px; color: var(--text2); }
 .moves { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; background: var(--control); margin-left: auto; }
 .moves button { height: 20px; padding: 0 8px; border-radius: 5px; font-size: 11px; cursor: default; color: var(--text2); }
-.moves button.on { background: var(--seg-on); color: var(--text); box-shadow: 0 0 0 0.5px var(--panel-border); }
+.moves button.sel { background: var(--seg-on); color: var(--text); box-shadow: 0 0 0 0.5px var(--panel-border); }
 .moves button:disabled { opacity: 0.4; }
 .move { flex: none; width: 16px; text-align: center; font-weight: 700; }
 .move.lift { color: #ff9f0a; }
 .move.drop { color: var(--accent); }
 .move.level { color: var(--text2); }
+.wheelbtn { flex: none; white-space: nowrap; height: 22px; padding: 0 9px; border-radius: 7px; font-size: 11px; background: var(--control); color: var(--text2); cursor: default; }
+.wheelbtn:hover { background: var(--control-hover); }
+.wheelbtn.shown { background: var(--accent); color: #fff; }
 .best { margin-left: 4px; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
 .key { border-radius: 8px; padding: 0 6px; }
 .key.k0, .key.k1 { color: #fff; background: #30d158; }
