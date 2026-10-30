@@ -99,6 +99,7 @@ impl DeckSource for ScriptedRadio {
             speed: if speed != 0.0 { speed } else { 1.0 },
             generation,
             source: None,
+            phrase: None,
         })
     }
 

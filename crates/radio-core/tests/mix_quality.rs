@@ -254,6 +254,7 @@ fn normalized_deck(mut pcm: Vec<f32>, analysis: TrackAnalysis) -> Deck {
         speed: 1.0,
         generation: 0,
         source: None,
+        phrase: None,
     }
 }
 
@@ -322,7 +323,9 @@ async fn real_tracks_are_levelled_and_their_transitions_are_peak_safe() {
     for path in paths.into_iter().take(6) {
         let pcm = mix::decode::decode_file(&path).unwrap();
         let a = mix::analyze(&pcm);
+        let phrase = mix::phrase::analyze_on(&pcm, &a).map(Arc::new);
         let mut deck = normalized_deck(pcm, a);
+        deck.phrase = phrase;
         deck.title = path
             .file_name()
             .unwrap()
@@ -365,4 +368,48 @@ async fn real_tracks_are_levelled_and_their_transitions_are_peak_safe() {
         rendered += 1;
     }
     assert!(rendered > 0);
+    // Exercise the automatic pipeline on a real compatible pair, through the final PCM.
+    for (i, current) in decks.iter().enumerate() {
+        for (j, next) in decks.iter().enumerate() {
+            if i == j {
+                continue;
+            }
+            let (Some(out), Some(into)) = (&current.phrase, &next.phrase) else {
+                continue;
+            };
+            let speed = plan::transition_speed(current.analysis.bpm, &next.analysis);
+            if speed == 0.0 {
+                continue;
+            }
+            let Ok(expected) = plan::plan_phrase(
+                &current.analysis,
+                out,
+                &next.analysis,
+                into,
+                speed,
+                current.analysis.start,
+            ) else {
+                continue;
+            };
+            let mut following = next.clone();
+            following.speed = speed;
+            following.beat_matched = true;
+            let planned = pipeline::plan_blend(current, &mut following, current.analysis.start);
+            assert_eq!(planned.start, expected.start);
+            assert_eq!(planned.length, expected.length);
+            assert_eq!(planned.following_start, expected.following_start);
+            let (pcm, _) = render(current, &mut following, &planned, 1.0).await;
+            assert!(!pcm.is_empty());
+            safe(&pcm, effects::LIMIT_CEILING);
+            eprintln!(
+                "phrase blend {} -> {}: {:.2}s, peak {:.6}",
+                current.title,
+                following.title,
+                pcm.len() as f64 / (SR * CHANNELS) as f64,
+                peak(&pcm)
+            );
+            return;
+        }
+    }
+    panic!("the sample contains no compatible phrase pair");
 }

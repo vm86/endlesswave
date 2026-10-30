@@ -482,9 +482,21 @@ impl Radio {
             })
             .await
             .map_err(|e| DeckError(e.to_string()))?;
+            // The bars and the sections of the track, for a mix by phrases (a few seconds of work, off the runtime).
+            let phrase = if self.phrase_mix() {
+                let (heard, analysis) = (pcm.clone(), candidate.analysis.clone());
+                tokio::task::spawn_blocking(move || mix::phrase::analyze_on(&heard, &analysis))
+                    .await
+                    .ok()
+                    .flatten()
+                    .map(Arc::new)
+            } else {
+                None
+            };
             let deck = Deck {
                 title: candidate.title.as_str().into(),
                 pcm,
+                phrase,
                 analysis: candidate.analysis.clone(),
                 gain_db,
                 beat_matched: speed != 0.0,

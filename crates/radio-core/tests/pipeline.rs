@@ -63,6 +63,7 @@ fn deck(case: &DeckCase) -> Deck {
         speed: case.speed,
         generation: 0,
         source: None,
+        phrase: None,
     }
 }
 
@@ -131,4 +132,66 @@ fn the_mix_is_cut_in_pieces_of_a_quarter_of_a_second() {
         let sizes: Vec<usize> = pieces(&pcm, &title).map(|p| p.pcm.len() / 2).collect();
         assert_eq!(sizes, case.sizes, "{} frames", case.frames);
     }
+}
+
+#[test]
+fn automatic_pipeline_uses_phrase_sections_and_keeps_the_legacy_fallback() {
+    use radio_core::mix::phrase::{Kind, Marker, Phrase};
+    let rate = 44_100;
+    let analysis = TrackAnalysis {
+        bpm: 120.0,
+        head_beat: 0.0,
+        tail_beat: 179.5 * rate as f64,
+        start: 0,
+        end: 180 * rate,
+        loudness_db: -9.0,
+        intro_end: 16 * rate,
+        outro_start: 164 * rate,
+        key: 0,
+    };
+    let case = DeckCase {
+        analysis,
+        frames: (180 * rate) as usize,
+        beat_matched: true,
+        speed: 1.0,
+    };
+    let mut current = deck(&case);
+    let mut following = deck(&case);
+    current.phrase = Some(Arc::new(Phrase {
+        bpm: 120.0,
+        first_bar: 0.0,
+        bar: 2.0 * rate as f64,
+        markers: vec![
+            Marker {
+                at: 144 * rate,
+                kind: Kind::Breakdown,
+                bar: 72,
+            },
+            Marker {
+                at: 160 * rate,
+                kind: Kind::Drop,
+                bar: 80,
+            },
+        ],
+    }));
+    following.phrase = Some(Arc::new(Phrase {
+        bpm: 120.0,
+        first_bar: 0.0,
+        bar: 2.0 * rate as f64,
+        markers: vec![Marker {
+            at: 16 * rate,
+            kind: Kind::Intro,
+            bar: 8,
+        }],
+    }));
+    let plan = plan_blend(&current, &mut following, 140 * rate);
+    assert_eq!(
+        (plan.start, plan.following_start, plan.length),
+        (144 * rate, 0, 16 * rate)
+    );
+    assert!(following.beat_matched);
+    following.phrase = None;
+    let fallback = plan_blend(&current, &mut following, 140 * rate);
+    assert_ne!(fallback.start, plan.start);
+    assert!(fallback.length > 0);
 }

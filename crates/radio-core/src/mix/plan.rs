@@ -2,7 +2,10 @@
 //! docs/rust-port.md that `transition_cost` uses): the speed, the section, the kind of blend.
 //! Ported from `dj_mix.py`: `tempo_ratio`, `transition_speed`, `section_length`, `choose_transition`.
 
-use super::{SAMPLE_RATE, TrackAnalysis, key};
+use super::{
+    SAMPLE_RATE, TrackAnalysis, key,
+    phrase::{Kind, Phrase},
+};
 
 /// Largest tempo change a blend glides through to match the previous track.
 const MAX_TEMPO_SHIFT: f64 = 0.15;
@@ -195,6 +198,102 @@ pub fn plan_matched(
     })
 }
 
+/// Align complete 8/16/32-bar phrases in the final quarter of the outgoing track.
+/// Prefer thinning sections and resolve the incoming intro/breakdown at a build or drop.
+/// With insufficient room the caller falls back to its original beat-matched plan.
+pub fn plan_phrase(
+    current: &TrackAnalysis,
+    outgoing: &Phrase,
+    following: &TrackAnalysis,
+    incoming: &Phrase,
+    speed: f64,
+    position: i64,
+) -> Result<Plan, &'static str> {
+    if !speed.is_finite()
+        || speed <= 0.0
+        || !current.bpm.is_finite()
+        || current.bpm <= 0.0
+        || !following.bpm.is_finite()
+        || following.bpm <= 0.0
+    {
+        return Err("the tempo of a track is not known");
+    }
+    let earliest = position
+        .max(current.start + round(MIN_SOLO_SECONDS * SAMPLE_RATE as f64))
+        .max(current.start + (current.end - current.start) * 3 / 4);
+    let out_points = outgoing.boundaries(earliest, current.end);
+    let in_points = incoming.boundaries(following.start, following.end);
+    let near = |a: i64, b: i64, beat: f64| (a - b).abs() as f64 <= beat * 0.1;
+    let mut best: Option<(f64, Plan)> = None;
+    for &start in &out_points {
+        for bars in [8, 16, 32] {
+            let length = round(outgoing.bar * bars as f64);
+            let end = start + length;
+            if end > current.end
+                || !outgoing
+                    .boundaries(end - 1, end + 1)
+                    .iter()
+                    .any(|&at| near(at, end, outgoing.beat()))
+            {
+                continue;
+            }
+            for &following_start in &in_points {
+                let in_end = following_start + round(length as f64 * speed);
+                if in_end > following.end {
+                    continue;
+                }
+                // Half/double-time pairs must span whole phrases in both tracks.
+                let in_bars = length as f64 * speed / incoming.bar;
+                if ![8.0, 16.0, 32.0].iter().any(|n| (in_bars - n).abs() < 0.05)
+                    || !in_points
+                        .iter()
+                        .any(|&at| near(at, in_end, incoming.beat()))
+                {
+                    continue;
+                }
+                let first_lift = incoming
+                    .markers
+                    .iter()
+                    .find(|m| matches!(m.kind, Kind::Intro | Kind::Drop) && m.at > following.start);
+                if first_lift.is_some_and(|m| following_start >= m.at) {
+                    continue;
+                }
+                let out_section = outgoing.markers.iter().any(|m| {
+                    (matches!(m.kind, Kind::Outro | Kind::Breakdown)
+                        && near(m.at, start, outgoing.beat()))
+                        || (matches!(m.kind, Kind::Intro | Kind::Drop)
+                            && near(m.at, end, outgoing.beat()))
+                });
+                let in_section = incoming.markers.iter().any(|m| {
+                    matches!(m.kind, Kind::Intro | Kind::Drop)
+                        && near(m.at, in_end, incoming.beat())
+                });
+                let thin_entry = incoming.markers.iter().any(|m| {
+                    matches!(m.kind, Kind::Start | Kind::Breakdown)
+                        && near(m.at, following_start, incoming.beat())
+                });
+                let score = (if out_section { 4.0 } else { 0.0 })
+                    + (if in_section { 4.0 } else { 0.0 })
+                    + (if thin_entry { 1.0 } else { 0.0 })
+                    + (end - current.start) as f64 / (current.end - current.start).max(1) as f64
+                    - (following_start - following.start) as f64 / SAMPLE_RATE as f64 * 0.001;
+                if best.as_ref().is_none_or(|(previous, _)| score > *previous) {
+                    best = Some((
+                        score,
+                        Plan {
+                            start,
+                            following_start,
+                            length,
+                        },
+                    ));
+                }
+            }
+        }
+    }
+    best.map(|(_, plan)| plan)
+        .ok_or("no complete compatible phrases left")
+}
+
 /// Plan a blend that is asked for while the outgoing track is at `position`. It starts on a bar line of the
 /// outgoing track, the first one at least `EARLY_LEAD_SECONDS` ahead (the beat grid is taken from the end of the
 /// track that is nearer), lasts as long as any blend without sections and comes in on the first beat of the
@@ -265,5 +364,149 @@ pub fn plan_blend(
         start: current.end - length,
         following_start: following.start,
         length,
+    }
+}
+
+#[cfg(test)]
+mod phrase_tests {
+    use super::*;
+
+    const RATE: f64 = SAMPLE_RATE as f64;
+
+    /// A track at 120 BPM (a bar is 2 s) whose first bar is at `first` samples.
+    fn track(seconds: f64, first: f64) -> (TrackAnalysis, Phrase) {
+        let bar = 2.0 * RATE;
+        let end = (seconds * RATE) as i64;
+        let last = first + ((end as f64 - first) / (bar / 4.0)).floor() * (bar / 4.0);
+        let analysis = TrackAnalysis {
+            bpm: 120.0,
+            head_beat: first,
+            tail_beat: last,
+            start: 0,
+            end,
+            loudness_db: -9.0,
+            intro_end: (16.0 * RATE) as i64,
+            outro_start: ((seconds - 16.0) * RATE) as i64,
+            key: 0,
+        };
+        let phrase = Phrase {
+            bpm: 120.0,
+            first_bar: first,
+            bar,
+            markers: Vec::new(),
+        };
+        (analysis, phrase)
+    }
+
+    #[test]
+    fn a_blend_by_phrases_lies_bar_on_bar() {
+        let (current, out) = track(180.0, 0.13 * RATE);
+        let (following, into) = track(200.0, 0.4 * RATE);
+        let position = (140.0 * RATE) as i64;
+        let plan = plan_phrase(&current, &out, &following, &into, 1.0, position).unwrap();
+        let on_bar = |phrase: &Phrase, sample: i64| {
+            ((sample as f64 - phrase.first_bar) / phrase.bar)
+                .fract()
+                .abs()
+                < 1e-3
+        };
+        assert!(on_bar(&out, plan.start), "{plan:?}");
+        assert!(on_bar(&into, plan.following_start), "{plan:?}");
+        assert!(plan.start >= position);
+        assert!(plan.start + plan.length <= current.end);
+        // At least 8 beats, and it ends with the outgoing track.
+        assert!(plan.length as f64 >= 8.0 * out.beat());
+        assert!([8.0, 16.0, 32.0].contains(&(plan.length as f64 / out.bar)));
+    }
+
+    #[test]
+    fn a_blend_does_not_begin_before_the_position() {
+        let (current, out) = track(180.0, 0.13 * RATE);
+        let (following, into) = track(200.0, 0.13 * RATE);
+        let position = (176.0 * RATE) as i64;
+        // Four seconds are left: no room for a blend of 8 beats and the 10 s of the track that must stay.
+        assert!(plan_phrase(&current, &out, &following, &into, 1.0, position).is_err());
+    }
+
+    fn marker(kind: Kind, seconds: f64) -> super::super::phrase::Marker {
+        super::super::phrase::Marker {
+            kind,
+            at: (seconds * RATE) as i64,
+            bar: (seconds / 2.0) as usize,
+        }
+    }
+
+    #[test]
+    fn outro_and_incoming_intro_resolve_as_a_complete_phrase() {
+        for bars in [8, 16, 32] {
+            let (current, mut out) = track(512.0, 0.0);
+            let (following, mut into) = track(300.0, 0.0);
+            out.markers = vec![marker(Kind::Outro, 384.0)];
+            into.markers = vec![marker(Kind::Intro, bars as f64 * 2.0)];
+            let plan = plan_phrase(
+                &current,
+                &out,
+                &following,
+                &into,
+                1.0,
+                380 * SAMPLE_RATE as i64,
+            )
+            .unwrap();
+            assert_eq!(plan.start, 384 * SAMPLE_RATE as i64);
+            assert_eq!(plan.following_start, 0);
+            assert_eq!(plan.length, bars * 2 * SAMPLE_RATE as i64);
+        }
+    }
+
+    #[test]
+    fn a_late_breakdown_can_resolve_at_a_drop_in_both_tracks() {
+        let (current, mut out) = track(180.0, 0.0);
+        let (following, mut into) = track(200.0, 0.0);
+        out.markers = vec![marker(Kind::Breakdown, 144.0), marker(Kind::Drop, 160.0)];
+        into.markers = vec![marker(Kind::Breakdown, 0.0), marker(Kind::Drop, 16.0)];
+        let plan = plan_phrase(
+            &current,
+            &out,
+            &following,
+            &into,
+            1.0,
+            140 * SAMPLE_RATE as i64,
+        )
+        .unwrap();
+        assert_eq!(plan.start, 144 * SAMPLE_RATE as i64);
+        assert_eq!(plan.following_start, 0);
+        assert_eq!(plan.length, 16 * SAMPLE_RATE as i64);
+    }
+
+    #[test]
+    fn phrase_lengths_account_for_incoming_playback_speed() {
+        let (current, mut out) = track(512.0, 0.0);
+        let (mut following, mut into) = track(300.0, 0.0);
+        following.bpm = 125.0;
+        into.bar = 60.0 / 125.0 * 4.0 * RATE;
+        into.bpm = 125.0;
+        out.markers = vec![marker(Kind::Outro, 384.0)];
+        into.markers = vec![marker(Kind::Intro, 15.36)];
+        let plan = plan_phrase(
+            &current,
+            &out,
+            &following,
+            &into,
+            0.96,
+            380 * SAMPLE_RATE as i64,
+        )
+        .unwrap();
+        assert_eq!(plan.length, 16 * SAMPLE_RATE as i64);
+        assert!((plan.length as f64 * 0.96 - 8.0 * into.bar).abs() < 1.0);
+        assert!(plan_phrase(&current, &out, &following, &into, f64::NAN, 0).is_err());
+    }
+
+    #[test]
+    fn a_track_of_unknown_tempo_gets_no_blend_by_phrases() {
+        let (mut current, out) = track(180.0, 0.13 * RATE);
+        let (following, into) = track(200.0, 0.13 * RATE);
+        current.bpm = 0.0;
+        let position = (140.0 * RATE) as i64;
+        assert!(plan_phrase(&current, &out, &following, &into, 1.0, position).is_err());
     }
 }

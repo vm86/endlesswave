@@ -67,6 +67,7 @@ pub const SETTING_STATION: &str = "station_settings";
 pub const SETTING_LANGUAGE: &str = "language";
 pub const SETTING_ARC: &str = "mood_arc_plan";
 pub const SETTING_CYCLE: &str = "cycle_plans";
+pub const SETTING_PHRASE_MIX: &str = "phrase_mix";
 /// The tracks loaded and waiting for their turn: the files are kept as well.
 pub const SETTING_PLAYLIST: &str = "playlist";
 /// The order of the queue that was put in place by hand.
@@ -218,6 +219,8 @@ pub(crate) struct State {
     /// The arc of moods made by hand, and whether it is in force (it is, once it is switched on).
     pub arc: crate::mix::choose::MoodArc,
     pub arc_on: bool,
+    /// Whether the blends are laid by the phrases of the tracks (bar on bar, from where the outgoing one thins out).
+    pub phrase_mix: bool,
     /// Morning, day, evening: the plans of the tempo, and the one that is on.
     pub cycles: cycle::Cycles,
     /// Where in the set the cycle that is on began.
@@ -306,6 +309,7 @@ impl Radio {
                 liked: HashMap::new(),
                 arc: arc::default_arc(),
                 arc_on: false,
+                phrase_mix: true,
                 cycles: cycle::Cycles::default(),
                 cycle_start: 0,
                 played_tracks: VecDeque::new(),

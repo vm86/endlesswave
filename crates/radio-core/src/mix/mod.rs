@@ -14,6 +14,7 @@ pub mod essentia;
 pub mod glide;
 pub mod key;
 pub mod loudness;
+pub mod phrase;
 pub mod plan;
 
 pub const SAMPLE_RATE: u32 = 44100;

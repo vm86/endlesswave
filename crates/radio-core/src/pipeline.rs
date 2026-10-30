@@ -44,6 +44,8 @@ pub struct Deck {
     pub generation: u64,
     /// The downloaded track it was made from, kept until the deck is heard so that the deck can go back to the pool.
     pub source: Option<crate::radio::Candidate>,
+    /// The bars and the sections of the track, when the mix is made by phrases (see `plan::plan_phrase`).
+    pub phrase: Option<Arc<crate::mix::phrase::Phrase>>,
 }
 
 impl Deck {
@@ -89,11 +91,47 @@ fn playable(following: &Deck, following_start: i64, speed: f64) -> i64 {
 /// Plan the blend of the following deck into the current one. A deck that has no room for a blend on the beat is not
 /// beat-matched any more (`following.beat_matched` says so).
 pub fn plan_blend(current: &Deck, following: &mut Deck, position: i64) -> BlendPlan {
-    let matched = if following.beat_matched {
-        plan::plan_matched(&current.analysis, &following.analysis, following.speed)
-    } else {
-        None
+    // By phrases when both tracks have them: bar on bar, from a place where the outgoing track thins out.
+    let by_phrase = match (&current.phrase, &following.phrase) {
+        (Some(out), Some(into)) if following.beat_matched => match plan::plan_phrase(
+            &current.analysis,
+            out,
+            &following.analysis,
+            into,
+            following.speed,
+            position,
+        ) {
+            Ok(plan) => Some(plan),
+            Err(why) => {
+                tracing::info!("Not a blend by phrases: {why}");
+                None
+            }
+        },
+        (None, _) | (_, None) => {
+            tracing::info!(
+                "Not a blend by phrases: no phrases for the outgoing track ({}) or the following one ({})",
+                current.phrase.is_some(),
+                following.phrase.is_some()
+            );
+            None
+        }
+        _ => None,
     };
+    if let Some(plan) = &by_phrase {
+        tracing::info!(
+            "Blend by phrases: from {:.1}s of the outgoing track, {:.1}s long, in at {:.1}s",
+            plan.start as f64 / f64::from(SAMPLE_RATE),
+            plan.length as f64 / f64::from(SAMPLE_RATE),
+            plan.following_start as f64 / f64::from(SAMPLE_RATE),
+        );
+    }
+    let matched = by_phrase.or_else(|| {
+        if following.beat_matched {
+            plan::plan_matched(&current.analysis, &following.analysis, following.speed)
+        } else {
+            None
+        }
+    });
     // Without room for a blend on the beat the tracks are not matched.
     following.beat_matched = matched.is_some();
     let planned = matched
@@ -621,13 +659,18 @@ pub async fn mix(
     let mut current = radio.next_deck(None).await?;
     radio.started(&current);
     let mut position = current.analysis.start;
-    let lookahead = (LOOKAHEAD_SECONDS * f64::from(SAMPLE_RATE)) as i64;
 
     loop {
         let mut task = NextDeck::spawn(&radio, &current.analysis);
 
         // Everything up to the look-ahead point can be played without knowing the next track, unless the next track is
         // asked for.
+        // Prepare early enough for a full phrase, including slow and half-time tracks.
+        let lookahead = current
+            .phrase
+            .as_ref()
+            .map_or(0.0, |p| p.bar * 32.0)
+            .max(LOOKAHEAD_SECONDS * f64::from(SAMPLE_RATE)) as i64;
         let solo_end = position.max(current.analysis.end - lookahead);
         let mut early = None;
         for piece in pieces(slice(&current.pcm, position, solo_end), &current.title) {

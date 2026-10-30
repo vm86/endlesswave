@@ -138,6 +138,7 @@ impl Radio {
             }
         }
         self.restore_arc();
+        self.restore_phrase_mix();
         self.restore_cycle();
         if (self.st().arc_on || self.st().cycles.active != super::cycle::Cycle::Off)
             && self.st().saved_settings.is_none()
@@ -286,5 +287,23 @@ impl Radio {
     /// The station's settings put aside, `None` before that.
     pub fn mood_arc_saved(&self) -> Option<(String, String, String)> {
         self.st().saved_settings.clone()
+    }
+
+    /// Whether the blends are laid by the phrases of the tracks.
+    pub fn phrase_mix(&self) -> bool {
+        self.st().phrase_mix
+    }
+
+    /// Switch the mix by phrases on or off. It works from the next track chosen on: the one that waits is left as it is.
+    pub fn set_phrase_mix(&self, on: bool) {
+        self.st().phrase_mix = on;
+        self.remember(super::SETTING_PHRASE_MIX, &Value::Bool(on));
+        tracing::info!("The mix by phrases is {}", if on { "on" } else { "off" });
+    }
+
+    pub(super) fn restore_phrase_mix(&self) {
+        if let Some(Value::Bool(on)) = self.setting(super::SETTING_PHRASE_MIX) {
+            self.st().phrase_mix = on;
+        }
     }
 }
