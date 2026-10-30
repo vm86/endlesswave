@@ -11,6 +11,31 @@ const LUFS_OVER_RMS_DB: f64 = 2.0;
 /// What Essentia says for a piece with no block above the absolute gate (silence), where libebur128 says -inf.
 const NOTHING_LOUD_LUFS: f64 = -70.0;
 
+pub const TARGET_LUFS: f64 = -16.0;
+const MAX_GAIN_DB: f64 = 12.0;
+const MIN_NORMALIZE_LUFS: f64 = -60.0;
+
+/// Apply one gain to a whole track, bounded by its sample peak. Returns the applied gain in dB.
+/// Silence and unusable loudness measurements are not boosted.
+pub fn normalize(pcm: &mut [f32], loudness_db: f64) -> f64 {
+    let peak = pcm.iter().fold(0.0f32, |top, x| top.max(x.abs()));
+    if peak == 0.0 {
+        return 0.0;
+    }
+    let wanted_db = if loudness_db.is_finite() && loudness_db > MIN_NORMALIZE_LUFS {
+        (TARGET_LUFS - loudness_db).min(MAX_GAIN_DB)
+    } else {
+        0.0
+    };
+    let gain = 10.0f64
+        .powf(wanted_db / 20.0)
+        .min(f64::from(super::effects::LIMIT_CEILING) / f64::from(peak));
+    for sample in pcm {
+        *sample = (f64::from(*sample) * gain) as f32;
+    }
+    20.0 * gain.log10()
+}
+
 /// The mean of the squares of the samples.
 fn mean_square(pcm: &[f32]) -> f64 {
     if pcm.is_empty() {

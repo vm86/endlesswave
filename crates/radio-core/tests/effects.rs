@@ -10,5 +10,5 @@ fn a_limiter_leaves_a_quiet_piece_alone_and_keeps_a_loud_one_under_the_ceiling()
     let loud: Vec<f32> = (0..20000).map(|i| (i as f32 * 0.01).sin() * 3.0).collect();
     let limited = effects::limit(&loud, 0.97);
     assert_eq!(limited.len(), loud.len());
-    assert!(limited.iter().all(|x| x.abs() <= 1.0));
+    assert!(limited.iter().all(|x| x.abs() <= 0.97));
 }

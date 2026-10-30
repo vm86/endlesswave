@@ -53,6 +53,38 @@ pub fn crossfade(outgoing: &[f32], incoming: &[f32]) -> Vec<f32> {
     blended
 }
 
+/// Join processed audio to the original solo pieces. References must have the same peak headroom as the mix.
+pub(crate) fn match_edges(pcm: &mut [f32], outgoing: &[f32], incoming: &[f32]) {
+    let frames = pcm.len() / CHANNELS;
+    let fade = (0.02 * f64::from(SAMPLE_RATE)) as usize;
+    for (reference, at_start) in [(outgoing, true), (incoming, false)] {
+        let count = fade.min(frames / 2).min(reference.len() / CHANNELS);
+        for n in 0..count {
+            let progress = if count == 1 {
+                1.0
+            } else {
+                0.5 - 0.5 * (std::f64::consts::PI * n as f64 / (count - 1) as f64).cos()
+            };
+            let weight = if at_start && count > 1 {
+                1.0 - progress
+            } else {
+                progress
+            };
+            let (frame, source) = if at_start {
+                (n, n)
+            } else {
+                (frames - count + n, reference.len() / CHANNELS - count + n)
+            };
+            for c in 0..CHANNELS {
+                let i = frame * CHANNELS + c;
+                pcm[i] = (f64::from(pcm[i]) * (1.0 - weight)
+                    + f64::from(reference[source * CHANNELS + c]) * weight)
+                    as f32;
+            }
+        }
+    }
+}
+
 /// The spectrum of each channel of a piece, padded with zeros (`_spectrum`).
 pub struct Spectrum {
     size: usize,

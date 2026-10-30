@@ -11,7 +11,7 @@ use crate::{
     mix::{self, TrackAnalysis, choose, decode, plan},
     pipeline::{Deck, DeckError},
 };
-use std::{collections::HashSet, path::PathBuf, time::Duration};
+use std::{collections::HashSet, path::PathBuf, sync::Arc, time::Duration};
 
 /// Takes the file away when it is dropped, unless it was handed on. A track that was taken out of the pool and is being
 /// decoded when the task is stopped is gone with its file, as in the Python radio (`except BaseException: unlink`).
@@ -474,10 +474,19 @@ impl Radio {
                 .await
                 .map_err(|e| DeckError(e.to_string()))?;
             guard.disarm();
+            let loudness_db = candidate.analysis.loudness_db;
+            let (pcm, gain_db) = tokio::task::spawn_blocking(move || {
+                let mut pcm = pcm;
+                let gain_db = mix::loudness::normalize(&mut pcm, loudness_db);
+                (Arc::<[f32]>::from(pcm), gain_db)
+            })
+            .await
+            .map_err(|e| DeckError(e.to_string()))?;
             let deck = Deck {
                 title: candidate.title.as_str().into(),
-                pcm: pcm.into(),
+                pcm,
                 analysis: candidate.analysis.clone(),
+                gain_db,
                 beat_matched: speed != 0.0,
                 track: candidate.track.clone(),
                 mood: candidate.mood.clone(),

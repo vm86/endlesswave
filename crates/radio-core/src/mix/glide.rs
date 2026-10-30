@@ -212,9 +212,9 @@ pub fn tempo_glide(
         .map(|i| ((bpm + step * i as f64) / bpm).ln() / rate)
         .collect();
     let faster: Vec<f64> = pace.iter().map(|p| p * speed).collect();
-    (
-        wsola(outgoing, &pace, frames),
-        wsola(incoming, &faster, frames),
-        grid,
-    )
+    let mut into = wsola(incoming, &faster, frames);
+    let consumed =
+        ((length as f64 * speed).round_ties_even() as usize).min(incoming.len() / CHANNELS);
+    super::blend::match_edges(&mut into, incoming, &incoming[..consumed * CHANNELS]);
+    (wsola(outgoing, &pace, frames), into, grid)
 }

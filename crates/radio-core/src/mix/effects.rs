@@ -30,13 +30,10 @@ const CUT_FADE_SECONDS: f64 = 0.01;
 /// Shorter blends are plain crossfades; a swap or sweep needs room.
 const MIN_FILTERED_BLEND_SECONDS: f64 = 2.0;
 
-/// The blend is limited so that its peaks stay under this; the gain is worked out per block of `LIMIT_BLOCK`
-/// samples, is already down `LIMIT_AHEAD` blocks before a peak and comes back up over about `1 / LIMIT_RELEASE`
-/// blocks.
-pub const LIMIT_CEILING: f32 = 0.97;
-const LIMIT_BLOCK: usize = 64;
-const LIMIT_AHEAD: usize = 4;
-const LIMIT_RELEASE: f64 = 0.02;
+/// A sample-peak ceiling of -1 dBFS leaves headroom for encoding and playback.
+pub const LIMIT_CEILING: f32 = 0.891_250_9;
+const LIMIT_ATTACK_SECONDS: f64 = 0.005;
+const LIMIT_RELEASE_SECONDS: f64 = 0.08;
 
 /// Where the noise comes from.
 pub trait NoiseSource {
@@ -197,63 +194,26 @@ pub fn limit(pcm: &[f32], ceiling: f32) -> Vec<f32> {
     if frames == 0 || pcm.iter().fold(0.0f32, |top, x| top.max(x.abs())) <= ceiling {
         return pcm.to_vec();
     }
-    let count = frames.div_ceil(LIMIT_BLOCK);
-    let mut peak = vec![0.0f32; count * LIMIT_BLOCK];
-    for (slot, frame) in peak.iter_mut().zip(pcm.chunks_exact(CHANNELS)) {
-        *slot = frame.iter().fold(0.0f32, |top, x| top.max(x.abs()));
+    let mut gain: Vec<f64> = pcm
+        .chunks_exact(CHANNELS)
+        .map(|frame| {
+            let peak = frame.iter().fold(0.0f32, |top, x| top.max(x.abs()));
+            (f64::from(ceiling) / f64::from(peak).max(1e-12)).min(1.0)
+        })
+        .collect();
+    let attack = 1.0 / (LIMIT_ATTACK_SECONDS * f64::from(SAMPLE_RATE));
+    for i in (0..frames - 1).rev() {
+        gain[i] = gain[i].min(gain[i + 1] + attack);
     }
-    let need: Vec<f32> = peak
-        .chunks_exact(LIMIT_BLOCK)
-        .map(|block| (ceiling / block.iter().fold(0.0f32, |top, &x| top.max(x)).max(1e-9)).min(1.0))
-        .collect();
-
-    // The gain is already low where a peak is about to come: a minimum over the blocks around, smoothed by a
-    // moving average of the same width.
-    let width = 2 * LIMIT_AHEAD + 1;
-    let pad = |values: &[f32]| -> Vec<f32> {
-        let mut padded = vec![1.0f32; LIMIT_AHEAD];
-        padded.extend_from_slice(values);
-        padded.extend(std::iter::repeat_n(1.0f32, LIMIT_AHEAD));
-        padded
-    };
-    let padded = pad(&need);
-    let held: Vec<f32> = padded
-        .windows(width)
-        .map(|w| w.iter().fold(f32::INFINITY, |low, &x| low.min(x)))
-        .collect();
-    let padded = pad(&held);
-    let weight = 1.0 / width as f64;
-    let mut gain: Vec<f64> = padded
-        .windows(width)
-        .map(|w| w.iter().map(|&x| f64::from(x) * weight).sum())
-        .collect();
-    // And back up slowly, never above what the peaks allow.
-    for index in 1..count {
-        let recovered = gain[index - 1] + LIMIT_RELEASE * (1.0 - gain[index - 1]);
-        gain[index] = gain[index].min(recovered);
+    let release = 1.0 - (-1.0 / (LIMIT_RELEASE_SECONDS * f64::from(SAMPLE_RATE))).exp();
+    for i in 1..frames {
+        gain[i] = gain[i].min(gain[i - 1] + release * (1.0 - gain[i - 1]));
     }
 
-    // np.interp(arange(frames), centers, gain): linear between the centres of the blocks, flat beyond.
-    let center = |i: usize| (i as f64 + 0.5) * LIMIT_BLOCK as f64;
     let mut limited = pcm.to_vec();
-    let mut block = 0;
-    for frame in 0..frames {
-        let x = frame as f64;
-        while block + 1 < count && center(block + 1) <= x {
-            block += 1;
-        }
-        let per_sample = if x <= center(0) {
-            gain[0]
-        } else if block + 1 >= count {
-            gain[count - 1]
-        } else {
-            let (x0, x1) = (center(block), center(block + 1));
-            gain[block] + (gain[block + 1] - gain[block]) * ((x - x0) / (x1 - x0))
-        } as f32;
-        for c in 0..CHANNELS {
-            // What the smoothing can't catch, to the last sample.
-            limited[frame * CHANNELS + c] =
-                (pcm[frame * CHANNELS + c] * per_sample).clamp(-1.0, 1.0);
+    for (frame, gain) in limited.chunks_exact_mut(CHANNELS).zip(gain) {
+        for sample in frame {
+            *sample = (f64::from(*sample) * gain) as f32;
         }
     }
     limited

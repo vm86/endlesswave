@@ -56,6 +56,7 @@ fn deck(case: &DeckCase) -> Deck {
         title: "t".into(),
         pcm: Arc::from(vec![0.0f32; case.frames * 2]),
         analysis: case.analysis.clone(),
+        gain_db: 0.0,
         beat_matched: case.beat_matched,
         track: None,
         mood: String::new(),

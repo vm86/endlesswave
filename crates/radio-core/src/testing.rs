@@ -92,6 +92,7 @@ impl DeckSource for ScriptedRadio {
             title: title.as_str().into(),
             pcm: pcm.clone(),
             analysis: analysis.clone(),
+            gain_db: 0.0,
             beat_matched: speed != 0.0,
             track: None,
             mood: String::new(),

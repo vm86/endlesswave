@@ -32,6 +32,8 @@ pub struct Deck {
     /// Stereo, interleaved, 44.1 kHz.
     pub pcm: Arc<[f32]>,
     pub analysis: TrackAnalysis,
+    /// Whole-track gain already applied to `pcm`; the cached analysis remains at the source level.
+    pub gain_db: f64,
     pub beat_matched: bool,
     pub track: Option<Track>,
     pub mood: String,
@@ -48,6 +50,12 @@ impl Deck {
     /// How many frames of sound the deck holds.
     pub fn frames(&self) -> i64 {
         (self.pcm.len() / CHANNELS) as i64
+    }
+
+    fn playback_analysis(&self) -> TrackAnalysis {
+        let mut analysis = self.analysis.clone();
+        analysis.loudness_db += self.gain_db;
+        analysis
     }
 }
 
@@ -350,9 +358,11 @@ pub async fn transition(
     let frames = outgoing.len() / CHANNELS;
     let period = beat_period(current, following, beat_grid.as_deref());
     let seconds = frames as f64 / f64::from(SAMPLE_RATE);
+    let current_analysis = current.playback_analysis();
+    let following_analysis = following.playback_analysis();
     let kind = mix_plan::choose_transition(
-        &current.analysis,
-        &following.analysis,
+        &current_analysis,
+        &following_analysis,
         following.beat_matched,
         seconds,
     );
@@ -389,11 +399,20 @@ pub async fn transition(
     // Two loud tracks and the effects add up to more than fits in the encoder.
     let peak = f64::from(blended.iter().fold(0.0f32, |top, x| top.max(x.abs())));
     let over_db = if peak != 0.0 {
-        (20.0 * (peak / 0.97).log10()).max(0.0)
+        (20.0 * (peak / f64::from(effects::LIMIT_CEILING)).log10()).max(0.0)
     } else {
         0.0
     };
     blended = effects::limit(&blended, effects::LIMIT_CEILING);
+    blend::match_edges(
+        &mut blended,
+        slice(&current.pcm, plan.start, current.frames()),
+        slice(
+            &following.pcm,
+            plan.following_start,
+            followed_until(plan, following),
+        ),
+    );
     let blended_frames = blended.len() / CHANNELS;
     let report = BlendReport {
         from_title: current.title.to_string(),
@@ -410,7 +429,7 @@ pub async fn transition(
         },
         seconds: round_to(blended_frames as f64 / f64::from(SAMPLE_RATE), 1),
         loudness_gap_db: round_to(
-            (current.analysis.loudness_db - following.analysis.loudness_db).abs(),
+            (current_analysis.loudness_db - following_analysis.loudness_db).abs(),
             1,
         ),
         key_relation: key::key_relation(current.analysis.key, following.analysis.key)

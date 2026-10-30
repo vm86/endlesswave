@@ -15,7 +15,9 @@
 
 **EndlessWave** takes tracks from a Yandex Music station (or from a folder of music files), matches
 their tempo, swaps the bass and mids at the joins and streams the result as one endless mix with no
-gaps. It plays the mix and shows what plays, what comes next and how the blends go:
+gaps. Tracks are levelled towards −16 LUFS with at most 12 dB of boost; sample peaks stay at or below −1 dBFS,
+so dynamic recordings may remain quieter. The mix keeps the same sample-peak ceiling, with headroom for
+encoding. It plays the mix and shows what plays, what comes next and how the blends go:
 
 - it plays the mix (MP3 or lossless FLAC) through the system's audio output;
 - it lives in the tray and answers to the media keys and the system's Now Playing (Control Center on
@@ -260,6 +262,13 @@ npm run tauri dev      # the window, with hot reload
 ```
 
 Type check: `npx vue-tsc --noEmit`. The radio's tests: `cargo test` in `crates/radio-core`.
+Signal-level regressions are in `mix_quality` and `deck_loudness`: peak ceilings, smooth gain, stereo linking,
+LUFS matching and the joins after tempo changes. An opt-in check renders five transitions from six tracks
+in the local download cache (or the folder named by `RADIO_QUALITY_TRACKS`), without starting a server:
+
+```bash
+cargo test --manifest-path crates/radio-core/Cargo.toml --test mix_quality real_tracks -- --ignored --nocapture
+```
 
 The app icon is drawn in `assets/icon.svg` (`python3 assets/make-icon.py`, then `python3 assets/render-icon.py` for `assets/icon.png`, then
 `npx tauri icon assets/icon.png` makes all the sizes); the menu bar icon of macOS is
