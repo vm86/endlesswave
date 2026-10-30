@@ -68,7 +68,7 @@ const help = ref(false);
 const prefs = ref(false);
 useDock();
 const { release, checking, status: updateStatus, check: checkUpdate, download, dismiss } = useUpdate();
-const { mode, setMode, cycle, setCycle, arc, setArc, clearQueue, likes, toggleLike, expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
+const { phraseMix, setPhraseMix, mode, setMode, cycle, setCycle, arc, setArc, clearQueue, likes, toggleLike, expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres } = useRadio();
 // The gains of the equalizer (set in its own window) are handed to the player when the app starts.
 useEqualizer();
 watch(loading, (value) => {
@@ -268,7 +268,7 @@ onUnmounted(() => {
           @click="tab = t.id">{{ t.label }}</button>
       </div>
 
-      <Playlist :queue="queue" :moods="queue?.moods" :language="queue?.language" :genres="genres" :auth="auth" :stats="stats" :tab="tab" :arc="arc" :cycle="cycle" :mode="mode" @mode="setMode" @cycle="setCycle"
+      <Playlist :queue="queue" :moods="queue?.moods" :language="queue?.language" :genres="genres" :auth="auth" :stats="stats" :tab="tab" :arc="arc" :cycle="cycle" :phrase-mix="phraseMix" @phrase-mix="setPhraseMix" :mode="mode" @mode="setMode" @cycle="setCycle"
         @play="playTrack" @move="moveTrack" @remove="removeTrack" @moods="setMoods" @language="setLanguage" @arc="setArc" @genres="setGenres" @blocked="setBlocked" @toggle-backend="setBackend" @sign-in="signIn" @backend-settings="setBackendSettings" @copy="copy" />
 
       <div class="status">

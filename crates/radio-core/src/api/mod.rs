@@ -221,7 +221,10 @@ async fn play_track(State(api): State<Api>, body: Bytes) -> Result<Response, Api
 }
 
 /// The sound of a track of the queue as raw little-endian float32, stereo, 44.1 kHz (the decks of the player's console).
-async fn track_pcm(State(api): State<Api>, Path(track_id): Path<String>) -> Result<Response, ApiError> {
+async fn track_pcm(
+    State(api): State<Api>,
+    Path(track_id): Path<String>,
+) -> Result<Response, ApiError> {
     let pcm = api.radio.track_pcm(&track_id).await.map_err(radio_error)?;
     let bytes: Vec<u8> = pcm.iter().flat_map(|s| s.to_le_bytes()).collect();
     let mut response = bytes.into_response();
@@ -230,6 +233,20 @@ async fn track_pcm(State(api): State<Api>, Path(track_id): Path<String>) -> Resu
         axum::http::HeaderValue::from_static("application/octet-stream"),
     );
     Ok(response)
+}
+
+async fn get_mixing(State(api): State<Api>) -> Response {
+    ok(&json!({"phrase": api.radio.phrase_mix()}))
+}
+
+/// `{"phrase": true}`: lay the blends by the phrases of the tracks (bar on bar, from where the outgoing one thins out).
+async fn put_mixing(State(api): State<Api>, body: Bytes) -> Result<Response, ApiError> {
+    api.need_token()?;
+    match json_body(&body)?.get("phrase") {
+        Some(Value::Bool(on)) => api.radio.set_phrase_mix(*on),
+        _ => return Err(ApiError::bad_request("expected {\"phrase\": true}")),
+    }
+    Ok(ok(&json!({"phrase": api.radio.phrase_mix()})))
 }
 
 async fn get_cycle(State(api): State<Api>) -> Response {
@@ -488,6 +505,7 @@ pub fn router(api: Api) -> Router {
             put(put_blocked).delete(delete_blocked),
         )
         .route("/api/track/{track_id}/pcm", get(track_pcm))
+        .route("/api/mixing", get(get_mixing).put(put_mixing))
         .route("/api/likes", get(get_likes).put(put_like))
         .route("/api/arc", get(get_arc).put(put_arc))
         .route("/api/cycle", get(get_cycle).put(put_cycle))

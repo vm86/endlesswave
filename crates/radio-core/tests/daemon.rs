@@ -123,6 +123,39 @@ async fn the_daemon_streams_a_mix_and_answers_the_api() {
     }
     assert!(refilled, "the queue is loaded again after it is cleared");
 
+    // The mix by phrases: on at first, switched off and on again, refused when it is not a flag.
+    let mixing_url = format!("http://{address}/api/mixing");
+    let mixing: Value = reqwest::get(&mixing_url)
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(mixing["phrase"], true);
+    let off: Value = reqwest::Client::new()
+        .put(&mixing_url)
+        .body(r#"{"phrase": false}"#)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(off["phrase"], false);
+    let bad = reqwest::Client::new()
+        .put(&mixing_url)
+        .body(r#"{"phrase": 1}"#)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(bad.status(), 400);
+    reqwest::Client::new()
+        .put(&mixing_url)
+        .body(r#"{"phrase": true}"#)
+        .send()
+        .await
+        .unwrap();
+
     // The console takes the sound of a track of the queue as raw float32 (stereo, 44.1 kHz); an unknown track is a 404.
     let queue: Value = reqwest::get(format!("http://{address}/api/queue"))
         .await
@@ -130,14 +163,23 @@ async fn the_daemon_streams_a_mix_and_answers_the_api() {
         .json()
         .await
         .unwrap();
-    let wanted = queue["next"][0]["track_id"].as_str().expect("a track waits").to_owned();
+    let wanted = queue["next"][0]["track_id"]
+        .as_str()
+        .expect("a track waits")
+        .to_owned();
     let pcm = reqwest::get(format!("http://{address}/api/track/{wanted}/pcm"))
         .await
         .unwrap();
     assert_eq!(pcm.status(), 200);
     let bytes = pcm.bytes().await.unwrap();
-    assert!(bytes.len() > 44_100 * 8 && bytes.len() % 8 == 0, "{} bytes", bytes.len());
-    let unknown = reqwest::get(format!("http://{address}/api/track/nope/pcm")).await.unwrap();
+    assert!(
+        bytes.len() > 44_100 * 8 && bytes.len() % 8 == 0,
+        "{} bytes",
+        bytes.len()
+    );
+    let unknown = reqwest::get(format!("http://{address}/api/track/nope/pcm"))
+        .await
+        .unwrap();
     assert_eq!(unknown.status(), 404);
 
     // The arc of moods: refused when wrong, kept when right.

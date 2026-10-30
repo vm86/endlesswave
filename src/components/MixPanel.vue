@@ -16,8 +16,8 @@ const HINTS: Record<Mode, string> = {
   dayparts: "Morning, day and evening each play at a tempo of their own, by hand or by the clock.",
 };
 
-const props = defineProps<{ mode: Mode; moods: MoodsInfo | undefined; genres: GenresInfo | null; language: LanguageInfo | undefined; arc: ArcInfo | null; cycle: CycleInfo | null }>();
-const emit = defineEmits<{ moods: [string[]]; genres: [string[]]; blocked: [string[]]; language: [string | null]; mode: [Mode]; cycle: [change: Record<string, unknown>]; arc: [{ enabled?: boolean; stages?: string[]; stage_tracks?: number }] }>();
+const props = defineProps<{ mode: Mode; moods: MoodsInfo | undefined; genres: GenresInfo | null; language: LanguageInfo | undefined; arc: ArcInfo | null; cycle: CycleInfo | null; phraseMix: boolean }>();
+const emit = defineEmits<{ moods: [string[]]; genres: [string[]]; blocked: [string[]]; language: [string | null]; mode: [Mode]; cycle: [change: Record<string, unknown>]; arc: [{ enabled?: boolean; stages?: string[]; stage_tracks?: number }]; phraseMix: [boolean] }>();
 
 // The morning and the evening set the mood themselves: what the listener picks would only fight them.
 const locked = computed(() => props.mode === 'dayparts' && props.cycle?.locks_mood === true);
@@ -65,6 +65,15 @@ function clickGenre(g: string) {
         @click="emit('language', language.selected === l ? null : l)">{{ l }}</span>
     </template>
 
+    <h4>Transitions</h4>
+    <div class="phrase-row">
+      <span>Mix by phrases</span>
+      <span class="chip" :class="{ sel: phraseMix }" role="switch" :aria-checked="phraseMix" tabindex="0"
+        title="Lay the blend bar on bar, from where the outgoing track thins out, and bring the next one in on its own first bar"
+        @click="emit('phraseMix', !phraseMix)" @keydown.enter.space.prevent="emit('phraseMix', !phraseMix)">{{ phraseMix ? "on" : "off" }}</span>
+    </div>
+    <div class="dim">Finds the bars and the quiet parts of each track; the next blend after a change.</div>
+
     <h4>Genres
       <span class="mode" :class="{ on: pick === 'pick' }" @click="pick = 'pick'">pick</span>
       <span class="mode" :class="{ on: pick === 'block' }" @click="pick = 'block'">block</span>
@@ -84,4 +93,5 @@ function clickGenre(g: string) {
   transition: background 150ms var(--ease), color 150ms var(--ease), box-shadow 150ms var(--ease); }
 .seg-row button.on { background: var(--seg-on); color: var(--text); box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.14); }
 .hint { margin: 6px 0 10px; }
+.phrase-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 </style>

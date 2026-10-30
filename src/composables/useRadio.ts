@@ -199,9 +199,10 @@ export function useRadio() {
 
   async function refresh() {
     try {
-      const [a, q, g, st, l, ar, cy] = await Promise.all([api.auth(), api.queue(), api.genres(), api.stats(), api.likes(), api.arc(), api.cycle()]);
+      const [a, q, g, st, l, ar, cy, mx] = await Promise.all([api.auth(), api.queue(), api.genres(), api.stats(), api.likes(), api.arc(), api.cycle(), api.mixing()]);
       auth.value = a;
       likes.value = l;
+      phraseMix.value = mx.phrase;
       // While a choice of the mix is on its way, a poll that left before it would put the old one back for a moment.
       if (holding.value === 0) {
         arc.value = ar;
@@ -245,6 +246,12 @@ export function useRadio() {
       async () => void (arc.value = await api.setArc(change)),
     );
   /** Morning, day, evening: the plans of the tempo; a change shows at once and the radio follows it. */
+  // Blends laid by the phrases of the tracks (bar on bar), or as before.
+  const phraseMix = ref(true);
+  const setPhraseMix = (on: boolean) => {
+    phraseMix.value = on;
+    void api.setMixing(on).then((m) => (phraseMix.value = m.phrase)).catch((e) => (error.value = String(e)));
+  };
   const cycle = ref<CycleInfo | null>(null);
   const setCycle = (change: Record<string, unknown>) =>
     tune(
@@ -408,5 +415,5 @@ export function useRadio() {
     unlisten.forEach((f) => f());
   });
 
-  return { mode, setMode, cycle, setCycle, arc, setArc, clearQueue, likes, toggleLike, expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
+  return { phraseMix, setPhraseMix, mode, setMode, cycle, setCycle, arc, setArc, clearQueue, likes, toggleLike, expectRestart, starting, moveTrack, removeTrack, playTrack, refreshing, notice, skipping, loading, setLanguage, format, eqNote, levels, queue, auth, genres, stats, setBlocked, setBackend, setBackendSettings, signIn, error, playing, volume, elapsed, toggle, stop, next, refreshQueue, setMoods, setGenres };
 }

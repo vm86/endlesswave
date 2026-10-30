@@ -90,6 +90,19 @@ The **Mix** tab starts with one choice, and only its settings are shown: **Free*
 narrow it with the moods, language and genres), **Mood arc** (the set follows your arc of moods) or **Parts of the day**
 (morning, day, evening, below). Language and genres are always at the bottom.
 
+### Mixing by phrases
+
+**Mix → Transitions → Mix by phrases** aligns complete 8-, 16- or 32-bar phrases.
+Section edges restart the phrase grid. The automatic player favours an outgoing outro or
+breakdown and brings the incoming intro or breakdown to its build-up or drop at the end
+of the blend. Transitions use the final quarter of the outgoing track; its remaining tail
+may be omitted after the transition. Phrase boundaries are estimates from beats and energy,
+so irregular arrangements can still need the original beat-matched fallback. Unknown tempo,
+incompatible phrase lengths or insufficient space also use that fallback.
+
+The switch affects newly prepared tracks; already prepared decks keep their plan. The
+Next button continues to use the original early-transition algorithm.
+
 ### Morning, day, evening
 
 In **Mix**, **Morning · Day · Evening** plays the set along a plan of the tempo; each cycle has its own, which you can change:
@@ -263,8 +276,9 @@ npm run tauri dev      # the window, with hot reload
 
 Type check: `npx vue-tsc --noEmit`. The radio's tests: `cargo test` in `crates/radio-core`.
 Signal-level regressions are in `mix_quality` and `deck_loudness`: peak ceilings, smooth gain, stereo linking,
-LUFS matching and the joins after tempo changes. An opt-in check renders five transitions from six tracks
-in the local download cache (or the folder named by `RADIO_QUALITY_TRACKS`), without starting a server:
+LUFS matching and the joins after tempo changes. An opt-in check renders five adjacent transitions and
+one compatible phrase transition from six tracks in the local download cache (or the folder named by
+`RADIO_QUALITY_TRACKS`), without starting a server. The sample must contain a compatible phrase pair:
 
 ```bash
 cargo test --manifest-path crates/radio-core/Cargo.toml --test mix_quality real_tracks -- --ignored --nocapture
