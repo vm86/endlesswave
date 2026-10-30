@@ -7,7 +7,7 @@ use crate::{
     mix::{SAMPLE_RATE, TrackAnalysis, key},
     pipeline::round_to,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::PathBuf};
 
 /// The API lists at most this many tracks, before and after the current one.
@@ -36,7 +36,8 @@ pub struct Played {
 }
 
 /// A track as the API shows it.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct TrackInfo {
     pub track_id: String,
     pub title: String,

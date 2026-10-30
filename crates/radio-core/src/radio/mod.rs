@@ -8,12 +8,14 @@ mod arc;
 mod cycle;
 mod likes;
 mod load;
+mod playback;
 mod pool;
 mod queue;
 mod report;
 mod settings;
 mod types;
 
+pub use playback::PlaybackInfo;
 pub use types::{Candidate, Counter, MAX_LISTED, Played, RadioError, TrackInfo};
 
 use crate::{
@@ -179,6 +181,7 @@ pub(crate) struct State {
     /// What the API shows: the track heard now, the ones before it and the one already decoded to come next.
     pub now: Option<Deck>,
     pub now_since: f64,
+    pub playback: playback::PlaybackState,
     /// The mix is paused: by the API, or because nobody listens (held). The time of the track that plays does not run
     /// meanwhile.
     pub user_paused: bool,
@@ -247,6 +250,7 @@ pub struct Radio {
     /// Tracks were taken: the refill looks again.
     pub(crate) consumed: Notify,
     resumed: Notify,
+    playback_lock: tokio::sync::Mutex<()>,
 }
 
 impl Radio {
@@ -283,6 +287,7 @@ impl Radio {
                 playing_id: String::new(),
                 now: None,
                 now_since: 0.0,
+                playback: playback::PlaybackState::default(),
                 user_paused: false,
                 held: false,
                 paused_at: None,
@@ -320,6 +325,7 @@ impl Radio {
             feedback_tasks: Mutex::new(Vec::new()),
             consumed: Notify::new(),
             resumed: Notify::new(),
+            playback_lock: tokio::sync::Mutex::new(()),
         })
     }
 
@@ -490,6 +496,19 @@ fn same_deck(a: &Deck, b: &Deck) -> bool {
 /// The radio as the mix sees it.
 #[async_trait]
 impl DeckSource for Radio {
+    fn playback_requested(&self) -> bool {
+        self.has_resume()
+    }
+    fn take_playback(&self) -> Option<crate::pipeline::ResumePlayback> {
+        self.take_resume()
+    }
+    fn resumed_at(&self, deck: &Deck, position: i64) {
+        self.position_deck(deck, position);
+    }
+    fn published(&self, head: crate::pipeline::Playhead, at: f64, seconds: f64) {
+        self.publish_playhead(head, at, seconds);
+    }
+
     fn skip_requested(&self) -> bool {
         self.st().skip
     }

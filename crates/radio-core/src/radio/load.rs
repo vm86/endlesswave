@@ -430,7 +430,7 @@ impl Radio {
         Err(DeckError("No tracks to play".to_owned()))
     }
 
-    fn mark_played(&self, candidate: &Candidate) {
+    pub(super) fn mark_played(&self, candidate: &Candidate) {
         let mut state = self.st();
         state.history.push_back(candidate.artists.clone());
         while state.history.len() > choose::REPEAT_WINDOW {
@@ -463,6 +463,9 @@ impl Radio {
     /// Choose, tempo-match and decode the track to play after `current`.
     pub async fn next_deck(&self, current: Option<&TrackAnalysis>) -> Result<Deck, DeckError> {
         loop {
+            if self.has_resume() {
+                return Err(DeckError("playback is being handed back".into()));
+            }
             let generation = self.st().generation;
             let candidate = self.pick(current).await?;
             self.mark_played(&candidate);

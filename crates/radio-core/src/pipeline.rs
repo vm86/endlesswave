@@ -74,6 +74,46 @@ pub struct BlendPlan {
     pub speed: f64,
 }
 
+/// Source coordinates of a piece; a gliding tempo changes exponentially in output time.
+#[derive(Debug, Clone)]
+pub struct Playhead {
+    pub current: Deck,
+    pub following: Option<Deck>,
+    pub position: f64,
+    pub speed: f64,
+    pub acceleration: f64,
+}
+
+impl Playhead {
+    pub fn solo(current: &Deck, following: Option<&Deck>, position: i64) -> Self {
+        Self {
+            current: current.clone(),
+            following: following.cloned(),
+            position: position as f64,
+            speed: 1.0,
+            acceleration: 0.0,
+        }
+    }
+
+    pub fn shifted(&self, frames: f64) -> Self {
+        let mut next = self.clone();
+        next.position += if self.acceleration == 0.0 {
+            self.speed * frames
+        } else {
+            self.speed * (self.acceleration * frames).exp_m1() / self.acceleration
+        };
+        next.speed *= (self.acceleration * frames).exp();
+        next
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ResumePlayback {
+    pub current: Deck,
+    pub following: Option<Deck>,
+    pub position: i64,
+}
+
 /// Cut a track into pieces of a quarter of a second, the last one shorter. The pieces are made one at a time.
 pub fn pieces<'a>(pcm: &'a [f32], title: &'a Arc<str>) -> impl Iterator<Item = Piece> + 'a {
     let size = (CHUNK_SECONDS * f64::from(SAMPLE_RATE)).round_ties_even() as usize * CHANNELS;
@@ -268,6 +308,16 @@ impl std::error::Error for DeckError {}
 /// What the mix needs of the radio: decks to play, and word of them.
 #[async_trait]
 pub trait DeckSource: Send + Sync {
+    fn playback_requested(&self) -> bool {
+        false
+    }
+    fn take_playback(&self) -> Option<ResumePlayback> {
+        None
+    }
+    fn resumed_at(&self, deck: &Deck, _position: i64) {
+        self.started(deck);
+    }
+    fn published(&self, _playhead: Playhead, _at: f64, _seconds: f64) {}
     /// The next track was asked for (the skip button).
     fn skip_requested(&self) -> bool;
     /// Choose, tempo-match and decode the track to play after `current`.
@@ -366,6 +416,9 @@ pub async fn blend_pieces(
 pub trait PieceSink: Send + Sync {
     /// Take a piece; `Err(Closed)` when nobody wants more.
     async fn send(&self, piece: Piece) -> Result<(), Closed>;
+    async fn send_at(&self, piece: Piece, _playhead: Playhead) -> Result<(), Closed> {
+        self.send(piece).await
+    }
 }
 
 #[async_trait]
@@ -375,8 +428,16 @@ impl PieceSink for Sender<Piece> {
     }
 }
 
-async fn emit(out: &dyn PieceSink, piece: Piece) -> Result<(), Closed> {
-    out.send(piece).await
+async fn emit(
+    radio: &dyn DeckSource,
+    out: &dyn PieceSink,
+    piece: Piece,
+    playhead: Playhead,
+) -> Result<(), Closed> {
+    if radio.playback_requested() {
+        return Err(Closed);
+    }
+    out.send_at(piece, playhead).await
 }
 
 /// Blend the following deck into the current one, piece by piece. The pieces go to `out`; `Err(Closed)` if nobody takes
@@ -392,6 +453,9 @@ pub async fn transition(
     noise: SharedNoise,
     out: &dyn PieceSink,
 ) -> Result<(), Closed> {
+    if radio.playback_requested() {
+        return Err(Closed);
+    }
     let (outgoing, incoming, beat_grid) = blend_pieces(current, following, plan).await;
     let frames = outgoing.len() / CHANNELS;
     let period = beat_period(current, following, beat_grid.as_deref());
@@ -485,14 +549,42 @@ pub async fn transition(
         report.over_db
     );
     // Count what was really made, not what was meant.
+    if radio.playback_requested() {
+        return Err(Closed);
+    }
     radio.transition(used.kind, current, following, used.effect, Some(report));
     radio.started(following);
     let half = blended_frames / 2;
-    for piece in pieces(&blended[..half * CHANNELS], &current.title) {
-        emit(out, piece).await?;
-    }
-    for piece in pieces(&blended[half * CHANNELS..], &following.title) {
-        emit(out, piece).await?;
+    let acceleration = if beat_grid.is_some() {
+        (1.0 / plan.speed - 1.0) / plan.length as f64
+    } else {
+        0.0
+    };
+    let mut offset = 0;
+    for (pcm, deck, next, start, speed) in [
+        (
+            &blended[..half * CHANNELS],
+            current,
+            Some(&*following),
+            plan.start,
+            1.0,
+        ),
+        (
+            &blended[half * CHANNELS..],
+            &*following,
+            None,
+            plan.following_start,
+            if beat_grid.is_some() { plan.speed } else { 1.0 },
+        ),
+    ] {
+        let mut head = Playhead::solo(deck, next, start);
+        head.speed = speed;
+        head.acceleration = acceleration;
+        for piece in pieces(pcm, &deck.title) {
+            let frames = piece.pcm.len() / CHANNELS;
+            emit(radio, out, piece, head.shifted(offset as f64)).await?;
+            offset += frames;
+        }
     }
     radio.finished(current);
     Ok(())
@@ -543,6 +635,13 @@ struct NextDeck {
 }
 
 impl NextDeck {
+    fn prepared(deck: Deck) -> Self {
+        Self {
+            slot: Arc::new(Mutex::new(Some(Ok(deck)))),
+            handle: tokio::spawn(async {}),
+        }
+    }
+
     fn spawn(radio: &Arc<dyn DeckSource>, current: &TrackAnalysis) -> Self {
         let slot = Arc::new(Mutex::new(None));
         let (radio, current, put) = (Arc::clone(radio), current.clone(), Arc::clone(&slot));
@@ -586,7 +685,7 @@ async fn ready_deck(
     task: &mut NextDeck,
 ) -> Result<Deck, DeckError> {
     let mut following = task.wait().await?;
-    while radio.is_stale(&following) {
+    while !radio.playback_requested() && radio.is_stale(&following) {
         following = radio.next_deck(Some(current)).await?;
     }
     Ok(following)
@@ -595,6 +694,9 @@ async fn ready_deck(
 /// Choose the next deck anew at once if the queue was changed. A deck that was chosen before the change would wait to be
 /// found stale until the track is nearly over; a track asked for would wait with it.
 fn fresh(radio: &Arc<dyn DeckSource>, current: &Deck, task: NextDeck) -> NextDeck {
+    if radio.playback_requested() {
+        return task;
+    }
     match task.ready() {
         Some(deck) if radio.is_stale(&deck) => NextDeck::spawn(radio, &current.analysis),
         _ => task,
@@ -628,11 +730,23 @@ async fn approach(
 ) -> Result<(), MixError> {
     let mut position = position;
     loop {
+        if radio.playback_requested() {
+            return Err(Closed.into());
+        }
         let mut stale = false;
         for piece in pieces(slice(&current.pcm, position, plan.start), &current.title) {
             let frames = (piece.pcm.len() / CHANNELS) as i64;
-            emit(out, piece).await?;
+            emit(
+                &**radio,
+                out,
+                piece,
+                Playhead::solo(current, Some(following), position),
+            )
+            .await?;
             position += frames;
+            if radio.playback_requested() {
+                return Err(Closed.into());
+            }
             if radio.is_stale(following) {
                 stale = true;
                 break;
@@ -656,12 +770,25 @@ pub async fn mix(
     noise: SharedNoise,
     out: &dyn PieceSink,
 ) -> Result<(), MixError> {
-    let mut current = radio.next_deck(None).await?;
-    radio.started(&current);
-    let mut position = current.analysis.start;
+    let resume = radio.take_playback();
+    let (mut current, mut position, mut prepared) = match resume {
+        Some(resume) => {
+            radio.resumed_at(&resume.current, resume.position);
+            (resume.current, resume.position, resume.following)
+        }
+        None => {
+            let current = radio.next_deck(None).await?;
+            radio.started(&current);
+            let position = current.analysis.start;
+            (current, position, None)
+        }
+    };
 
     loop {
-        let mut task = NextDeck::spawn(&radio, &current.analysis);
+        let mut task = prepared
+            .take()
+            .map(NextDeck::prepared)
+            .unwrap_or_else(|| NextDeck::spawn(&radio, &current.analysis));
 
         // Everything up to the look-ahead point can be played without knowing the next track, unless the next track is
         // asked for.
@@ -675,7 +802,13 @@ pub async fn mix(
         let mut early = None;
         for piece in pieces(slice(&current.pcm, position, solo_end), &current.title) {
             let frames = (piece.pcm.len() / CHANNELS) as i64;
-            emit(out, piece).await?;
+            emit(
+                &*radio,
+                out,
+                piece,
+                Playhead::solo(&current, task.ready().as_ref(), position),
+            )
+            .await?;
             position += frames;
             task = fresh(&radio, &current, task);
             if radio.skip_requested() {
@@ -689,7 +822,13 @@ pub async fn mix(
             position = solo_end;
         }
 
+        if radio.playback_requested() {
+            return Err(Closed.into());
+        }
         let mut following = ready_deck(&radio, &current.analysis, &mut task).await?;
+        if radio.playback_requested() {
+            return Err(Closed.into());
+        }
         if early.is_some() {
             radio.skip_taken();
         }

@@ -43,6 +43,7 @@ async fn stream_handler(
 ) -> Response {
     let with_titles = titles && headers.get("icy-metadata").is_some_and(|v| v == "1");
     let (listener, position) = hub.subscribe_at();
+    let stream_position = position.unwrap_or_else(|| hub.fed());
     // The page says who it is in the address (?l=...) and asks for where in the mix its player starts, to show the spectrum
     // in time.
     let name = query_name(&query);
@@ -70,6 +71,10 @@ async fn stream_handler(
     map.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
     map.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
     map.insert("icy-name", HeaderValue::from_static(ICY_NAME));
+    map.insert(
+        "x-stream-position",
+        HeaderValue::from_str(&stream_position.to_string()).expect("a number"),
+    );
     // A page of another origin may analyze the audio: an <audio> with crossorigin hands it to Web Audio only if this is sent.
     map.insert(
         header::ACCESS_CONTROL_ALLOW_ORIGIN,

@@ -123,13 +123,34 @@ struct Sink<E> {
 #[async_trait]
 impl<E: Encoder + Send> PieceSink for Sink<E> {
     async fn send(&self, piece: Piece) -> Result<(), Closed> {
+        self.write(piece, None).await
+    }
+    async fn send_at(
+        &self,
+        piece: Piece,
+        playhead: crate::pipeline::Playhead,
+    ) -> Result<(), Closed> {
+        self.write(piece, Some(playhead)).await
+    }
+}
+
+impl<E: Encoder + Send> Sink<E> {
+    async fn write(
+        &self,
+        piece: Piece,
+        playhead: Option<crate::pipeline::Playhead>,
+    ) -> Result<(), Closed> {
         if hold(&*self.radio, &self.hubs).await {
             let mut state = self.state.lock().await;
             state.started = self.clock.monotonic();
             state.produced = 0.0;
         }
+        if self.radio.playback_requested() {
+            return Err(Closed);
+        }
         self.hubs[0].set_title(&piece.title);
         let mut state = self.state.lock().await;
+        let at = state.analyzer.position();
         // Before the encoders get it: what they write next is of this.
         let frames = state.analyzer.feed(&piece.pcm);
         for hub in &self.hubs {
@@ -144,7 +165,11 @@ impl<E: Encoder + Send> PieceSink for Sink<E> {
                 return Err(Closed);
             }
         }
-        state.produced += (piece.pcm.len() / CHANNELS) as f64 / f64::from(SAMPLE_RATE);
+        let seconds = (piece.pcm.len() / CHANNELS) as f64 / f64::from(SAMPLE_RATE);
+        if let Some(playhead) = playhead {
+            self.radio.published(playhead, at, seconds);
+        }
+        state.produced += seconds;
         let ahead =
             state.produced - (self.clock.monotonic() - state.started) - self.options.pacing_lead;
         drop(state);
@@ -206,7 +231,27 @@ where
             failure: None,
         }),
     };
-    let ended = mix(radio, clock, effects_level, noise, &sink).await;
+    let ended = loop {
+        let ended = mix(
+            radio.clone(),
+            clock.clone(),
+            effects_level,
+            noise.clone(),
+            &sink,
+        )
+        .await;
+        let restart = radio.playback_requested() && {
+            let state = sink.state.lock().await;
+            state.failure.is_none()
+        };
+        if restart {
+            let mut state = sink.state.lock().await;
+            state.started = clock.monotonic();
+            state.produced = 0.0;
+            continue;
+        }
+        break ended;
+    };
     let State {
         encoders, failure, ..
     } = sink.state.into_inner();

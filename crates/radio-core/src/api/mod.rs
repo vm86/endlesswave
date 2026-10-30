@@ -191,6 +191,61 @@ async fn resume(State(api): State<Api>) -> Response {
     ok(&api.radio.pause_info())
 }
 
+async fn playback(State(api): State<Api>, Query(query): Query_) -> Result<Response, ApiError> {
+    let at = helpers::query_value(&query, "at")
+        .map(|v| v.parse::<f64>())
+        .transpose()
+        .map_err(|_| ApiError::bad_request("invalid playback position"))?;
+    Ok(ok(&json!(api.radio.playback(at).map_err(radio_error)?)))
+}
+
+async fn resume_playback(State(api): State<Api>, body: Bytes) -> Result<Response, ApiError> {
+    #[derive(serde::Deserialize)]
+    struct Request {
+        track_id: String,
+        position: f64,
+        next_track_id: Option<String>,
+        #[serde(default)]
+        paused: bool,
+        #[serde(default)]
+        advance: f64,
+        lease_owner: Option<String>,
+        #[serde(default)]
+        heard: Vec<String>,
+    }
+    let request: Request = serde_json::from_value(json_body(&body)?)
+        .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    let applied = api
+        .radio
+        .resume_moving_playback(
+            &request.track_id,
+            request.position,
+            request.next_track_id.as_deref(),
+            request.advance,
+            &request.heard,
+        )
+        .await
+        .map_err(radio_error)?;
+    let info = match tokio::time::timeout(std::time::Duration::from_secs(15), applied).await {
+        Ok(Ok(info)) => info,
+        result => {
+            api.radio.cancel_playback_handoff();
+            return Err(ApiError::unavailable(if result.is_err() {
+                "the playback handoff timed out"
+            } else {
+                "the playback handoff ended"
+            }));
+        }
+    };
+    if request.paused {
+        api.radio.pause();
+    }
+    if let Some(owner) = request.lease_owner {
+        api.radio.release_playback_leases(&owner);
+    }
+    Ok(ok(&json!(info)))
+}
+
 async fn put_order(State(api): State<Api>, body: Bytes) -> Result<Response, ApiError> {
     let ids = parse_track_ids(&json_body(&body)?)?;
     api.radio.queue_order(ids).map_err(radio_error)?;
@@ -224,8 +279,22 @@ async fn play_track(State(api): State<Api>, body: Bytes) -> Result<Response, Api
 async fn track_pcm(
     State(api): State<Api>,
     Path(track_id): Path<String>,
+    Query(query): Query_,
 ) -> Result<Response, ApiError> {
-    let pcm = api.radio.track_pcm(&track_id).await.map_err(radio_error)?;
+    let pcm = if let Some(owner) = helpers::query_value(&query, "dj_owner") {
+        let slot = helpers::query_value(&query, "dj_slot")
+            .and_then(|s| s.parse::<usize>().ok())
+            .ok_or_else(|| ApiError::bad_request("invalid DJ deck slot"))?;
+        let version = helpers::query_value(&query, "dj_version")
+            .and_then(|s| s.parse::<u64>().ok())
+            .ok_or_else(|| ApiError::bad_request("invalid DJ deck version"))?;
+        api.radio
+            .leased_track_pcm(&track_id, owner, slot, version)
+            .await
+            .map_err(radio_error)?
+    } else {
+        api.radio.track_pcm(&track_id).await.map_err(radio_error)?
+    };
     let bytes: Vec<u8> = pcm.iter().flat_map(|s| s.to_le_bytes()).collect();
     let mut response = bytes.into_response();
     response.headers_mut().insert(
@@ -485,6 +554,7 @@ pub fn router(api: Api) -> Router {
         .route("/api/next", get(next_status).post(next_track))
         .route("/api/pause", post(pause))
         .route("/api/resume", post(resume))
+        .route("/api/playback", get(playback).post(resume_playback))
         .route("/api/queue/order", put(put_order))
         .route("/api/queue/move", post(move_track))
         .route(

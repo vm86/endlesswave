@@ -170,35 +170,7 @@ impl Radio {
     /// The sound of a track of the queue (stereo, interleaved, 44.1 kHz) for a player that mixes by hand. The queue is not
     /// touched: the radio goes on with its own mix.
     pub async fn track_pcm(&self, track_id: &str) -> Result<Vec<f32>, RadioError> {
-        enum Found {
-            Pcm(Vec<f32>),
-            File(std::path::PathBuf),
-        }
-        let found = {
-            let state = self.st();
-            let wanted = |t: &Option<crate::backend::Track>| t.as_ref().is_some_and(|t| t.track_id == track_id);
-            // The track on the air and the one that waits to come next are decks with their sound at hand.
-            if let Some(deck) = [state.now.as_ref(), state.next.as_ref()]
-                .into_iter()
-                .flatten()
-                .find(|d| wanted(&d.track))
-            {
-                Some(Found::Pcm(deck.pcm.to_vec()))
-            } else {
-                state
-                    .pool
-                    .iter()
-                    .find(|c| wanted(&c.track))
-                    .map(|c| Found::File(c.path.clone()))
-            }
-        };
-        match found {
-            Some(Found::Pcm(pcm)) => Ok(pcm),
-            Some(Found::File(path)) => crate::mix::decode::decode_file_async(&self.config.ffmpeg, &path)
-                .await
-                .map_err(|e| RadioError::Backend(e.to_string())),
-            None => Err(RadioError::UnknownQueueTrack(track_id.to_owned())),
-        }
+        Ok(self.deck_for(track_id).await?.pcm.to_vec())
     }
 
     /// Take a track out of the queue: it is not played, nor loaded again.
