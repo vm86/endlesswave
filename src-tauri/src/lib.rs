@@ -2,6 +2,7 @@ mod audio;
 mod dj;
 mod engine;
 mod equalizer;
+mod handoff;
 mod media;
 mod menu;
 mod radio;
@@ -47,13 +48,23 @@ async fn reset_radio(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn player_start(app: AppHandle, audio: State<Audio>, url: String, volume: f32) {
-    audio.start(&app, url, volume);
+async fn player_start(app: AppHandle, url: String, volume: f32) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<Audio>()
+            .start(&app, &app.state::<Dj>(), url, volume)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn player_stop(app: AppHandle, audio: State<Audio>) {
-    audio.stop(&app);
+fn player_stop(app: AppHandle, audio: State<Audio>, dj: State<Dj>) {
+    if dj.is_running() {
+        dj.pause();
+        audio.console_state(&app, &dj);
+    } else {
+        audio.stop(&app);
+    }
 }
 
 /// The window of the equalizer: the same page, asked for as `?equalizer`. It opens once; the next call brings it forward.
@@ -96,21 +107,28 @@ fn open_dj(app: AppHandle) -> Result<(), String> {
         .map_err(|e| format!("could not open the console: {e}"))
 }
 
-/// The console is switched on: the player of the stream is stopped (two sounds at once are no mix).
 #[tauri::command]
-fn dj_start(app: AppHandle, audio: State<Audio>, dj: State<Dj>) -> Result<(), String> {
-    audio.stop(&app);
-    dj.start()
+async fn dj_start(app: AppHandle) -> Result<dj::Status, String> {
+    tauri::async_runtime::spawn_blocking(move || handoff::enter(&app))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn dj_stop(dj: State<Dj>) {
-    dj.stop();
+async fn dj_stop(app: AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || handoff::leave(&app))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn dj_load(dj: State<Dj>, deck: String, url: String, bpm: Option<f64>) -> Result<(), String> {
-    dj.load(&deck, url, bpm.unwrap_or(0.0))
+fn dj_load(
+    dj: State<Dj>,
+    deck: String,
+    url: String,
+    track: radio_core::radio::TrackInfo,
+) -> Result<(), String> {
+    dj.load(&deck, url, track)
 }
 
 #[tauri::command]
@@ -119,8 +137,22 @@ fn dj_overview(dj: State<Dj>, deck: String) -> Result<Option<waveform::Overview>
 }
 
 #[tauri::command]
-fn dj_set(dj: State<Dj>, name: String, value: f32) -> Result<(), String> {
-    dj.set(&name, value)
+fn dj_set(
+    app: AppHandle,
+    dj: State<Dj>,
+    audio: State<Audio>,
+    name: String,
+    value: f32,
+) -> Result<(), String> {
+    dj.set(&name, value)?;
+    if dj.is_running() && (name.ends_with(".play") || name.ends_with(".cue")) {
+        audio.console_state(&app, &dj);
+    }
+    if name == "master" {
+        audio.set_volume(value);
+        let _ = app.emit("player-volume", value);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -134,8 +166,11 @@ fn player_eq(audio: State<Audio>, gains: Vec<f32>) {
 }
 
 #[tauri::command]
-fn player_volume(audio: State<Audio>, volume: f32) {
+fn player_volume(audio: State<Audio>, dj: State<Dj>, volume: f32) {
     audio.set_volume(volume);
+    if dj.is_running() {
+        let _ = dj.set("master", volume);
+    }
 }
 
 #[tauri::command]
@@ -360,11 +395,15 @@ pub fn run() {
                 api.prevent_close();
                 let _ = window.hide();
             }
-            // The console is on only while its window is.
             if let WindowEvent::Destroyed = event
                 && window.label() == "dj"
             {
-                window.state::<Dj>().stop();
+                let app = window.app_handle().clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    if let Err(error) = handoff::leave(&app) {
+                        let _ = app.emit("playback-error", error);
+                    }
+                });
             }
         })
         .build(tauri::generate_context!())

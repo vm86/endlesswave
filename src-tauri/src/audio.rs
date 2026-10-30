@@ -1,94 +1,139 @@
-//! The native player: the stream of the radio is read, decoded and played here, by the system's
-//! audio output (CoreAudio on macOS, ALSA on Linux), and not by the `<audio>` of the webview.
-//!
-//! Three threads work for one listening: one reads and decodes the stream (HTTP, `symphonia`) and
-//! hands out pieces of audio, one owns the output device and the player (`rodio`; the device may
-//! not leave its thread), and the audio callback of the system pulls the pieces. The page asks
-//! for `player_start`, `player_stop` and `player_volume`, hears the state as the event "player",
-//! and reads the position of what is *played* with `player_status` (the spectrum follows it).
-//!
-//! When something is wrong before the first sound (no device, no stream, a format that is not
-//! understood), the state is "error" and the page falls back to the `<audio>` of the webview.
+//! The native output is shared by the radio stream and the DJ console. A replacement source is prepared before the
+//! audio callback switches to it; neither mode change closes the device or starts a track from the beginning.
 
-use crate::equalizer::Equalizer;
-use std::io::Read;
-use std::num::NonZero;
-use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
-use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, SyncSender, TryRecvError, sync_channel};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+mod output;
 
-use rodio::{ChannelCount, DeviceSinkBuilder, Player, SampleRate, Source};
+use crate::dj::Dj;
+use output::{Input, Output, Switch};
+use radio_core::radio::{PlaybackInfo, TrackInfo};
+use rodio::{DeviceSinkBuilder, Player};
 use serde::Serialize;
-use symphonia::core::codecs::audio::AudioDecoderOptions;
-use symphonia::core::errors::Error as SymphoniaError;
-use symphonia::core::formats::probe::Hint;
-use symphonia::core::formats::{FormatOptions, TrackType};
-use symphonia::core::io::{MediaSourceStream, ReadOnlySource};
-use symphonia::core::meta::MetadataOptions;
-use tauri::{AppHandle, Emitter};
+use std::{
+    io::Read,
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering},
+        mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender, sync_channel},
+    },
+    time::{Duration, Instant},
+};
+use symphonia::core::{
+    codecs::audio::AudioDecoderOptions,
+    errors::Error as SymphoniaError,
+    formats::{FormatOptions, TrackType, probe::Hint},
+    io::{MediaSourceStream, ReadOnlySource},
+    meta::MetadataOptions,
+};
+use tauri::{AppHandle, Emitter, Manager};
 
-/// A piece of audio: interleaved samples of the pieces the decoder makes (~25 ms of an MP3 frame).
-type Chunk = Vec<f32>;
-/// How many pieces wait for the output: ~2 s. The stream is live, so the reader is held back
-/// (the network does the waiting) only a little.
-/// How long the reader tries to reach the radio (it may be starting).
+enum Chunk {
+    Start(f64),
+    Pcm(Vec<f32>),
+}
 const CONNECT_PATIENCE: Duration = Duration::from_secs(30);
 const QUEUE_CHUNKS: usize = 80;
-/// A stream that was lost after it had played is asked for again, this many times in a row (the pause grows each time),
-/// before the player gives up; a stream that then played for a while makes the count start over.
 const RECONNECT_TRIES: u32 = 12;
 const RECONNECT_PAUSE: Duration = Duration::from_millis(1000);
 const STABLE_FOR: Duration = Duration::from_secs(20);
-/// How many pieces are kept before the sound starts: ~0.3 s against a gap at the very start.
 const PREBUFFER_CHUNKS: usize = 12;
-
 const STOPPED: u8 = 0;
 const LOADING: u8 = 1;
 const PLAYING: u8 = 2;
 const ERROR: u8 = 3;
 
+type Ready = Result<(u32, u16, f64), String>;
+
 #[derive(Default)]
 struct Shared {
     state: AtomicU8,
-    /// The samples that were played (the silence put in a gap is not counted).
     samples: AtomicU64,
-    rate: AtomicU32,
-    channels: AtomicU32,
+    stream_start: AtomicU64,
+    stream_epoch: AtomicU64,
+    has_stream: AtomicBool,
+    dj: AtomicBool,
+    paused: AtomicBool,
     underruns: AtomicU64,
-    /// The volume as the bits of an f32.
     volume: AtomicU32,
     message: Mutex<String>,
-    /// The gains of the equalizer (dB for each band), and a count that goes up whenever they change.
     eq_gains: Mutex<Vec<f32>>,
     eq_version: AtomicU32,
+    connection: Mutex<String>,
+    playback: Mutex<Option<NowPlaying>>,
+    generation: AtomicU64,
 }
 
-/// What `player_status` says.
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
+struct NowPlaying {
+    #[serde(flatten)]
+    track: TrackInfo,
+    elapsed_seconds: f64,
+    tempo: f64,
+}
+
+#[derive(Clone, Serialize)]
 pub struct Status {
     state: &'static str,
-    /// Seconds of the stream that were played.
+    mode: &'static str,
     position: f64,
-    /// How many times the output waited for audio that had not come yet.
+    mix_position: Option<f64>,
+    stream_epoch: u64,
+    paused: bool,
     underruns: u64,
     message: String,
-}
-
-enum Command {
-    Stop,
-    Volume(f32),
+    connection: String,
+    volume: f32,
+    track: Option<NowPlaying>,
 }
 
 struct Session {
-    commands: Sender<Command>,
-    stop: Arc<AtomicBool>,
+    stop: Sender<()>,
+    source: Sender<Switch>,
 }
 
 #[derive(Default)]
 pub struct Audio {
     shared: Arc<Shared>,
     session: Mutex<Option<Session>>,
+    reader: Mutex<Option<Arc<AtomicBool>>>,
+    last_url: Mutex<Option<String>>,
+}
+
+pub(crate) struct Prepared {
+    chunks: Option<Receiver<Chunk>>,
+    ready: Receiver<Ready>,
+    connection: String,
+    stop: Arc<AtomicBool>,
+    attached: bool,
+}
+
+impl Drop for Prepared {
+    fn drop(&mut self) {
+        if !self.attached {
+            self.stop.store(true, Ordering::SeqCst);
+        }
+    }
+}
+
+impl Prepared {
+    fn wait(mut self) -> Result<Input, String> {
+        let (rate, channels, start) = self
+            .ready
+            .recv_timeout(Duration::from_secs(245))
+            .map_err(|_| "the radio did not prepare audio in time".to_owned())??;
+        if rate != 44_100 || channels != 2 {
+            return Err("the radio must send stereo at 44.1 kHz".into());
+        }
+        if self.stop.load(Ordering::SeqCst) {
+            return Err("stopped".into());
+        }
+        self.attached = true;
+        Ok(Input::new(
+            self.chunks.take().unwrap(),
+            start,
+            self.connection.clone(),
+            self.stop.clone(),
+        ))
+    }
 }
 
 fn state_name(state: u8) -> &'static str {
@@ -100,259 +145,332 @@ fn state_name(state: u8) -> &'static str {
     }
 }
 
-#[derive(Serialize, Clone)]
-struct StateEvent {
-    state: &'static str,
-    message: String,
+fn status(shared: &Shared) -> Status {
+    Status {
+        state: state_name(shared.state.load(Ordering::SeqCst)),
+        mode: if shared.dj.load(Ordering::SeqCst) {
+            "dj"
+        } else {
+            "radio"
+        },
+        position: shared.samples.load(Ordering::SeqCst) as f64 / 88_200.0,
+        mix_position: shared.has_stream.load(Ordering::SeqCst).then(|| {
+            f64::from_bits(shared.stream_start.load(Ordering::SeqCst))
+                + shared.samples.load(Ordering::SeqCst) as f64 / 88_200.0
+        }),
+        stream_epoch: shared.stream_epoch.load(Ordering::SeqCst),
+        paused: shared.paused.load(Ordering::SeqCst),
+        underruns: shared.underruns.load(Ordering::SeqCst),
+        message: shared.message.lock().unwrap().clone(),
+        connection: shared.connection.lock().unwrap().clone(),
+        volume: f32::from_bits(shared.volume.load(Ordering::SeqCst)),
+        track: shared.playback.lock().unwrap().clone(),
+    }
 }
 
 fn set_state(app: &AppHandle, shared: &Shared, state: u8, message: &str) {
     shared.state.store(state, Ordering::SeqCst);
-    *shared.message.lock().unwrap() = message.to_string();
-    let _ = app.emit(
-        "player",
-        StateEvent {
-            state: state_name(state),
-            message: message.to_string(),
-        },
-    );
+    *shared.message.lock().unwrap() = message.to_owned();
+    let _ = app.emit("player", status(shared));
 }
 
-/// The default output. rodio asks the device for a buffer of 2048 frames; some outputs (AirPods
-/// accept 15..960) refuse it and the sink does not open at all. The device is left to pick its own size.
 fn open_sink() -> Result<rodio::MixerDeviceSink, rodio::DeviceSinkError> {
     DeviceSinkBuilder::from_default_device()
-        .and_then(|builder| {
-            builder
-                .with_buffer_size(rodio::cpal::BufferSize::Default)
+        .and_then(|b| {
+            b.with_buffer_size(rodio::cpal::BufferSize::Default)
                 .open_stream()
         })
         .or_else(|_| DeviceSinkBuilder::open_default_sink())
 }
 
+fn connection(url: &str) -> String {
+    url.split_once('?')
+        .map(|(_, q)| q)
+        .unwrap_or("")
+        .split('&')
+        .find_map(|p| p.strip_prefix("l="))
+        .unwrap_or("")
+        .to_owned()
+}
+
 impl Audio {
-    pub fn start(&self, app: &AppHandle, url: String, volume: f32) {
-        self.stop(app);
-        let shared = self.shared.clone();
-        shared.samples.store(0, Ordering::SeqCst);
-        shared.underruns.store(0, Ordering::SeqCst);
-        shared.volume.store(volume.to_bits(), Ordering::SeqCst);
-        set_state(app, &shared, LOADING, "");
-
-        let (commands, command_rx) = std::sync::mpsc::channel();
-        let stop = Arc::new(AtomicBool::new(false));
-        *self.session.lock().unwrap() = Some(Session {
-            commands,
-            stop: stop.clone(),
-        });
-
-        let (chunk_tx, chunk_rx) = sync_channel::<Chunk>(QUEUE_CHUNKS);
-        let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<(u32, u16), String>>();
-
-        // The reader of the stream.
-        {
-            let (shared, stop, app) = (shared.clone(), stop.clone(), app.clone());
-            std::thread::spawn(move || {
-                // The output keeps what it has and plays silence in a gap, so a stream that is lost (the radio restarted, the
-                // network blinked) is asked for again, and the listener hears a short gap and not a stop.
-                let mut tries = 0;
-                loop {
-                    let started = Instant::now();
-                    let mut played = false;
-                    let Err(message) = read_stream(&url, &chunk_tx, &ready_tx, &stop, &mut played)
-                    else {
-                        return;
-                    };
-                    if stop.load(Ordering::SeqCst) {
-                        return;
-                    }
-                    if started.elapsed() >= STABLE_FOR {
-                        tries = 0;
-                    }
-                    // Before the first sound the page falls back to its own player; later it only says so.
-                    if !played && tries == 0 || tries >= RECONNECT_TRIES {
-                        set_state(&app, &shared, ERROR, &message);
-                        return;
-                    }
-                    tries += 1;
-                    eprintln!(
-                        "[player] {message}; asking for the stream again ({tries}/{RECONNECT_TRIES})"
-                    );
-                    std::thread::sleep(RECONNECT_PAUSE * tries.min(5));
-                }
-            });
+    fn ensure_output(&self, dj: &Dj) -> Result<Sender<Switch>, String> {
+        let mut session = self.session.lock().unwrap();
+        if let Some(session) = &*session {
+            return Ok(session.source.clone());
         }
-
-        // The owner of the output device.
-        let app = app.clone();
+        let (stop, stopped) = mpsc::channel();
+        let (source, commands) = mpsc::channel();
+        let (ready, opened) = mpsc::channel();
+        let shared = self.shared.clone();
+        let console = dj.source();
         std::thread::spawn(move || {
-            let (rate, channels) = match ready_rx.recv() {
-                Ok(Ok(format)) => format,
-                _ => return, // the reader has said what is wrong
-            };
-            shared.rate.store(rate, Ordering::SeqCst);
-            shared.channels.store(channels as u32, Ordering::SeqCst);
-            let (Some(rate), Some(channels)) = (NonZero::new(rate), NonZero::new(channels)) else {
-                set_state(&app, &shared, ERROR, "the stream has no audio format");
-                return;
-            };
-
             let sink = match open_sink() {
                 Ok(sink) => sink,
-                Err(error) => {
-                    stop.store(true, Ordering::SeqCst);
-                    set_state(&app, &shared, ERROR, &format!("no audio output: {error}"));
+                Err(e) => {
+                    let _ = ready.send(Err(format!("no audio output: {e}")));
                     return;
                 }
             };
             let player = Player::connect_new(sink.mixer());
-            player.set_volume(f32::from_bits(shared.volume.load(Ordering::SeqCst)));
-            player.append(StreamSource {
-                chunks: chunk_rx,
-                current: Vec::new(),
-                at: 0,
-                channels,
-                rate,
-                eq: Equalizer::new(rate.get(), channels.get()),
-                eq_seen: 0,
-                shared: shared.clone(),
-                gap: false,
-            });
-            set_state(&app, &shared, PLAYING, "");
-
-            loop {
-                match command_rx.recv_timeout(Duration::from_millis(250)) {
-                    Ok(Command::Stop) | Err(RecvTimeoutError::Disconnected) => break,
-                    Ok(Command::Volume(volume)) => player.set_volume(volume),
-                    Err(RecvTimeoutError::Timeout) => {
-                        // The stream ended (the radio went away): nothing is left to play.
-                        if player.empty() && shared.state.load(Ordering::SeqCst) == PLAYING {
-                            set_state(&app, &shared, ERROR, "the stream has ended");
-                            break;
-                        }
-                    }
-                }
-            }
-            stop.store(true, Ordering::SeqCst);
+            player.append(Output::new(shared, commands, console));
+            let _ = ready.send(Ok(()));
+            while let Err(RecvTimeoutError::Timeout) =
+                stopped.recv_timeout(Duration::from_millis(250))
+            {}
             player.stop();
-            drop(player);
-            drop(sink);
         });
+        opened
+            .recv_timeout(Duration::from_secs(10))
+            .map_err(|_| "the audio output did not open".to_owned())??;
+        *session = Some(Session {
+            stop,
+            source: source.clone(),
+        });
+        Ok(source)
     }
 
-    pub fn stop(&self, app: &AppHandle) {
-        if let Some(session) = self.session.lock().unwrap().take() {
-            session.stop.store(true, Ordering::SeqCst);
-            let _ = session.commands.send(Command::Stop);
-            set_state(app, &self.shared, STOPPED, "");
+    pub fn start(
+        &self,
+        app: &AppHandle,
+        dj: &Dj,
+        url: String,
+        volume: f32,
+    ) -> Result<String, String> {
+        self.set_volume(volume);
+        if dj.is_running() {
+            if dj.return_point().is_none() {
+                return Err("no track is loaded in the console".into());
+            }
+            dj.play();
+            self.shared.paused.store(false, Ordering::SeqCst);
+            set_state(app, &self.shared, PLAYING, "");
+            return Ok(self.shared.connection.lock().unwrap().clone());
+        }
+        if self.session.lock().unwrap().is_some()
+            && self.shared.paused.swap(false, Ordering::SeqCst)
+        {
+            set_state(app, &self.shared, PLAYING, "");
+            return Ok(self.shared.connection.lock().unwrap().clone());
+        }
+        let source = self.ensure_output(dj)?;
+        self.shared.underruns.store(0, Ordering::SeqCst);
+        set_state(app, &self.shared, LOADING, "");
+        let token = connection(&url);
+        *self.last_url.lock().unwrap() = Some(url.clone());
+        let prepared = self.prepare(url);
+        let generation = self.shared.generation.load(Ordering::SeqCst);
+        let (app, shared) = (app.clone(), self.shared.clone());
+        std::thread::spawn(move || {
+            let result = prepared.wait().and_then(|input| {
+                if shared.generation.load(Ordering::SeqCst) != generation
+                    || shared.dj.load(Ordering::SeqCst)
+                {
+                    return Err("stopped".to_owned());
+                }
+                let (ack, applied) = mpsc::channel();
+                source
+                    .send(Switch::Radio {
+                        input,
+                        align: None,
+                        paused: false,
+                        ack,
+                    })
+                    .map_err(|_| "the audio output ended".to_owned())?;
+                applied
+                    .recv_timeout(Duration::from_secs(20))
+                    .map_err(|_| "the audio output did not take the stream".to_owned())?
+            });
+            if shared.generation.load(Ordering::SeqCst) == generation
+                && !shared.dj.load(Ordering::SeqCst)
+            {
+                match result {
+                    Ok(()) => set_state(&app, &shared, PLAYING, ""),
+                    Err(e) if e != "stopped" => set_state(&app, &shared, ERROR, &e),
+                    _ => {}
+                }
+            }
+        });
+        Ok(token)
+    }
+
+    pub(crate) fn prepare(&self, url: String) -> Prepared {
+        if let Some(old) = self.reader.lock().unwrap().take() {
+            old.store(true, Ordering::SeqCst);
+        }
+        self.shared.generation.fetch_add(1, Ordering::SeqCst);
+        let stop = Arc::new(AtomicBool::new(false));
+        *self.reader.lock().unwrap() = Some(stop.clone());
+        let (chunks, receiver) = sync_channel(QUEUE_CHUNKS);
+        let (ready, waiting) = mpsc::channel();
+        let token = connection(&url);
+        let stopping = stop.clone();
+        std::thread::spawn(move || {
+            let mut tries = 0;
+            loop {
+                let started = Instant::now();
+                let mut played = false;
+                let Err(error) = read_stream(&url, &chunks, &ready, &stopping, &mut played) else {
+                    return;
+                };
+                if stopping.load(Ordering::SeqCst) {
+                    return;
+                }
+                if started.elapsed() >= STABLE_FOR {
+                    tries = 0;
+                }
+                if !played && tries == 0 || tries >= RECONNECT_TRIES {
+                    let _ = ready.send(Err(error));
+                    return;
+                }
+                tries += 1;
+                std::thread::sleep(RECONNECT_PAUSE * tries.min(5));
+            }
+        });
+        Prepared {
+            chunks: Some(receiver),
+            ready: waiting,
+            connection: token,
+            stop,
+            attached: false,
         }
     }
 
-    /// Set the gains of the equalizer (dB for each band). They are heard from the next piece of audio on, and are kept for the
-    /// next listening.
+    pub(crate) fn enter_dj(
+        &self,
+        app: &AppHandle,
+        dj: &Dj,
+        mapping: PlaybackInfo,
+        playing: bool,
+    ) -> Result<(), String> {
+        let source = self.ensure_output(dj)?;
+        let (ack, applied) = mpsc::channel();
+        source
+            .send(Switch::Dj {
+                mapping,
+                playing,
+                ack,
+            })
+            .map_err(|_| "the audio output ended".to_owned())?;
+        applied
+            .recv_timeout(Duration::from_secs(5))
+            .map_err(|_| "the DJ handoff timed out".to_owned())??;
+        self.shared.generation.fetch_add(1, Ordering::SeqCst);
+        self.announce(app);
+        Ok(())
+    }
+
+    pub(crate) fn return_to_radio(
+        &self,
+        app: &AppHandle,
+        dj: &Dj,
+        prepared: Prepared,
+        mapping: PlaybackInfo,
+        paused: bool,
+    ) -> Result<(), String> {
+        let source = self.ensure_output(dj)?;
+        let input = prepared.wait()?;
+        let (ack, applied) = mpsc::channel();
+        source
+            .send(Switch::Radio {
+                input,
+                align: Some(mapping),
+                paused,
+                ack,
+            })
+            .map_err(|_| "the audio output ended".to_owned())?;
+        applied
+            .recv_timeout(Duration::from_secs(20))
+            .map_err(|_| "the radio handoff timed out".to_owned())??;
+        self.announce(app);
+        Ok(())
+    }
+
+    pub(crate) fn stream_url(&self, base: &str) -> String {
+        let flac = self
+            .last_url
+            .lock()
+            .unwrap()
+            .as_ref()
+            .is_some_and(|u| u.split('?').next().unwrap_or("").ends_with(".flac"));
+        let url = format!(
+            "{base}/stream{}?l={}",
+            if flac { ".flac" } else { "" },
+            uuid::Uuid::new_v4()
+        );
+        *self.last_url.lock().unwrap() = Some(url.clone());
+        url
+    }
+
+    pub(crate) fn mix_position(&self) -> Option<f64> {
+        self.shared.has_stream.load(Ordering::SeqCst).then(|| {
+            f64::from_bits(self.shared.stream_start.load(Ordering::SeqCst))
+                + self.shared.samples.load(Ordering::SeqCst) as f64 / 88_200.0
+        })
+    }
+    pub(crate) fn epoch(&self) -> u64 {
+        self.shared.generation.load(Ordering::SeqCst)
+    }
+    pub(crate) fn playing(&self) -> bool {
+        self.shared.state.load(Ordering::SeqCst) == PLAYING
+    }
+    pub(crate) fn volume(&self) -> f32 {
+        f32::from_bits(self.shared.volume.load(Ordering::SeqCst))
+    }
+    pub(crate) fn announce(&self, app: &AppHandle) {
+        let _ = app.emit("player", self.status());
+    }
+
+    pub fn stop(&self, app: &AppHandle) {
+        self.shared.generation.fetch_add(1, Ordering::SeqCst);
+        if let Some(reader) = self.reader.lock().unwrap().take() {
+            reader.store(true, Ordering::SeqCst);
+        }
+        if let Some(session) = self.session.lock().unwrap().take() {
+            let _ = session.stop.send(());
+        }
+        app.state::<Dj>().stop();
+        self.shared.dj.store(false, Ordering::SeqCst);
+        self.shared.paused.store(false, Ordering::SeqCst);
+        *self.shared.playback.lock().unwrap() = None;
+        set_state(app, &self.shared, STOPPED, "");
+    }
+    pub(crate) fn console_state(&self, app: &AppHandle, dj: &Dj) {
+        let playing = dj.return_point().is_some_and(|p| p.playing);
+        self.shared.paused.store(!playing, Ordering::SeqCst);
+        set_state(
+            app,
+            &self.shared,
+            if playing { PLAYING } else { STOPPED },
+            "",
+        );
+    }
+
     pub fn set_equalizer(&self, gains: Vec<f32>) {
         *self.shared.eq_gains.lock().unwrap() = gains;
         self.shared.eq_version.fetch_add(1, Ordering::SeqCst);
     }
-
     pub fn set_volume(&self, volume: f32) {
-        self.shared.volume.store(volume.to_bits(), Ordering::SeqCst);
-        if let Some(session) = self.session.lock().unwrap().as_ref() {
-            let _ = session.commands.send(Command::Volume(volume));
-        }
+        self.shared
+            .volume
+            .store(volume.clamp(0.0, 1.0).to_bits(), Ordering::SeqCst);
     }
-
     pub fn status(&self) -> Status {
-        let shared = &self.shared;
-        let rate = shared.rate.load(Ordering::SeqCst).max(1) as f64;
-        let channels = shared.channels.load(Ordering::SeqCst).max(1) as f64;
-        Status {
-            state: state_name(shared.state.load(Ordering::SeqCst)),
-            position: shared.samples.load(Ordering::SeqCst) as f64 / (rate * channels),
-            underruns: shared.underruns.load(Ordering::SeqCst),
-            message: shared.message.lock().unwrap().clone(),
-        }
+        status(&self.shared)
     }
 }
 
-/// The audio the output pulls: the pieces the reader made, one sample at a time. It must not
-/// wait for the network (that would stop the sound), so a gap is filled with silence.
-struct StreamSource {
-    chunks: Receiver<Chunk>,
-    current: Chunk,
-    at: usize,
-    channels: ChannelCount,
-    rate: SampleRate,
-    eq: Equalizer,
-    eq_seen: u32,
-    shared: Arc<Shared>,
-    gap: bool,
-}
-
-impl Iterator for StreamSource {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<f32> {
-        if self.at >= self.current.len() {
-            match self.chunks.try_recv() {
-                Ok(mut chunk) => {
-                    let version = self.shared.eq_version.load(Ordering::Relaxed);
-                    if version != self.eq_seen {
-                        self.eq_seen = version;
-                        self.eq.set_gains(&self.shared.eq_gains.lock().unwrap());
-                    }
-                    self.eq.process(&mut chunk);
-                    self.current = chunk;
-                    self.at = 0;
-                    self.gap = false;
-                }
-                Err(TryRecvError::Empty) => {
-                    if !self.gap {
-                        self.gap = true;
-                        self.shared.underruns.fetch_add(1, Ordering::Relaxed);
-                    }
-                    return Some(0.0);
-                }
-                Err(TryRecvError::Disconnected) => return None,
-            }
-        }
-        let sample = self.current[self.at];
-        self.at += 1;
-        self.shared.samples.fetch_add(1, Ordering::Relaxed);
-        Some(sample)
-    }
-}
-
-impl Source for StreamSource {
-    fn current_span_len(&self) -> Option<usize> {
-        None
-    }
-    fn channels(&self) -> ChannelCount {
-        self.channels
-    }
-    fn sample_rate(&self) -> SampleRate {
-        self.rate
-    }
-    fn total_duration(&self) -> Option<Duration> {
-        None
-    }
-}
-
-/// `symphonia` wants a reader it can share between threads.
 struct SyncReader<R>(Mutex<R>);
-
 impl<R: Read> Read for SyncReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.0.get_mut().unwrap().read(buf)
     }
 }
 
-/// Reads the stream and decodes it; the pieces go to `chunks`. After the first ones are in it
-/// says (`ready`) what the audio is: the sample rate and the channels.
 fn read_stream(
     url: &str,
     chunks: &SyncSender<Chunk>,
-    ready: &Sender<Result<(u32, u16), String>>,
+    ready: &Sender<Ready>,
     stop: &AtomicBool,
     played: &mut bool,
 ) -> Result<(), String> {
@@ -360,21 +478,15 @@ fn read_stream(
         let _ = ready.send(Err(message.clone()));
         Err(message)
     };
-
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_connect(Some(Duration::from_secs(5)))
-        // The radio answers only when it has a track to play, and on the very first start (nothing
-        // analyzed or loaded yet) that takes a minute or more: waiting is better than a fall back.
         .timeout_recv_response(Some(Duration::from_secs(240)))
         .build()
         .into();
-    // The service of a freshly started app is not listening yet (it takes a few seconds): try again
-    // for a while instead of giving up (and the page falling back to the browser) at the first refusal.
     let deadline = Instant::now() + CONNECT_PATIENCE;
     let response = loop {
         match agent.get(url).call() {
             Ok(response) => break response,
-            // A wrong address or a refusal will not mend itself.
             Err(ureq::Error::StatusCode(code)) if code < 500 => {
                 return fail(format!("the radio answered {code}"));
             }
@@ -389,14 +501,20 @@ fn read_stream(
             }
         }
     };
+    let start = response
+        .headers()
+        .get("x-stream-position")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<f64>().ok())
+        .filter(|v| v.is_finite())
+        .unwrap_or(0.0);
     let content_type = response
         .headers()
         .get("content-type")
-        .and_then(|value| value.to_str().ok())
+        .and_then(|v| v.to_str().ok())
         .unwrap_or("")
-        .to_string();
+        .to_owned();
     let reader = SyncReader(Mutex::new(response.into_body().into_reader()));
-
     let mut hint = Hint::new();
     match content_type.as_str() {
         "audio/flac" | "audio/x-flac" => hint.with_extension("flac"),
@@ -404,33 +522,27 @@ fn read_stream(
         _ => hint.with_extension("mp3"),
     };
     let stream = MediaSourceStream::new(Box::new(ReadOnlySource::new(reader)), Default::default());
-    let mut format = match symphonia::default::get_probe().probe(
-        &hint,
-        stream,
-        FormatOptions::default(),
-        MetadataOptions::default(),
-    ) {
-        Ok(format) => format,
-        Err(error) => return fail(format!("the stream is not understood: {error}")),
-    };
+    let mut format = symphonia::default::get_probe()
+        .probe(
+            &hint,
+            stream,
+            FormatOptions::default(),
+            MetadataOptions::default(),
+        )
+        .map_err(|e| format!("the stream is not understood: {e}"))?;
     let Some(track) = format.default_track(TrackType::Audio) else {
         return fail("no audio in the stream".into());
     };
     let track_id = track.id;
-    let Some(params) = track
-        .codec_params
-        .as_ref()
-        .and_then(|params| params.audio())
-    else {
+    let Some(params) = track.codec_params.as_ref().and_then(|p| p.audio()) else {
         return fail("no audio in the stream".into());
     };
-    let mut decoder = match symphonia::default::get_codecs()
+    let mut decoder = symphonia::default::get_codecs()
         .make_audio_decoder(params, &AudioDecoderOptions::default())
-    {
-        Ok(decoder) => decoder,
-        Err(error) => return fail(format!("cannot decode the stream: {error}")),
-    };
-
+        .map_err(|e| format!("cannot decode the stream: {e}"))?;
+    if chunks.send(Chunk::Start(start)).is_err() {
+        return Ok(());
+    }
     let mut said = false;
     let mut kept = 0;
     loop {
@@ -440,19 +552,18 @@ fn read_stream(
         let packet = match format.next_packet() {
             Ok(Some(packet)) => packet,
             Ok(None) => return Err("the stream has ended".into()),
-            Err(error) => return Err(format!("the stream broke: {error}")),
+            Err(e) => return Err(format!("the stream broke: {e}")),
         };
         if packet.track_id != track_id {
             continue;
         }
         let decoded = match decoder.decode(&packet) {
             Ok(decoded) => decoded,
-            // A damaged packet: skip it, the sound goes on.
             Err(SymphoniaError::DecodeError(_) | SymphoniaError::IoError(_)) => continue,
-            Err(error) => return Err(format!("cannot decode the stream: {error}")),
+            Err(e) => return Err(format!("cannot decode the stream: {e}")),
         };
         let spec = decoded.spec();
-        let mut samples: Chunk = Vec::new();
+        let mut samples = Vec::new();
         decoded.copy_to_vec_interleaved(&mut samples);
         if samples.is_empty() {
             continue;
@@ -462,11 +573,10 @@ fn read_stream(
             if kept >= PREBUFFER_CHUNKS {
                 said = true;
                 *played = true;
-                let _ = ready.send(Ok((spec.rate(), spec.channels().count() as u16)));
+                let _ = ready.send(Ok((spec.rate(), spec.channels().count() as u16, start)));
             }
         }
-        // Waits when the queue is full; goes away when the player is gone.
-        if chunks.send(samples).is_err() {
+        if chunks.send(Chunk::Pcm(samples)).is_err() {
             return Ok(());
         }
     }

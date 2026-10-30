@@ -1,20 +1,21 @@
 //! The console: two decks played by hand, in the app. Each deck holds a whole track (stereo, 44.1 kHz, fetched from the
 //! radio as `/api/track/{id}/pcm`) and plays it at its own pace (the pitch fader changes the speed, as on a turntable),
-//! through three bands of equalizer and a channel fader; the crossfader mixes the two. The radio goes on with its own
-//! mix; the player of the stream is stopped while the console is on.
+//! through three bands of equalizer and a channel fader; the crossfader mixes the two. The console and the radio share
+//! one output; changing modes transfers the playing track and its position.
 //!
 //! The audio callback owns the positions and reads everything else from atomics, so the page never waits for it. The
 //! page asks with `dj_set` ("a.play", "b.tempo", "xfade", ...), loads with `dj_load` and reads `dj_status` a few times a
 //! second.
 
+use std::collections::HashSet;
 use std::f32::consts::PI;
 use std::num::NonZero;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
-use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rodio::{ChannelCount, DeviceSinkBuilder, Player, SampleRate, Source};
+use radio_core::radio::{PlaybackInfo, TrackInfo};
+use rodio::{ChannelCount, SampleRate, Source};
 use serde::Serialize;
 
 const RATE: u32 = 44_100;
@@ -49,6 +50,9 @@ impl Float {
 
 struct Deck {
     pcm: Mutex<Arc<Vec<f32>>>,
+    track: Mutex<Option<TrackInfo>>,
+    load_id: AtomicU64,
+    load_commit: Mutex<()>,
     /// The waveform and the places to mix at, made when the track is in.
     overview: Mutex<Option<crate::waveform::Overview>>,
     /// Goes up whenever `pcm` is replaced.
@@ -56,6 +60,7 @@ struct Deck {
     state: AtomicU8,
     message: Mutex<String>,
     playing: AtomicBool,
+    heard: AtomicBool,
     /// Where the deck is, in frames (an f64 in the bits of a u64), as the audio callback last left it.
     position: AtomicU64,
     /// Where the page wants it to be (seconds as f32 bits), or NaN.
@@ -74,11 +79,15 @@ impl Deck {
     fn new() -> Self {
         Self {
             pcm: Mutex::new(Arc::new(Vec::new())),
+            track: Mutex::new(None),
+            load_id: AtomicU64::new(0),
+            load_commit: Mutex::new(()),
             overview: Mutex::new(None),
             version: AtomicU32::new(0),
             state: AtomicU8::new(EMPTY),
             message: Mutex::new(String::new()),
             playing: AtomicBool::new(false),
+            heard: AtomicBool::new(false),
             position: AtomicU64::new(0f64.to_bits()),
             seek: Float::new(f32::NAN),
             cue: Float::new(0.0),
@@ -101,6 +110,8 @@ impl Deck {
 }
 
 struct Shared {
+    running: AtomicBool,
+    heard_tracks: Mutex<HashSet<String>>,
     decks: [Deck; 2],
     /// 0 is all deck A, 1 all deck B.
     crossfader: Float,
@@ -109,24 +120,34 @@ struct Shared {
 
 pub struct Dj {
     shared: Arc<Shared>,
-    session: Mutex<Option<Sender<()>>>,
+    pub(crate) handoff: Mutex<()>,
+    lease_owner: String,
 }
 
 impl Default for Dj {
     fn default() -> Self {
         Self {
             shared: Arc::new(Shared {
+                running: AtomicBool::new(false),
+                heard_tracks: Mutex::new(HashSet::new()),
                 decks: [Deck::new(), Deck::new()],
                 crossfader: Float::new(0.5),
                 master: Float::new(0.9),
             }),
-            session: Mutex::new(None),
+            handoff: Mutex::new(()),
+            lease_owner: uuid::Uuid::new_v4().to_string(),
         }
     }
 }
 
 #[derive(Serialize)]
 pub struct DeckStatus {
+    track: Option<TrackInfo>,
+    overview_ready: bool,
+    low: f32,
+    mid: f32,
+    high: f32,
+    fader: f32,
     state: &'static str,
     message: String,
     playing: bool,
@@ -141,7 +162,18 @@ pub struct DeckStatus {
 #[derive(Serialize)]
 pub struct Status {
     running: bool,
+    crossfader: f32,
+    master: f32,
     decks: [DeckStatus; 2],
+}
+
+#[derive(Clone)]
+pub(crate) struct ReturnPoint {
+    pub track: TrackInfo,
+    pub next: Option<TrackInfo>,
+    pub position: f64,
+    pub playing: bool,
+    pub tempo: f64,
 }
 
 fn deck_index(name: &str) -> Result<usize, String> {
@@ -153,54 +185,179 @@ fn deck_index(name: &str) -> Result<usize, String> {
 }
 
 impl Dj {
-    /// Switch the console on: the output opens and the decks are heard.
-    pub fn start(&self) -> Result<(), String> {
-        let mut session = self.session.lock().unwrap();
-        if session.is_some() {
-            return Ok(());
-        }
-        let (stop_tx, stop_rx) = channel::<()>();
-        let (ready_tx, ready_rx) = channel::<Result<(), String>>();
-        let shared = self.shared.clone();
-        std::thread::spawn(move || run_output(shared, stop_rx, ready_tx));
-        match ready_rx.recv_timeout(Duration::from_secs(10)) {
-            Ok(Ok(())) => {
-                *session = Some(stop_tx);
-                Ok(())
-            }
-            Ok(Err(message)) => Err(message),
-            Err(_) => Err("the audio output did not open".to_owned()),
-        }
+    pub(crate) fn source(&self) -> Console {
+        Console::new(self.shared.clone())
     }
 
-    /// Switch it off. The decks keep their tracks.
     pub fn stop(&self) {
-        if let Some(stop) = self.session.lock().unwrap().take() {
-            let _ = stop.send(());
-        }
+        self.shared.running.store(false, Ordering::SeqCst);
+        self.pause();
+    }
+
+    pub fn pause(&self) {
         for deck in &self.shared.decks {
             deck.playing.store(false, Ordering::Relaxed);
         }
     }
 
+    pub fn play(&self) {
+        if let Some(point) = self.return_point() {
+            for deck in &self.shared.decks {
+                if deck
+                    .track
+                    .lock()
+                    .unwrap()
+                    .as_ref()
+                    .is_some_and(|t| t.track_id == point.track.track_id)
+                {
+                    deck.playing.store(true, Ordering::Relaxed);
+                }
+            }
+        }
+    }
+
     pub fn is_running(&self) -> bool {
-        self.session.lock().unwrap().is_some()
+        self.shared.running.load(Ordering::SeqCst)
+    }
+    pub fn master(&self) -> f32 {
+        self.shared.master.get()
+    }
+    pub(crate) fn lease_owner(&self) -> &str {
+        &self.lease_owner
+    }
+    pub(crate) fn heard_tracks(&self) -> Vec<String> {
+        let mut ids: Vec<_> = self
+            .shared
+            .heard_tracks
+            .lock()
+            .unwrap()
+            .iter()
+            .cloned()
+            .collect();
+        ids.sort();
+        ids
+    }
+    fn tag_url(&self, index: usize, version: u64, url: &str) -> String {
+        format!(
+            "{url}{}dj_owner={}&dj_slot={index}&dj_version={version}",
+            if url.contains('?') { "&" } else { "?" },
+            self.lease_owner
+        )
+    }
+    pub(crate) fn reserve_url(&self, index: usize, url: &str) -> String {
+        let version = self.shared.decks[index]
+            .load_id
+            .fetch_add(1, Ordering::SeqCst)
+            + 1;
+        self.tag_url(index, version, url)
+    }
+
+    pub(crate) fn return_point(&self) -> Option<ReturnPoint> {
+        return_point(&self.shared)
+    }
+
+    pub(crate) fn prepare(
+        &self,
+        info: &PlaybackInfo,
+        a: Vec<f32>,
+        b: Option<Vec<f32>>,
+        volume: f32,
+    ) {
+        *self.shared.heard_tracks.lock().unwrap() = HashSet::from([info.track.track_id.clone()]);
+        self.install(0, info.track.clone(), a, info.position);
+        if let (Some(track), Some(pcm)) = (info.next.clone(), b) {
+            self.install(1, track, pcm, 0.0);
+        } else {
+            self.clear(1);
+        }
+        self.shared.crossfader.set(0.0);
+        self.shared.master.set(volume);
+    }
+
+    pub(crate) fn prepare_empty(&self, volume: f32) {
+        self.shared.heard_tracks.lock().unwrap().clear();
+        self.clear(0);
+        self.clear(1);
+        self.shared.crossfader.set(0.0);
+        self.shared.master.set(volume);
+    }
+
+    fn clear(&self, index: usize) {
+        let deck = &self.shared.decks[index];
+        let _commit = deck.load_commit.lock().unwrap();
+        deck.load_id.fetch_add(1, Ordering::SeqCst);
+        deck.playing.store(false, Ordering::Relaxed);
+        *deck.track.lock().unwrap() = None;
+        *deck.pcm.lock().unwrap() = Arc::new(Vec::new());
+        *deck.overview.lock().unwrap() = None;
+        deck.position.store(0f64.to_bits(), Ordering::SeqCst);
+        deck.version.fetch_add(1, Ordering::SeqCst);
+        deck.state.store(EMPTY, Ordering::SeqCst);
+    }
+
+    fn install(&self, index: usize, track: TrackInfo, pcm: Vec<f32>, position: f64) {
+        let deck = &self.shared.decks[index];
+        let _commit = deck.load_commit.lock().unwrap();
+        let load = deck.load_id.fetch_add(1, Ordering::SeqCst) + 1;
+        let pcm = Arc::new(pcm);
+        deck.playing.store(false, Ordering::Relaxed);
+        *deck.track.lock().unwrap() = Some(track.clone());
+        *deck.overview.lock().unwrap() = None;
+        *deck.pcm.lock().unwrap() = pcm.clone();
+        deck.position
+            .store((position * RATE as f64).to_bits(), Ordering::SeqCst);
+        deck.heard.store(position > 0.0, Ordering::Relaxed);
+        deck.seek.set(position as f32);
+        deck.cue.set(0.0);
+        deck.tempo.set(1.0);
+        deck.fader.set(1.0);
+        deck.low.set(0.0);
+        deck.mid.set(0.0);
+        deck.high.set(0.0);
+        *deck.message.lock().unwrap() = String::new();
+        deck.version.fetch_add(1, Ordering::SeqCst);
+        deck.state.store(READY, Ordering::SeqCst);
+        let shared = self.shared.clone();
+        std::thread::spawn(move || {
+            let overview = crate::waveform::analyze(&pcm, track.bpm);
+            let deck = &shared.decks[index];
+            let _commit = deck.load_commit.lock().unwrap();
+            if deck.load_id.load(Ordering::SeqCst) == load {
+                *deck.overview.lock().unwrap() = Some(overview);
+            }
+        });
     }
 
     /// Fetch a track from the radio into a deck. It stops what the deck played.
-    pub fn load(&self, deck: &str, url: String, bpm: f64) -> Result<(), String> {
+    pub fn load(&self, deck: &str, url: String, track: TrackInfo) -> Result<(), String> {
         let index = deck_index(deck)?;
         let shared = self.shared.clone();
         let target = &shared.decks[index];
-        target.playing.store(false, Ordering::Relaxed);
-        *target.overview.lock().unwrap() = None;
-        target.state.store(LOADING, Ordering::SeqCst);
+        let load = {
+            let _commit = target.load_commit.lock().unwrap();
+            target.playing.store(false, Ordering::Relaxed);
+            target.heard.store(false, Ordering::Relaxed);
+            let load = target.load_id.fetch_add(1, Ordering::SeqCst) + 1;
+            *target.track.lock().unwrap() = Some(track.clone());
+            *target.overview.lock().unwrap() = None;
+            target.state.store(LOADING, Ordering::SeqCst);
+            load
+        };
+        let url = self.tag_url(index, load, &url);
         std::thread::spawn(move || {
             let deck = &shared.decks[index];
-            match fetch(&url) {
+            let result = fetch(&url);
+            if deck.load_id.load(Ordering::SeqCst) != load {
+                return;
+            }
+            match result {
                 Ok(pcm) => {
-                    // Before the deck is ready: the page asks for the overview as soon as it is.
-                    *deck.overview.lock().unwrap() = Some(crate::waveform::analyze(&pcm, bpm));
+                    let overview = crate::waveform::analyze(&pcm, track.bpm);
+                    let _commit = deck.load_commit.lock().unwrap();
+                    if deck.load_id.load(Ordering::SeqCst) != load {
+                        return;
+                    }
+                    *deck.overview.lock().unwrap() = Some(overview);
                     *deck.pcm.lock().unwrap() = Arc::new(pcm);
                     deck.version.fetch_add(1, Ordering::SeqCst);
                     deck.position.store(0f64.to_bits(), Ordering::SeqCst);
@@ -209,6 +366,10 @@ impl Dj {
                     deck.state.store(READY, Ordering::SeqCst);
                 }
                 Err(message) => {
+                    let _commit = deck.load_commit.lock().unwrap();
+                    if deck.load_id.load(Ordering::SeqCst) != load {
+                        return;
+                    }
                     *deck.message.lock().unwrap() = message;
                     deck.state.store(FAILED, Ordering::SeqCst);
                 }
@@ -276,6 +437,12 @@ impl Dj {
 
     pub fn status(&self) -> Status {
         let deck = |d: &Deck| DeckStatus {
+            track: d.track.lock().unwrap().clone(),
+            overview_ready: d.overview.lock().unwrap().is_some(),
+            low: d.low.get(),
+            mid: d.mid.get(),
+            high: d.high.get(),
+            fader: d.fader.get(),
             state: match d.state.load(Ordering::SeqCst) {
                 LOADING => "loading",
                 READY => "ready",
@@ -292,13 +459,15 @@ impl Dj {
         };
         Status {
             running: self.is_running(),
+            crossfader: self.shared.crossfader.get(),
+            master: self.shared.master.get(),
             decks: [deck(&self.shared.decks[0]), deck(&self.shared.decks[1])],
         }
     }
 }
 
 /// The track from the radio: raw little-endian float32.
-fn fetch(url: &str) -> Result<Vec<f32>, String> {
+pub(crate) fn fetch(url: &str) -> Result<Vec<f32>, String> {
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(180)))
         .build()
@@ -319,27 +488,45 @@ fn fetch(url: &str) -> Result<Vec<f32>, String> {
         .collect())
 }
 
-/// The thread that owns the output device (it may not leave its thread).
-fn run_output(shared: Arc<Shared>, stop: Receiver<()>, ready: Sender<Result<(), String>>) {
-    let sink = match DeviceSinkBuilder::from_default_device()
-        .and_then(|builder| {
-            builder
-                .with_buffer_size(rodio::cpal::BufferSize::Default)
-                .open_stream()
-        })
-        .or_else(|_| DeviceSinkBuilder::open_default_sink())
-    {
-        Ok(sink) => sink,
-        Err(error) => {
-            let _ = ready.send(Err(format!("no audio output: {error}")));
-            return;
-        }
-    };
-    let player = Player::connect_new(sink.mixer());
-    player.append(Console::new(shared));
-    let _ = ready.send(Ok(()));
-    while let Err(RecvTimeoutError::Timeout) = stop.recv_timeout(Duration::from_millis(500)) {}
-    player.stop();
+fn return_point(shared: &Shared) -> Option<ReturnPoint> {
+    let x = shared.crossfader.get();
+    let cross = [(x * PI / 2.0).cos().max(0.0), (x * PI / 2.0).sin()];
+    let selected = (0..2)
+        .filter(|&i| shared.decks[i].state.load(Ordering::SeqCst) == READY)
+        .filter(|&i| shared.decks[i].track.lock().unwrap().is_some())
+        .max_by(|&a, &b| {
+            let score = |i: usize| {
+                let level = cross[i] * shared.decks[i].fader.get();
+                level
+                    + if level > 0.001 && shared.decks[i].playing.load(Ordering::Relaxed) {
+                        2.0
+                    } else {
+                        0.0
+                    }
+            };
+            score(a).total_cmp(&score(b))
+        })?;
+    let deck = &shared.decks[selected];
+    let track = deck.track.lock().unwrap().clone()?;
+    let other = &shared.decks[1 - selected];
+    let next =
+        if other.state.load(Ordering::SeqCst) == READY && !other.heard.load(Ordering::Relaxed) {
+            other
+                .track
+                .lock()
+                .unwrap()
+                .clone()
+                .filter(|t| t.track_id != track.track_id)
+        } else {
+            None
+        };
+    Some(ReturnPoint {
+        track,
+        next,
+        position: deck.position() / RATE as f64,
+        playing: deck.playing.load(Ordering::Relaxed) && cross[selected] * deck.fader.get() > 0.001,
+        tempo: deck.tempo.get() as f64,
+    })
 }
 
 /// One band: a shelf at the ends, a peak in the middle (the Audio EQ Cookbook). Flat until it is set.
@@ -485,7 +672,7 @@ const BAND_SHAPES: [(Shape, f32); 3] = [
     (Shape::HighShelf, 4_000.0),
 ];
 
-struct Console {
+pub(crate) struct Console {
     shared: Arc<Shared>,
     voices: [Voice; 2],
     /// The frames of the block that is being played.
@@ -505,6 +692,35 @@ impl Console {
         }
     }
 
+    pub(crate) fn enter(&mut self, position: f64, tempo: f64, playing: bool) {
+        let deck = &self.shared.decks[0];
+        deck.seek.set(f32::NAN);
+        deck.position
+            .store((position * RATE as f64).to_bits(), Ordering::SeqCst);
+        self.voices[0].version = u32::MAX;
+        deck.tempo.set((tempo as f32).clamp(MIN_TEMPO, MAX_TEMPO));
+        deck.playing.store(playing, Ordering::SeqCst);
+        self.shared.decks[1].playing.store(false, Ordering::SeqCst);
+        self.shared.running.store(true, Ordering::SeqCst);
+        self.master = self.shared.master.get();
+        let x = self.shared.crossfader.get();
+        self.voices[0].level = self.shared.decks[0].fader.get() * (x * PI / 2.0).cos();
+        self.voices[1].level = self.shared.decks[1].fader.get() * (x * PI / 2.0).sin();
+        self.block.clear();
+        self.at = 0;
+    }
+
+    pub(crate) fn leave(&mut self) {
+        self.shared.running.store(false, Ordering::SeqCst);
+        for deck in &self.shared.decks {
+            deck.playing.store(false, Ordering::Relaxed);
+        }
+    }
+
+    pub(crate) fn return_point(&self) -> Option<ReturnPoint> {
+        return_point(&self.shared)
+    }
+
     /// Mix the next `BLOCK` frames.
     fn fill(&mut self) {
         let shared = self.shared.clone();
@@ -519,7 +735,7 @@ impl Console {
             if voice.version != version {
                 voice.pcm = deck.pcm.lock().unwrap().clone();
                 voice.version = version;
-                voice.position = 0.0;
+                voice.position = deck.position();
                 voice.bands = [[Biquad::default(); 3]; 2];
             }
             let seek = deck.seek.get();
@@ -550,6 +766,16 @@ impl Console {
                         voice.position = frames as f64;
                     }
                     break;
+                }
+                if voice.level.abs() > 0.001
+                    && !deck.heard.swap(true, Ordering::Relaxed)
+                    && let Some(track) = deck.track.lock().unwrap().as_ref()
+                {
+                    self.shared
+                        .heard_tracks
+                        .lock()
+                        .unwrap()
+                        .insert(track.track_id.clone());
                 }
                 let at = voice.position as usize;
                 let fraction = (voice.position - at as f64) as f32;
@@ -618,6 +844,8 @@ mod tests {
 
     fn console_with(a: Vec<f32>, b: Vec<f32>) -> (Console, Arc<Shared>) {
         let shared = Arc::new(Shared {
+            running: AtomicBool::new(false),
+            heard_tracks: Mutex::new(HashSet::new()),
             decks: [Deck::new(), Deck::new()],
             crossfader: Float::new(0.0),
             master: Float::new(1.0),
