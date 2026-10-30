@@ -27,3 +27,7 @@ __pycache__/
 
 # Made by scripts/third-party.sh and packed into the packages
 /THIRD-PARTY-LICENSES
+
+# Local assistant skills
+/.claude/skills/
+/.agents/skills/
