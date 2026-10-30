@@ -10,12 +10,15 @@ import DjDeck, { type DeckState, type Overview } from "./components/DjDeck.vue";
 type Id = "a" | "b";
 interface Status {
   running: boolean;
+  crossfader: number;
+  master: number;
   decks: [DeckState, DeckState];
 }
 
 const status = ref<Status | null>(null);
 const overviews = reactive<Record<Id, Overview | null>>({ a: null, b: null });
 const error = ref("");
+const preparing = ref(true);
 const library = ref<TrackInfo[]>([]);
 const tracks = reactive<Record<Id, TrackInfo | null>>({ a: null, b: null });
 // What the controls say. The audio side keeps its own copy; these are sent whenever they change.
@@ -38,7 +41,7 @@ async function load(deck: Id, track: TrackInfo) {
   tracks[deck] = track;
   lastLoaded.value = deck;
   try {
-    await invoke("dj_load", { deck, url: `${baseUrl()}/api/track/${encodeURIComponent(track.track_id)}/pcm`, bpm: track.bpm || 0 });
+    await invoke("dj_load", { deck, url: `${baseUrl()}/api/track/${encodeURIComponent(track.track_id)}/pcm`, track });
     // A new track begins at its own tempo, with its own sound.
     for (const name of ["low", "mid", "high"]) set(`${deck}.${name}`, 0);
     set(`${deck}.tempo`, 1);
@@ -71,8 +74,8 @@ function sync(deck: Id) {
 const stateOf = (id: Id) => status.value?.decks[id === "a" ? 0 : 1] ?? null;
 // The waveform comes when the track is in a deck, and goes when another is asked for.
 for (const id of ["a", "b"] as const) {
-  watch([() => stateOf(id)?.state, () => tracks[id]?.track_id], ([state]) => {
-    if (state !== "ready") {
+  watch([() => stateOf(id)?.state, () => tracks[id]?.track_id, () => stateOf(id)?.overview_ready], ([state, , ready]) => {
+    if (state !== "ready" || !ready) {
       overviews[id] = null;
       return;
     }
@@ -154,24 +157,39 @@ async function loadLibrary() {
     /* the radio may be starting; the next round asks again */
   }
 }
+function adopt(s: Status) {
+  status.value = s;
+  xfade.value = s.crossfader;
+  master.value = s.master;
+  for (const [index, id] of (["a", "b"] as const).entries()) {
+    const deck = s.decks[index]!;
+    tracks[id] = deck.track;
+    knobs[id] = { low: deck.low, mid: deck.mid, high: deck.high, fader: deck.fader };
+  }
+}
+let disposed = false;
 onMounted(async () => {
   try {
     setBase(await invoke<string>("radio_url"));
-    await invoke("dj_start");
+    if (disposed) return;
+    adopt(await invoke<Status>("dj_start"));
   } catch (e) {
     error.value = String(e);
+  } finally {
+    preparing.value = false;
   }
-  for (const [name, value] of [["xfade", xfade.value], ["master", master.value]] as const) void invoke("dj_set", { name, value }).catch(() => {});
+  if (disposed) return;
   await loadLibrary();
+  if (disposed) return;
   refresh = setInterval(loadLibrary, 8000);
   poll = setInterval(() => {
-    invoke<Status>("dj_status").then((s) => (status.value = s)).catch(() => {});
+    invoke<Status>("dj_status").then((s) => !disposed && adopt(s)).catch(() => {});
   }, 70);
 });
 onBeforeUnmount(() => {
+  disposed = true;
   clearInterval(poll);
   clearInterval(refresh);
-  void invoke("dj_stop");
 });
 const loaded = (track: TrackInfo) => (tracks.a?.track_id === track.track_id ? "A" : tracks.b?.track_id === track.track_id ? "B" : "");
 </script>
@@ -180,11 +198,11 @@ const loaded = (track: TrackInfo) => (tracks.a?.track_id === track.track_id ? "A
   <div class="dj">
     <div class="top">
       <h4>DJ Console</h4>
-      <span class="note">The radio keeps its own mix; the player of the stream is stopped while this window is open.</span>
+      <span class="note">{{ preparing ? "Preparing the decks · the radio keeps playing…" : "Switching modes keeps the playing track and its position." }}</span>
     </div>
     <div v-if="error" class="err" role="alert">{{ error }}</div>
 
-    <div class="decks">
+    <div class="decks" :inert="preparing || undefined" :aria-busy="preparing">
       <DjDeck id="a" :track="tracks.a" :deck="stateOf('a')" :eq="knobs.a" :fader="knobs.a.fader" :syncable="!!tracks.b" :overview="overviews.a" @set="setNow" @sync="sync('a')" />
 
       <section class="mixer" aria-label="Mixer">

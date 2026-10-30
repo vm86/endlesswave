@@ -171,6 +171,15 @@ The **Mix** tab:
 A choice takes effect at once: the queue is built again for the new settings. You can rebuild it by hand
 with the **⟳** button (⌘R). The settings are remembered and come back after a restart.
 
+### DJ console
+
+Open **DJ Console** from the app menu. Deck A takes the track you are hearing, at its current position;
+deck B takes the next track and waits paused. The radio keeps playing while the decks load, then the
+same audio output blends into the console. Closing the console continues the audible deck in the
+automatic mix, without restarting the track or reconnecting the audio device. If both decks are playing,
+the crossfader and channel faders decide which one continues. An unheard track on the other deck stays
+next; tracks already heard in the console are not put back in the queue. Paused playback stays paused.
+
 ### Settings
 
 The **Settings** sheet is the gear in the top bar (<kbd>⌘</kbd> <kbd>,</kbd>). The sound is played by the app's own player (the

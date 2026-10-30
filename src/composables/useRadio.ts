@@ -36,14 +36,17 @@ export function useRadio() {
   watch(player.error, (text) => text && (error.value = text));
   watch(volume, (v) => localStorage.setItem("volume", String(v)));
 
-  const { bands: levels, note: eqNote } = useSpectrum({ playing, token, currentTime: () => player.currentTime() });
+  watch(player.connection, (connection) => { if (connection) token.value = connection; });
+  const streamPlaying = computed(() => playing.value && player.mode.value === "radio");
+  const { bands: levels, note: eqNote } = useSpectrum({ playing: streamPlaying, token, epoch: player.streamEpoch, currentTime: () => player.currentTime() });
 
   async function start() {
     loading.value = true;
     // Somebody paused the mix for everyone: listening alone would not wake it.
-    if (queue.value?.paused && queue.value.pause_reason === "user") await guarded(api.resume);
+    if (player.mode.value !== "dj" && queue.value?.paused && queue.value.pause_reason === "user") await guarded(api.resume);
     token.value = crypto.randomUUID();
     await player.start(streamUrl(format.value, token.value));
+    if (player.connection.value) token.value = player.connection.value;
   }
 
   async function toggle() {
@@ -186,9 +189,17 @@ export function useRadio() {
         language: q.language && mine.language ? { ...q.language, selected: mine.language.selected } : q.language,
       };
     }
+    if (player.mode.value === "dj" && player.track.value) {
+      q = { ...q, now: { ...player.track.value, elapsed_seconds: player.trackTime() }, paused: !playing.value, pause_reason: null };
+    }
     queue.value = q;
     fetchedAt.value = performance.now();
   }
+
+  watch([player.track, player.mode], () => {
+    if (player.mode.value === "dj" && queue.value) take(queue.value);
+    else if (player.mode.value === "radio") void refresh();
+  });
 
   /** The genres as the radio lists them, in the order the chips already have: a chip does not move when it is picked. */
   function steady(prev: GenresInfo | null, next: GenresInfo): GenresInfo {
@@ -210,6 +221,15 @@ export function useRadio() {
       }
       if (holding.value === 0) genres.value = steady(genres.value, g);
       stats.value = st;
+      const heard = player.mixTime();
+      if (player.mode.value === "radio" && (playing.value || player.sourcePaused.value) && heard !== null) {
+        try {
+          const p = await api.playback(heard);
+          if (p.track.track_id !== q.now?.track_id && p.next) q.next = [p.next, ...q.next.filter((t) => t.track_id !== p.next!.track_id && t.track_id !== p.track.track_id)];
+          q.now = { ...p.track, elapsed_seconds: p.position };
+          q.previous = q.previous.filter((t) => t.track_id !== p.track.track_id);
+        } catch { /* a newly connected stream may not have a position yet */ }
+      }
       take(q);
       starting.value = false;
       if (error.value.startsWith("Radio is not running")) error.value = "";
@@ -329,6 +349,7 @@ export function useRadio() {
     })) === true;
 
   const elapsed = computed(() => {
+    if (player.mode.value === "dj") { void tick.value; return player.trackTime(); }
     const now = queue.value?.now;
     if (!now) return 0;
     if (queue.value?.paused) return now.elapsed_seconds;
@@ -377,6 +398,7 @@ export function useRadio() {
   onMounted(async () => {
     // The app is quitting: the radio stops quickly when nobody listens to it.
     unlisten.push(await listen("quit", () => void player.stop()));
+    unlisten.push(await listen<string>("playback-error", (event) => (error.value = event.payload)));
     unlisten.push(await listen("tray-play-pause", () => void toggle()));
     unlisten.push(await listen("tray-next", () => void next()));
     // The system's controls of the native layer: the media keys, Control Center, MPRIS (`playerctl`).

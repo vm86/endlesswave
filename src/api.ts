@@ -18,6 +18,15 @@ export interface TrackInfo {
 export interface NowTrack extends TrackInfo {
   elapsed_seconds: number;
 }
+export interface PlaybackInfo {
+  track: TrackInfo;
+  next: TrackInfo | null;
+  mix_position: number;
+  position: number;
+  speed: number;
+  acceleration: number;
+  valid_until: number;
+}
 export interface MoodsInfo {
   available: string[];
   selected: string[];
@@ -179,6 +188,7 @@ export interface LikesInfo {
 export const api = {
   auth: () => request<AuthInfo>("/api/auth"),
   queue: () => request<Queue>("/api/queue?previous=3&next=15"),
+  playback: (at: number) => request<PlaybackInfo>(`/api/playback?at=${encodeURIComponent(at)}`),
   genres: () => request<GenresInfo>("/api/genres"),
   stats: () => request<Stats>("/api/stats"),
   setLanguage: (language: string | null) =>

@@ -19,6 +19,12 @@ export interface Overview {
 }
 
 export interface DeckState {
+  track: TrackInfo | null;
+  overview_ready: boolean;
+  low: number;
+  mid: number;
+  high: number;
+  fader: number;
   state: "empty" | "loading" | "ready" | "error";
   message: string;
   playing: boolean;

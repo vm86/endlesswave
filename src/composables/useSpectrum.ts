@@ -29,7 +29,7 @@ export function pickFrame(frames: Frame[], target: number): number[] | null {
  * (named by `token`) starts; the player is a few seconds behind the mix, so
  * the frames wait until `audio.currentTime` gets to them.
  */
-export function useSpectrum(player: { playing: Ref<boolean>; token: Ref<string>; currentTime: () => number }) {
+export function useSpectrum(player: { playing: Ref<boolean>; token: Ref<string>; epoch?: Ref<number>; currentTime: () => number }) {
   const bands = ref<number[]>(EMPTY);
   const note = ref("");
   let source: EventSource | null = null;
@@ -78,7 +78,7 @@ export function useSpectrum(player: { playing: Ref<boolean>; token: Ref<string>;
   }
 
   watch(
-    () => [player.playing.value, player.token.value] as const,
+    () => [player.playing.value, player.token.value, player.epoch?.value] as const,
     ([playing, token]) => {
       close();
       if (playing && token) open(token);
